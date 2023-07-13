@@ -28,11 +28,13 @@ enum Lexeme {
 
 fn parse_str(chars: &mut std::str::Chars) -> Result<Lexeme, io::Error> {
     let mut string = String::from("\"");
+    let mut prev = ' ';
     for c in chars {
         string.push(c);
-        if c == '"' {
+        if prev != '\\' && c == '"' {
             return Result::Ok(Lexeme::Token(string));
         }
+        prev = c;
     }
     Result::Err(io::Error::new(io::ErrorKind::InvalidData, "Could not find end of string!"))
 }
@@ -111,6 +113,7 @@ mod tests {
 
         single_string = { String::from("\"asd\""), vec![Lexeme::Token(String::from("\"asd\""))]  },
         string_w_whitespace = { String::from(" \"a  sdn \n\"  "), vec![Lexeme::Token(String::from("\"a  sdn \n\""))]  },
+        escape_quote_string = { String::from("\"asd\\\"\""), vec![Lexeme::Token(String::from("\"asd\\\"\""))]  },
 
         multi_string = {
             String::from("  \"bla\" \"asd\""),
@@ -184,5 +187,14 @@ mod tests {
     fn test_tokenize(input: String, expected: Vec<Lexeme>) {
         let mut chars = input.chars();
         assert_eq!(tokenize(&mut chars).ok().unwrap(), expected);
+    }
+
+    #[parameterized(
+        non_terminated_string = { String::from("\"asdadsad") },
+        non_terminated_string2 = { String::from("bla bla \"asdadsad") },
+    )]
+    fn test_tokenize_error(input: String) {
+        let mut chars = input.chars();
+        assert!(tokenize(&mut chars).is_err());
     }
 }
