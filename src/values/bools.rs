@@ -1,39 +1,73 @@
-use std::{rc::Rc, ops::Deref};
+use std::{fmt, rc::Rc, ops::Deref};
 use crate::values::Value;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Bool {
+    True, False
+}
 
 impl Value {
     pub fn boolean(val: bool) -> Rc<Value> {
-        Rc::new(Value::Bool(val))
+        Rc::new(Value::Bool(
+            if val {
+                Bool::True
+            } else {
+                Bool::False
+            }))
     }
 
     pub fn is_bool(&self) -> Rc<Self> {
-        Rc::new(Value::Bool(matches!(self, Value::Bool(_))))
+        Value::boolean(matches!(self, Value::Bool(_)))
     }
 
     pub fn is_eq(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
         Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
-                (Value::Env(a), Value::Env(b)) => a == b,
-                (Value::Symbol(a), Value::Symbol(b)) => a == b,
+                (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
+                (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
+                (Value::String(a), Value::String(b)) => a.is_eq(b),
+                _ => false
+            }
+        )
+    }
+
+    pub fn is_equal(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
+        Value::boolean(
+            match (self.deref(), other.deref()) {
+                (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
+                (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
+                (Value::String(a), Value::String(b)) => a.is_equal(b),
                 _ => false
             }
         )
     }
 }
 
+impl fmt::Display for Bool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Bool::True => "#t",
+            Bool::False => "#f",
+        })
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use yare::parameterized;
 
     use std::rc::Rc;
-    use crate::values::{Value, Env, Symbol};
+    use crate::values::{Value, Env, Symbol, Str, Bool};
 
     fn sample_values() -> Vec<Value> {
         vec![
             Value::Symbol(Symbol("bla".to_string())),
             Value::Env(Env::new(vec![])),
-            Value::Bool(true),
+            Value::Bool(Bool::True),
+            Value::String(Str::new("bla")),
         ]
     }
 

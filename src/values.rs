@@ -1,18 +1,23 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::rc::Rc;
 use std::fmt;
 
 use crate::values::envs::{Env, EnvRef};
 use crate::values::symbols::Symbol;
+use crate::values::strings::Str;
+use crate::values::bools::Bool;
 
 pub mod bools;
 pub mod envs;
 pub mod symbols;
+pub mod strings;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    Symbol(Symbol),
+    Bool(Bool),
     Env(EnvRef),
-    Bool(bool),
+    String(Str),
+    Symbol(Symbol),
 }
 
 impl fmt::Display for Value {
@@ -20,12 +25,15 @@ impl fmt::Display for Value {
         write!(f, "{}", match self {
             Value::Env(e) => e.borrow().to_string(),
             Value::Symbol(s) => s.to_string(),
-            Value::Bool(b) => match b {
-                true => "#t",
-                false => "#f",
-            }.to_string(),
+            Value::String(s) => s.to_string(),
+            Value::Bool(b) => b.to_string(),
         })
     }
+}
+
+static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+fn gen_sym() -> usize {
+    ID_COUNTER.fetch_add(1, Ordering::SeqCst)
 }
 
 pub fn tester() {
@@ -49,8 +57,9 @@ pub fn tester() {
     // add(parent1_3.clone(), "parent 1 3");
     // add(env.clone(), "env");
 
-    let sym = Symbol("bAAa".to_string());
-    dbg!(sym.is_eq(&sym));
+    let sym = Str::new("");
+    let sym2 = Str::new("");
+    dbg!(sym.0.as_ptr(), sym2.0.as_ptr());
     // dbg!(val);
 }
 
@@ -59,13 +68,14 @@ pub fn tester() {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{Value, Symbol, Env};
+    use crate::values::{Value, Symbol, Env, Str, Bool};
 
     #[parameterized(
         env = { Value::Env(Env::new(vec![])), "#env" },
         symbol = { Value::Symbol(Symbol("bla".to_string())), "bla" },
-        true_ = { Value::Bool(true), "#t" },
-        fals_ = { Value::Bool(false), "#f" },
+        string = { Value::String(Str::new("bla")), "\"bla\"" },
+        true_ = { Value::Bool(Bool::True), "#t" },
+        fals_ = { Value::Bool(Bool::False), "#f" },
     )]
     fn test_format(val: Value, expected: &str) {
         assert_eq!(format!("{val}"), expected)

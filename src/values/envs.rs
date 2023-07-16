@@ -2,8 +2,7 @@ use std::fmt;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::values::{Symbol, Value};
+use crate::values::{Symbol, Value, gen_sym};
 
 #[derive(Debug, PartialEq)]
 pub struct Env {
@@ -13,13 +12,12 @@ pub struct Env {
 }
 pub type EnvRef = Rc<RefCell<Env>>;
 
-static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 impl Env {
     pub fn new(parents: Vec<EnvRef>) -> EnvRef {
         Rc::new(RefCell::new(Env {
             bindings: HashMap::new(),
-            id: ID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            id: gen_sym(),
             parents
         }))
     }
@@ -37,6 +35,10 @@ impl Env {
             }
             None
         }
+    }
+
+    pub fn is_eq(&self, other: EnvRef) -> bool {
+        *self == *other.borrow()
     }
 }
 
@@ -57,7 +59,7 @@ impl fmt::Display for Env {
 mod tests {
     use std::rc::Rc;
     use std::collections::HashMap;
-    use crate::values::{Value, Symbol};
+    use crate::values::{Value, Symbol, Str, Bool};
     use crate::values::envs::Env;
     use yare::parameterized;
 
@@ -75,7 +77,8 @@ mod tests {
         vec![
             Value::Symbol(Symbol("bla".to_string())),
             Value::Env(Env::new(vec![])),
-            Value::Bool(true),
+            Value::Bool(Bool::True),
+            Value::String(Str::new("bla")),
         ]
     }
 

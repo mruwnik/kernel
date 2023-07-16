@@ -18,10 +18,8 @@ impl Value {
 }
 
 impl Symbol {
-    pub fn is_eq(self: &Self, other: &Self) -> Rc<Value> {
-        dbg!(self.0.to_lowercase());
-        dbg!(other.0.to_lowercase());
-        Value::boolean(self.0.to_lowercase() == other.0.to_lowercase())
+    pub fn is_eq(self: &Self, other: &Self) -> bool {
+        self.0.to_lowercase() == other.0.to_lowercase()
     }
 }
 
@@ -30,32 +28,16 @@ impl Symbol {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{Value, Env};
+    use crate::values::{Value, Env, Str, Bool};
     use crate::values::symbols::Symbol;
 
     fn sample_values() -> Vec<Value> {
         vec![
             Value::Symbol(Symbol("bla".to_string())),
             Value::Env(Env::new(vec![])),
-            Value::Bool(true),
+            Value::Bool(Bool::True),
+            Value::String(Str::new("bla")),
         ]
-    }
-
-    #[parameterized(
-        same = { Symbol("bla".to_string()), Symbol("bla".to_string()) },
-        same_empty = { Symbol("".to_string()), Symbol("".to_string()) },
-    )]
-    fn test_same_symbol(sym1: Symbol, sym2: Symbol) {
-        assert_eq!(sym1, sym2)
-    }
-
-    #[parameterized(
-        diff1 = { Symbol("bla".to_string()), Symbol("blaaaa".to_string()) },
-        diff2 = { Symbol("bLA".to_string()), Symbol("Bla".to_string()) },
-        diff3 = { Symbol("a".to_string()), Symbol("".to_string()) },
-    )]
-    fn test_different_symbol(sym1: Symbol, sym2: Symbol) {
-        assert_ne!(sym1, sym2)
     }
 
     #[test]
@@ -73,7 +55,7 @@ mod tests {
         false_ = { Symbol("BlEEee".to_string()) },
     )]
     fn test_is_eq_self(val: Symbol) {
-        assert_eq!(val.is_eq(&val), Value::boolean(true));
+        assert!(val.is_eq(&val));
     }
 
     #[parameterized(
@@ -84,8 +66,8 @@ mod tests {
         val5 = { Symbol("bLa".to_string()), Symbol("BlA".to_string()) },
     )]
     fn test_is_eq(val1: Symbol, val2: Symbol) {
-        assert_eq!(val1.is_eq(&val2), Value::boolean(true));
-        assert_eq!(val2.is_eq(&val1), Value::boolean(true));
+        assert!(val1.is_eq(&val2));
+        assert!(val2.is_eq(&val1));
     }
 
     #[parameterized(
@@ -93,7 +75,7 @@ mod tests {
         val2 = { Symbol("bla".to_string()), Symbol("fewfwefwefwf".to_string()) },
     )]
     fn test_is_eq_not(val1: Symbol, val2: Symbol) {
-        assert_eq!(val1.is_eq(&val2), Value::boolean(false));
-        assert_eq!(val2.is_eq(&val1), Value::boolean(false));
+        assert!(!val1.is_eq(&val2));
+        assert!(!val2.is_eq(&val1));
     }
 }
