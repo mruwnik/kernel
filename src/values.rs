@@ -6,12 +6,14 @@ use crate::values::bools::Bool;
 use crate::values::constants::Constant;
 use crate::values::envs::{Env, EnvRef};
 use crate::values::numbers::Number;
+use crate::values::pairs::Pair;
 use crate::values::strings::Str;
 use crate::values::symbols::Symbol;
 
 pub mod bools;
 pub mod constants;
 pub mod envs;
+pub mod pairs;
 pub mod numbers;
 pub mod strings;
 pub mod symbols;
@@ -22,6 +24,7 @@ pub enum Value {
     Env(EnvRef),
     Constant(Constant),
     Number(Number),
+    Pair(Pair),
     String(Str),
     Symbol(Symbol),
 }
@@ -32,6 +35,7 @@ impl fmt::Display for Value {
             Value::Bool(b) => b.to_string(),
             Value::Constant(c) => c.to_string(),
             Value::Env(e) => e.borrow().to_string(),
+            Value::Pair(p) => "ad".to_string(),
             Value::Number(n) => n.to_string(),
             Value::Symbol(s) => s.to_string(),
             Value::String(s) => s.to_string(),
@@ -65,10 +69,25 @@ pub fn tester() {
     // add(parent1_3.clone(), "parent 1 3");
     // add(env.clone(), "env");
 
-    let sym = Str::new("");
-    let sym2 = Str::new("");
-    dbg!(sym.0.as_ptr(), sym2.0.as_ptr());
-    // dbg!(val);
+    let pair = Pair::new(
+        Rc::new(Value::Number(Number::Int(1))),
+        Rc::new(Value::Constant(Constant::Null))
+    );
+    let pair2 = Pair::new(
+        Rc::new(Value::Number(Number::Int(1))),
+        Rc::new(Value::Number(Number::Int(2))),
+    );
+    let pair3 = Pair::new(
+        Rc::new(Value::Number(Number::Int(1))),
+        Rc::new(Value::Pair(Pair::new(
+            Rc::new(Value::Number(Number::Int(2))),
+            Rc::new(Value::Constant(Constant::Null))
+        )))
+    );
+    println!("pair {pair}");
+    println!("pair2 {pair2}");
+    println!("pair3 {pair3}");
+    dbg!(pair.eq(&pair2));
 }
 
 

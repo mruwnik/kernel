@@ -6,6 +6,7 @@ use crate::values::Value;
 pub enum Constant {
     Ignore,
     Inert,
+    Null,
 }
 
 impl fmt::Display for Constant {
@@ -13,6 +14,7 @@ impl fmt::Display for Constant {
         write!(f, "{}", match self {
             Constant::Ignore => "#ignore",
             Constant::Inert => "#inert",
+            Constant::Null => "()"
         })
     }
 }
@@ -24,6 +26,10 @@ impl Value {
 
     pub fn is_ignore(&self) -> Rc<Self> {
         Value::boolean(matches!(self, Value::Constant(Constant::Ignore)))
+    }
+
+    pub fn is_null(&self) -> Rc<Self> {
+        Value::boolean(matches!(self, Value::Constant(Constant::Null)))
     }
 }
 
@@ -38,7 +44,8 @@ impl Constant {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{ Bool, Env, Number, Str, Symbol, Value };
+    use std::rc::Rc;
+    use crate::values::{ Bool, Env, Number, Pair, Str, Symbol, Value };
     use crate::values::constants::Constant;
 
     fn sample_values() -> Vec<Value> {
@@ -46,6 +53,11 @@ mod tests {
             Value::Bool(Bool::True),
             Value::Constant(Constant::Ignore),
             Value::Constant(Constant::Inert),
+            Value::Constant(Constant::Null),
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Constant(Constant::Null))
+            )),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
             Value::String(Str::new("bla")),
@@ -54,14 +66,16 @@ mod tests {
     }
 
     #[test]
-    fn test_is_ignore() {
+    fn test_is_constant() {
         for val in sample_values() {
             match val {
                 Value::Constant(Constant::Inert) => assert_eq!(val.is_inert(), Value::boolean(true)),
                 Value::Constant(Constant::Ignore) => assert_eq!(val.is_ignore(), Value::boolean(true)),
+                Value::Constant(Constant::Null) => assert_eq!(val.is_null(), Value::boolean(true)),
                 _ => {
                     assert_eq!(val.is_inert(), Value::boolean(false));
                     assert_eq!(val.is_ignore(), Value::boolean(false));
+                    assert_eq!(val.is_null(), Value::boolean(false));
                 },
             }
         }

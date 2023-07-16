@@ -24,7 +24,10 @@ impl Value {
         Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
+                (Value::Number(a), Value::Number(b)) => a.is_eq(b),
+                (Value::Pair(a), Value::Pair(b)) => a.is_eq(b),
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_eq(b),
                 _ => false
@@ -36,7 +39,10 @@ impl Value {
         Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
+                (Value::Number(a), Value::Number(b)) => a.is_equal(b),
+                (Value::Pair(a), Value::Pair(b)) => a.is_equal(b),
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_equal(b),
                 _ => false
@@ -60,7 +66,7 @@ mod tests {
     use yare::parameterized;
 
     use std::rc::Rc;
-    use crate::values::{ Constant, Env, Number, Str, Symbol, Value };
+    use crate::values::{ Constant, Env, Number, Pair, Str, Symbol, Value };
     use crate::values::bools::Bool;
 
     fn sample_values() -> Vec<Value> {
@@ -69,6 +75,10 @@ mod tests {
             Value::Constant(Constant::Ignore),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Constant(Constant::Null))
+            )),
             Value::String(Str::new("bla")),
             Value::Symbol(Symbol("bla".to_string())),
         ]

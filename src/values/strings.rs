@@ -38,7 +38,8 @@ impl Str {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{ Bool, Constant, Env, Number, Symbol, Value };
+    use std::rc::Rc;
+    use crate::values::{ Bool, Constant, Env, Number, Pair, Symbol, Value };
     use crate::values::strings::Str;
 
     fn sample_values() -> Vec<Value> {
@@ -47,6 +48,10 @@ mod tests {
             Value::Constant(Constant::Ignore),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Constant(Constant::Null))
+            )),
             Value::String(Str::new("bla")),
             Value::Symbol(Symbol("bla".to_string())),
         ]
