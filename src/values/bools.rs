@@ -60,11 +60,13 @@ mod tests {
     use yare::parameterized;
 
     use std::rc::Rc;
-    use crate::values::{Value, Env, Symbol, Str, Bool, Number};
+    use crate::values::{ Constant, Env, Number, Str, Symbol, Value };
+    use crate::values::bools::Bool;
 
     fn sample_values() -> Vec<Value> {
         vec![
             Value::Bool(Bool::True),
+            Value::Constant(Constant::Ignore),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
             Value::String(Str::new("bla")),

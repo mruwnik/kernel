@@ -59,7 +59,7 @@ impl fmt::Display for Env {
 mod tests {
     use std::rc::Rc;
     use std::collections::HashMap;
-    use crate::values::{Value, Symbol, Str, Bool, Number};
+    use crate::values::{ Bool, Constant, Number, Str, Symbol, Value };
     use crate::values::envs::Env;
     use yare::parameterized;
 
@@ -76,6 +76,7 @@ mod tests {
     fn sample_values() -> Vec<Value> {
         vec![
             Value::Bool(Bool::True),
+            Value::Constant(Constant::Ignore),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
             Value::String(Str::new("bla")),

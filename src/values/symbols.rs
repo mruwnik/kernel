@@ -28,12 +28,13 @@ impl Symbol {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{Value, Env, Str, Bool, Number};
+    use crate::values::{ Bool, Constant, Env, Number, Str, Value };
     use crate::values::symbols::Symbol;
 
     fn sample_values() -> Vec<Value> {
         vec![
             Value::Bool(Bool::True),
+            Value::Constant(Constant::Ignore),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
             Value::String(Str::new("bla")),

@@ -42,12 +42,13 @@ impl Number {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{Value, Env, Symbol, Bool, Str};
+    use crate::values::{ Bool, Constant, Env, Str, Symbol, Value };
     use crate::values::numbers::Number;
 
     fn sample_values() -> Vec<Value> {
         vec![
             Value::Bool(Bool::True),
+            Value::Constant(Constant::Ignore),
             Value::Env(Env::new(vec![])),
             Value::Number(Number::Int(123)),
             Value::String(Str::new("bla")),
