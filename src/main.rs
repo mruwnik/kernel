@@ -1,15 +1,11 @@
-use crate::lexemes::Lexeme;
-use crate::tokens::{parse_token, Token};
-use crate::values::{Value, Env, Symbol};
-
 pub mod lexemes;
 pub mod tokens;
 pub mod values;
 
 
 fn main() {
-    let raw = format!("(+ (- 1 2) \"asd\\\"asd\" 3 4)");
-    let mut chars = raw.chars();
+    // let raw = format!("(+ (- 1 2) \"asd\\\"asd\" 3 4)");
+    // let mut chars = raw.chars();
 
     // println!("{raw}");
 
