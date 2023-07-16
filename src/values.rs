@@ -6,9 +6,11 @@ use crate::values::envs::{Env, EnvRef};
 use crate::values::symbols::Symbol;
 use crate::values::strings::Str;
 use crate::values::bools::Bool;
+use crate::values::numbers::Number;
 
 pub mod bools;
 pub mod envs;
+pub mod numbers;
 pub mod symbols;
 pub mod strings;
 
@@ -16,6 +18,7 @@ pub mod strings;
 pub enum Value {
     Bool(Bool),
     Env(EnvRef),
+    Number(Number),
     String(Str),
     Symbol(Symbol),
 }
@@ -23,10 +26,11 @@ pub enum Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
+            Value::Bool(b) => b.to_string(),
             Value::Env(e) => e.borrow().to_string(),
+            Value::Number(n) => n.to_string(),
             Value::Symbol(s) => s.to_string(),
             Value::String(s) => s.to_string(),
-            Value::Bool(b) => b.to_string(),
         })
     }
 }
@@ -68,7 +72,7 @@ pub fn tester() {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{Value, Symbol, Env, Str, Bool};
+    use crate::values::{Value, Symbol, Env, Str, Bool, Number};
 
     #[parameterized(
         env = { Value::Env(Env::new(vec![])), "#env" },
@@ -76,6 +80,8 @@ mod tests {
         string = { Value::String(Str::new("bla")), "\"bla\"" },
         true_ = { Value::Bool(Bool::True), "#t" },
         fals_ = { Value::Bool(Bool::False), "#f" },
+        int = { Value::Number(Number::Int(123)), "123" },
+        float = { Value::Number(Number::Float(32.1)), "32.1" },
     )]
     fn test_format(val: Value, expected: &str) {
         assert_eq!(format!("{val}"), expected)

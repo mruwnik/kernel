@@ -38,18 +38,18 @@ impl Str {
 mod tests {
     use yare::parameterized;
 
-    use crate::values::{Value, Env, Symbol, Bool};
+    use crate::values::{Value, Env, Symbol, Bool, Number};
     use crate::values::strings::Str;
 
     fn sample_values() -> Vec<Value> {
         vec![
-            Value::Symbol(Symbol("bla".to_string())),
-            Value::Env(Env::new(vec![])),
             Value::Bool(Bool::True),
+            Value::Env(Env::new(vec![])),
+            Value::Number(Number::Int(123)),
             Value::String(Str::new("bla")),
+            Value::Symbol(Symbol("bla".to_string())),
         ]
     }
-
 
     #[test]
     fn test_is_string() {
