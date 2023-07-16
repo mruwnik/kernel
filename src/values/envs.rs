@@ -1,18 +1,27 @@
+use std::fmt;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::values::{Symbol, Value};
 
 #[derive(Debug, PartialEq)]
 pub struct Env {
     bindings: HashMap<Symbol, Rc<Value>>,
     parents: Vec<EnvRef>,
+    id: usize,
 }
 pub type EnvRef = Rc<RefCell<Env>>;
 
+static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
 impl Env {
     pub fn new(parents: Vec<EnvRef>) -> EnvRef {
-        Rc::new(RefCell::new(Env { bindings: HashMap::new(), parents }))
+        Rc::new(RefCell::new(Env {
+            bindings: HashMap::new(),
+            id: ID_COUNTER.fetch_add(1, Ordering::SeqCst),
+            parents
+        }))
     }
     pub fn bind(&mut self, symbol: Symbol, value: Rc<Value>) {
         self.bindings.insert(symbol, value);
@@ -33,9 +42,16 @@ impl Env {
 
 impl Value {
     pub fn is_env(&self) -> Rc<Self> {
-        Rc::new(Value::Bool(matches!(self, Value::Env(_))))
+        Value::boolean(matches!(self, Value::Env(_)))
     }
 }
+
+impl fmt::Display for Env {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "#env")
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -43,6 +59,7 @@ mod tests {
     use std::collections::HashMap;
     use crate::values::{Value, Symbol};
     use crate::values::envs::Env;
+    use yare::parameterized;
 
     use super::EnvRef;
 
@@ -58,6 +75,7 @@ mod tests {
         vec![
             Value::Symbol(Symbol("bla".to_string())),
             Value::Env(Env::new(vec![])),
+            Value::Bool(true),
         ]
     }
 
@@ -203,9 +221,30 @@ mod tests {
     fn test_is_env() {
         for val in sample_values() {
             match val {
-                Value::Env(_) => assert_eq!(val.is_env(), Rc::new(Value::Bool(true))),
-                _ => assert_eq!(val.is_env(), Rc::new(Value::Bool(false))),
+                Value::Env(_) => assert_eq!(val.is_env(), Value::boolean(true)),
+                _ => assert_eq!(val.is_env(), Value::boolean(false)),
             }
         }
+    }
+
+    #[parameterized(
+        empty_envs = { Env::new(vec![]), Env::new(vec![]) },
+        with_parents = { Env::new(vec![Env::new(vec![])]), Env::new(vec![]) },
+    )]
+    fn test_is_not_eq(env1: EnvRef, env2: EnvRef) {
+        let val1 = Rc::new(Value::Env(env1));
+        let val2 = Rc::new(Value::Env(env2));
+
+        assert_eq!(val1.is_eq(&val2), Value::boolean(false));
+        assert_eq!(val2.is_eq(&val1), Value::boolean(false));
+    }
+
+    #[parameterized(
+        empty_env = { Env::new(vec![]) },
+        with_parent = { Env::new(vec![Env::new(vec![])]) },
+    )]
+    fn test_is_eq(env: EnvRef) {
+        let val = Rc::new(Value::Env(env));
+        assert_eq!(val.is_eq(&val), Value::boolean(true));
     }
 }

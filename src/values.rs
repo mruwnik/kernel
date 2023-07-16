@@ -2,12 +2,11 @@ use std::rc::Rc;
 use std::fmt;
 
 use crate::values::envs::{Env, EnvRef};
+use crate::values::symbols::Symbol;
 
 pub mod bools;
 pub mod envs;
-
-#[derive(Debug, PartialEq, Hash, Eq, Clone)]
-pub struct Symbol(pub String);
+pub mod symbols;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
@@ -16,20 +15,18 @@ pub enum Value {
     Bool(bool),
 }
 
-
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
-            Value::Env(_) => "#env",
-            Value::Symbol(s) => &s.0,
+            Value::Env(e) => e.borrow().to_string(),
+            Value::Symbol(s) => s.to_string(),
             Value::Bool(b) => match b {
                 true => "#t",
                 false => "#f",
-            },
+            }.to_string(),
         })
     }
 }
-
 
 pub fn tester() {
     let ground_env = Env::new(vec![]);
@@ -52,8 +49,9 @@ pub fn tester() {
     // add(parent1_3.clone(), "parent 1 3");
     // add(env.clone(), "env");
 
-    dbg!(env.borrow().get(Symbol("key".to_string())));
-    // dbg!(env);
+    let sym = Symbol("bAAa".to_string());
+    dbg!(sym.is_eq(&sym));
+    // dbg!(val);
 }
 
 
@@ -62,23 +60,6 @@ mod tests {
     use yare::parameterized;
 
     use crate::values::{Value, Symbol, Env};
-
-    #[parameterized(
-        same = { Symbol("bla".to_string()), Symbol("bla".to_string()) },
-        same_empty = { Symbol("".to_string()), Symbol("".to_string()) },
-    )]
-    fn test_same_symbol(sym1: Symbol, sym2: Symbol) {
-        assert_eq!(sym1, sym2)
-    }
-
-    #[parameterized(
-        diff1 = { Symbol("bla".to_string()), Symbol("blaaaa".to_string()) },
-        diff2 = { Symbol("bLA".to_string()), Symbol("Bla".to_string()) },
-        diff3 = { Symbol("a".to_string()), Symbol("".to_string()) },
-    )]
-    fn test_different_symbol(sym1: Symbol, sym2: Symbol) {
-        assert_ne!(sym1, sym2)
-    }
 
     #[parameterized(
         env = { Value::Env(Env::new(vec![])), "#env" },
