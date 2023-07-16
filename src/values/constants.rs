@@ -31,6 +31,10 @@ impl Value {
     pub fn is_null(&self) -> Rc<Self> {
         Value::boolean(matches!(self, Value::Constant(Constant::Null)))
     }
+
+    pub fn make_const(c: Constant) -> Rc<Value> {
+        Rc::new(Value::Constant(c))
+    }
 }
 
 impl Constant {

@@ -27,7 +27,7 @@ impl Value {
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_eq(b),
-                (Value::Pair(a), Value::Pair(b)) => a.is_eq(b),
+                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_eq(b),
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_eq(b),
                 _ => false
@@ -42,7 +42,7 @@ impl Value {
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_equal(b),
-                (Value::Pair(a), Value::Pair(b)) => a.is_equal(b),
+                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_equal(b),
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_equal(b),
                 _ => false

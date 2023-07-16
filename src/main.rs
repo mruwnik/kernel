@@ -1,6 +1,7 @@
 pub mod lexemes;
 pub mod tokens;
 pub mod values;
+pub mod errors;
 
 
 fn main() {
