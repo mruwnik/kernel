@@ -39,7 +39,6 @@ impl Value {
 
 impl Constant {
     pub fn is_eq(self: &Self, other: &Self) -> bool {
-        dbg!(self, other);
         self == other
     }
 }

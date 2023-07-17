@@ -30,6 +30,7 @@ impl Value {
         Ok(Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Combiner(a), Value::Combiner(b)) => a.is_eq(b)?,
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_eq(b),
@@ -45,6 +46,7 @@ impl Value {
         Ok(Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Combiner(a), Value::Combiner(b)) => a.is_eq(b)?,
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_equal(b),

@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::fmt;
 
 use crate::values::bools::Bool;
+use crate::values::combiners::Combiner;
 use crate::values::constants::Constant;
 use crate::values::envs::EnvRef;
 use crate::values::numbers::Number;
@@ -14,6 +15,7 @@ use crate::errors::RuntimeError;
 
 pub mod bools;
 pub mod constants;
+pub mod combiners;
 pub mod envs;
 pub mod pairs;
 pub mod numbers;
@@ -23,8 +25,9 @@ pub mod symbols;
 #[derive(Debug, PartialEq)]
 pub enum Value {
     Bool(Bool),
-    Env(EnvRef),
+    Combiner(Combiner),
     Constant(Constant),
+    Env(EnvRef),
     Number(Number),
     Pair(PairRef),
     String(Str),
@@ -37,6 +40,7 @@ impl fmt::Display for Value {
         write!(f, "{}", match self {
             Value::Bool(b) => b.to_string(),
             Value::Constant(c) => c.to_string(),
+            Value::Combiner(c) => c.to_string(),
             Value::Env(e) => e.borrow().to_string(),
             Value::Pair(p) => p.borrow().to_string(),
             Value::Number(n) => n.to_string(),
@@ -116,13 +120,19 @@ mod tests {
     use yare::parameterized;
     use std::rc::Rc;
 
-    use crate::values::{ Bool, Constant, Env, Number, Str, Symbol, Value };
+    use crate::values::{ Bool, Constant, Number, Str, Symbol, Value };
+    use crate::values::envs::Env;
 
     // Make a vector of sample values, one of each kind
     pub fn sample_values() -> Vec<Rc<Value>> {
         vec![
             Rc::new(Value::Bool(Bool::True)),
             Rc::new(Value::Bool(Bool::False)),
+            Value::new_applicative(
+                "tester",
+                &|_| Ok(Rc::new(Value::Constant(Constant::Null))),
+                Rc::new(Value::Constant(Constant::Null))
+            ),
             Rc::new(Value::Constant(Constant::Ignore)),
             Rc::new(Value::Constant(Constant::Inert)),
             Rc::new(Value::Constant(Constant::Null)),
