@@ -1,8 +1,11 @@
-use std::fmt;
+use std::{fmt, ops::Deref};
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::values::{Symbol, Value, CallResult, gen_sym};
+use crate::{
+    values::{Symbol, Value, CallResult, Constant, gen_sym},
+    errors::{ RuntimeError, ErrorTypes }
+};
 
 #[derive(Debug, PartialEq)]
 pub struct Env {
@@ -46,6 +49,27 @@ impl Value {
     pub fn is_env(&self) -> CallResult {
         Ok(Value::boolean(matches!(self, Value::Env(_))))
     }
+
+    pub fn make_environment(val: Rc<Value>) -> CallResult {
+        match val.deref() {
+            Value::Constant(Constant::Null) => Ok(Rc::new(Value::Env(Env::new(vec![])))),
+            Value::Pair(root) => {
+                let mut parents: Vec<EnvRef> = Vec::new();
+                // TODO: can this be done cleaner? something like root.iter().filter(not env)?
+                for (i, node) in root.borrow().iter().enumerate() {
+                    match node.deref() {
+                        Value::Env(env) => parents.push(env.clone()),
+                        _ => return Err(RuntimeError::new(
+                            ErrorTypes::TypeError,
+                            format!("{i}-th argumnent to make-environment is not an Environment")
+                        )),
+                    }
+                }
+                Ok(Rc::new(Value::Env(Env::new(parents))))
+            },
+            _ => Err(RuntimeError::new(ErrorTypes::TypeError, "make-environment expects a list of parents"))
+        }
+    }
 }
 
 impl fmt::Display for Env {
@@ -58,6 +82,7 @@ impl fmt::Display for Env {
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
+    use std::ops::Deref;
     use std::collections::HashMap;
     use crate::values::{ Bool, Constant, Number, Pair, Str, Symbol, Value };
     use crate::values::envs::Env;
@@ -256,5 +281,33 @@ mod tests {
     fn test_is_eq(env: EnvRef) {
         let val = Rc::new(Value::Env(env));
         assert_eq!(val.is_eq(&val).expect("ok"), Value::boolean(true));
+    }
+
+    #[parameterized(
+        empty_env = { vec![] },
+        with_parents = { vec![Env::new(vec![Env::new(vec![])]), Env::new(vec![])] },
+    )]
+    fn test_make_env(parents: Vec<EnvRef>) {
+        let root = Value::cons(
+            Value::make_const(Constant::Null),
+            Value::make_const(Constant::Null),
+        ).unwrap();
+
+        let mut prev = root.clone();
+        for parent in parents.iter() {
+            let next = Value::cons(
+                Rc::new(Value::Env(parent.clone())),
+                Value::make_const(Constant::Null),
+            ).unwrap();
+            Value::set_cdr(prev.clone(), next.clone()).expect("This should work");
+            prev = next;
+        }
+
+        let env = Value::make_environment(Value::cdr(root).unwrap()).expect("invalid parents provided?");
+        assert_eq!(env.is_env().unwrap(), Value::boolean(true));
+        match env.deref() {
+            Value::Env(e) => assert_eq!(e.borrow().parents, parents),
+            _ => panic!("Make environment didn't return an env"),
+        }
     }
 }

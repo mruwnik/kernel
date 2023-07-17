@@ -22,7 +22,7 @@ impl fmt::Display for RuntimeError {
 }
 
 impl RuntimeError {
-    pub fn new(error_type: ErrorTypes, cause: &str) -> Self {
-        Self { error_type, cause: cause.to_string() }
+    pub fn new(error_type: ErrorTypes, cause: impl Into<String>) -> Self {
+        Self { error_type, cause: cause.into() }
     }
 }

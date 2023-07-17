@@ -52,7 +52,6 @@ impl fmt::Display for Pair {
     }
 }
 
-
 impl Pair {
     pub fn new(car: Rc<Value>, cdr: Rc<Value>, mutable: bool) -> PairRef {
         Rc::new(RefCell::new(Pair { car, cdr, mutable }))
@@ -86,7 +85,7 @@ impl Pair {
             self.car = val;
             Ok(())
         } else {
-            Err(RuntimeError::new(ErrorTypes::ImmutableError, &"This pair is immutable"))
+            Err(RuntimeError::new(ErrorTypes::ImmutableError, "This pair is immutable"))
         }
     }
 
@@ -95,7 +94,7 @@ impl Pair {
             self.cdr = val;
             Ok(())
         } else {
-            Err(RuntimeError::new(ErrorTypes::ImmutableError, &"This pair is immutable"))
+            Err(RuntimeError::new(ErrorTypes::ImmutableError, "This pair is immutable"))
         }
     }
 
@@ -118,7 +117,7 @@ impl Value {
             p.borrow_mut().set_car(val)?;
             Ok(Value::make_const(Constant::Inert))
         } else {
-            Err(RuntimeError::new(ErrorTypes::TypeError, &"set-car! expects a pair"))
+            Err(RuntimeError::new(ErrorTypes::TypeError, "set-car! expects a pair"))
         }
     }
 
@@ -127,7 +126,7 @@ impl Value {
             p.borrow_mut().set_cdr(val)?;
             Ok(Value::make_const(Constant::Inert))
         } else {
-            Err(RuntimeError::new(ErrorTypes::TypeError, &"set-cdr! expects a pair"))
+            Err(RuntimeError::new(ErrorTypes::TypeError, "set-cdr! expects a pair"))
         }
     }
 
@@ -145,6 +144,56 @@ impl Value {
             }
         )
     }
+
+    pub fn copy_es(self: Rc<Value>) -> CallResult {
+        Ok(
+            match self.deref() {
+                Value::Pair(p) => Rc::new(Value::Pair(
+                    Pair::new(
+                        p.borrow().car().copy_es_immutable()?,
+                        p.borrow().cdr().copy_es_immutable()?,
+                        true
+                    ))
+                ),
+                _ => self.clone(),
+            }
+        )
+    }
+
+    // library funcs
+
+    pub fn car(pair: Rc<Value>) -> CallResult {
+        if let Value::Pair(p) = pair.deref() {
+            Ok(p.borrow().car())
+        } else {
+            Err(RuntimeError::new(ErrorTypes::TypeError, "car expects a pair"))
+        }
+    }
+
+    pub fn cdr(pair: Rc<Value>) -> CallResult {
+        if let Value::Pair(p) = pair.deref() {
+            Ok(p.borrow().cdr())
+        } else {
+            Err(RuntimeError::new(ErrorTypes::TypeError, "cdr expects a pair"))
+        }
+    }
+
+    // pub fn append(lists: Rc<Value>) -> CallResult {
+    //     match lists.deref() {
+    //         Value::Pair(_) => {
+    //             let car = Value::copy_es(Value::car(lists.clone())?)?;
+    //             let cdr = Value::cdr(lists.clone())?;
+    //             match car.clone().deref() {
+    //                 Value::Pair(_) => {
+    //                     Value::set_cdr(car.clone(), cdr)?;
+    //                     Ok(car)
+    //                 }
+    //                 _ => Ok(car),
+    //             }
+    //         },
+    //        _ =>  Ok(lists),
+    //     }
+    // }
 }
 
 
@@ -556,4 +605,105 @@ mod tests {
             panic!("copies is not a pair");
         }
     }
+
+    // #[parameterized(
+    //     empty = { Rc::new(Value::Constant(Constant::Null)), "()" },
+    //     pair_single = {
+    //         Value::cons(
+    //             Rc::new(Value::Number(Number::Int(1))),
+    //             Rc::new(Value::Constant(Constant::Null)),
+    //         ).expect("ok"),
+    //         "1"
+    //     },
+    //     basic_append = {
+    //         Value::cons(
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(1))),
+    //                 Value::cons(
+    //                     Rc::new(Value::Number(Number::Int(2))),
+    //                     Rc::new(Value::Constant(Constant::Null))
+    //                 ).expect("ok"),
+    //             ).expect("ok"),
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(3))),
+    //                 Value::cons(
+    //                     Rc::new(Value::Number(Number::Int(4))),
+    //                     Rc::new(Value::Constant(Constant::Null))
+    //                 ).expect("ok")
+    //             ).expect("ok")
+    //         ).expect("ok"),
+    //         "(1 2 3 4)"
+    //     },
+    //     pair_double = {
+    //         Value::cons(
+    //             Rc::new(Value::Number(Number::Int(1))),
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(2))),
+    //                 Rc::new(Value::Constant(Constant::Null))
+    //             ).expect("ok"),
+    //         ).expect("ok"),
+    //         "(1 2)"
+    //     },
+    //     basic_list = {
+    //         Value::cons(
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(1))),
+    //                 Value::cons(
+    //                     Rc::new(Value::Number(Number::Int(2))),
+    //                     Rc::new(Value::Constant(Constant::Null))
+    //                 ).expect("ok"),
+    //             ).expect("ok"),
+    //             Value::cons(
+    //                 Value::cons(
+    //                     Rc::new(Value::Number(Number::Int(3))),
+    //                     Value::cons(
+    //                         Rc::new(Value::Number(Number::Int(4))),
+    //                         Rc::new(Value::Constant(Constant::Null))
+    //                     ).expect("ok")
+    //                 ).expect("ok"),
+    //                 Rc::new(Value::Constant(Constant::Null))
+    //             ).expect("ok"),
+    //         ).expect("ok"),
+    //         "(1 2 (3 4))"
+    //     },
+    //     pair_dotted = {
+    //         Value::cons(
+    //             Rc::new(Value::Number(Number::Int(1))),
+    //             Rc::new(Value::Number(Number::Int(2))),
+    //         ).expect("ok"),
+    //         "(1 . 2)"
+    //     },
+
+    //     pair_multi_dotted = {
+    //         Value::cons(
+    //             Rc::new(Value::Number(Number::Int(1))),
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(2))),
+    //                 Value::cons(
+    //                     Rc::new(Value::Number(Number::Int(3))),
+    //                     Rc::new(Value::Constant(Constant::Null)),
+    //                 ).expect("ok"),
+    //             ).expect("ok"),
+    //         ).expect("ok"),
+    //         "(1 2 . 3)"
+    //     },
+    //     pair_nested = {
+    //         Value::cons(
+    //             Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+    //             Value::cons(
+    //                 Rc::new(Value::Pair(number_list(vec![4, 5, 6]))),
+    //                 Value::cons(
+    //                     Rc::new(Value::Pair(number_list(vec![7, 8, 9]))),
+    //                     Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
+    //                 ).expect("ok")
+    //             ).expect("ok"),
+    //         ).expect("ok"),
+    //         "(1 2 3 (4 5 6) (7 8 9) (10 11 12))"
+    //     },
+    // )]
+    // fn test_append(lists: Rc<Value>, expected: &str) {
+    //     let appended = Value::append(lists).expect("should work");
+    //     assert_eq!(format!("{appended}"), expected)
+    // }
+
 }
