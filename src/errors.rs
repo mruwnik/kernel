@@ -2,8 +2,9 @@ use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ErrorTypes {
-    TypeError,
     ImmutableError,
+    LookupError,
+    TypeError,
 }
 
 #[derive(Debug, PartialEq)]
@@ -15,8 +16,9 @@ pub struct RuntimeError {
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}: {}", match self.error_type {
-            ErrorTypes::TypeError => "Type error",
             ErrorTypes::ImmutableError => "Mutate error",
+            ErrorTypes::LookupError => "Lookup error",
+            ErrorTypes::TypeError => "Type error",
         }, self.cause)
     }
 }

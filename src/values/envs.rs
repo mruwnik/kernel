@@ -50,6 +50,21 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Env(_)))
     }
 
+    pub fn env_set(env_expr: Rc<Value>, formals: Rc<Value>, vals_expr: Rc<Value>) -> CallResult {
+        // TODO: properly evaluate the parameters
+        if !Value::is_true(Value::is_env(Value::as_pair(env_expr.clone()))?) {
+            Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires an env as its first argument"))
+        } else if !Value::is_true(Value::is_symbol(Value::as_pair(formals.clone()))?) {
+            Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires a symbol as its second argument"))
+        } else {
+            match (env_expr.deref(), formals.deref()) {
+                (Value::Env(e), Value::Symbol(s)) => e.borrow_mut().bind(s.clone(), vals_expr),
+                _ => (),
+            }
+            Ok(Value::make_const(Constant::Inert))
+        }
+    }
+
     pub fn make_environment(val: Rc<Value>) -> CallResult {
         match val.deref() {
             Value::Constant(Constant::Null) => Ok(Rc::new(Value::Env(Env::new(vec![])))),

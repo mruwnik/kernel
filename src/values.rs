@@ -17,6 +17,7 @@ pub mod bools;
 pub mod constants;
 pub mod combiners;
 pub mod envs;
+pub mod eval;
 pub mod pairs;
 pub mod numbers;
 pub mod strings;
@@ -130,7 +131,7 @@ mod tests {
             Rc::new(Value::Bool(Bool::False)),
             Value::new_applicative(
                 "tester",
-                &|_| Ok(Rc::new(Value::Constant(Constant::Null))),
+                &|_exprs, _env| Ok(Rc::new(Value::Constant(Constant::Null))),
                 Rc::new(Value::Constant(Constant::Null))
             ),
             Rc::new(Value::Constant(Constant::Ignore)),
@@ -156,7 +157,7 @@ mod tests {
         env = { Value::Env(Env::new(vec![])), "#env" },
         int = { Value::Number(Number::Int(123)), "123" },
         float = { Value::Number(Number::Float(32.1)), "32.1" },
-
+        // pairs are in their own module
         string = { Value::String(Str::new("bla")), "\"bla\"" },
         symbol = { Value::Symbol(Symbol("bla".to_string())), "bla" },
     )]
