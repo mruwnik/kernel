@@ -1,6 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
-use crate::values::Value;
+use crate::values::{ Value, CallResult };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Constant {
@@ -20,16 +20,16 @@ impl fmt::Display for Constant {
 }
 
 impl Value {
-    pub fn is_inert(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Constant(Constant::Inert)))
+    pub fn is_inert(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Constant(Constant::Inert))))
     }
 
-    pub fn is_ignore(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Constant(Constant::Ignore)))
+    pub fn is_ignore(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Constant(Constant::Ignore))))
     }
 
-    pub fn is_null(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Constant(Constant::Null)))
+    pub fn is_null(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Constant(Constant::Null))))
     }
 
     pub fn make_const(c: Constant) -> Rc<Value> {
@@ -73,13 +73,13 @@ mod tests {
     fn test_is_constant() {
         for val in sample_values() {
             match val {
-                Value::Constant(Constant::Inert) => assert_eq!(val.is_inert(), Value::boolean(true)),
-                Value::Constant(Constant::Ignore) => assert_eq!(val.is_ignore(), Value::boolean(true)),
-                Value::Constant(Constant::Null) => assert_eq!(val.is_null(), Value::boolean(true)),
+                Value::Constant(Constant::Inert) => assert_eq!(val.is_inert().expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Ignore) => assert_eq!(val.is_ignore().expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Null) => assert_eq!(val.is_null().expect("ok"), Value::boolean(true)),
                 _ => {
-                    assert_eq!(val.is_inert(), Value::boolean(false));
-                    assert_eq!(val.is_ignore(), Value::boolean(false));
-                    assert_eq!(val.is_null(), Value::boolean(false));
+                    assert_eq!(val.is_inert().expect("ok"), Value::boolean(false));
+                    assert_eq!(val.is_ignore().expect("ok"), Value::boolean(false));
+                    assert_eq!(val.is_null().expect("ok"), Value::boolean(false));
                 },
             }
         }

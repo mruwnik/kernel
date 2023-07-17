@@ -1,12 +1,12 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ErrorTypes {
     TypeError,
     ImmutableError,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RuntimeError {
     error_type: ErrorTypes,
     cause: String,

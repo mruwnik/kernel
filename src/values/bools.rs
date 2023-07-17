@@ -1,5 +1,5 @@
 use std::{fmt, rc::Rc, ops::Deref};
-use crate::values::Value;
+use crate::values::{ CallResult, Value };
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Bool {
@@ -16,38 +16,38 @@ impl Value {
             }))
     }
 
-    pub fn is_bool(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Bool(_)))
+    pub fn is_bool(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Bool(_))))
     }
 
-    pub fn is_eq(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
-        Value::boolean(
+    pub fn is_eq(self: &Rc<Self>, other: &Rc<Self>) -> CallResult {
+        Ok(Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_eq(b),
-                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_eq(b),
+                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_eq(b)?,
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_eq(b),
                 _ => false
             }
-        )
+        ))
     }
 
-    pub fn is_equal(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
-        Value::boolean(
+    pub fn is_equal(self: &Rc<Self>, other: &Rc<Self>) -> CallResult {
+        Ok(Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_equal(b),
-                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_equal(b),
+                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_equal(b)?,
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_equal(b),
                 _ => false
             }
-        )
+        ))
     }
 }
 
@@ -88,8 +88,8 @@ mod tests {
     fn test_is_bool() {
         for val in sample_values() {
             match val {
-                Value::Bool(_) => assert_eq!(val.is_bool(), Value::boolean(true)),
-                _ => assert_eq!(val.is_bool(), Value::boolean(false)),
+                Value::Bool(_) => assert_eq!(val.is_bool().expect("ok"), Value::boolean(true)),
+                _ => assert_eq!(val.is_bool().expect("ok"), Value::boolean(false)),
             }
         }
     }
@@ -99,7 +99,7 @@ mod tests {
         false_ = { Value::boolean(false) },
     )]
     fn test_is_eq_self(val: Rc<Value>) {
-        assert_eq!(val.is_eq(&val), Value::boolean(true));
+        assert_eq!(val.is_eq(&val).expect("ok"), Value::boolean(true));
     }
 
     #[parameterized(
@@ -110,7 +110,7 @@ mod tests {
         let val1 = Value::boolean(val);
         let val2 = Value::boolean(val);
 
-        assert_eq!(val1.is_eq(&val2), Value::boolean(true));
-        assert_eq!(val2.is_eq(&val1), Value::boolean(true));
+        assert_eq!(val1.is_eq(&val2).expect("ok"), Value::boolean(true));
+        assert_eq!(val2.is_eq(&val1).expect("ok"), Value::boolean(true));
     }
 }

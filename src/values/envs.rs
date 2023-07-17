@@ -2,7 +2,7 @@ use std::fmt;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::values::{Symbol, Value, gen_sym};
+use crate::values::{Symbol, Value, CallResult, gen_sym};
 
 #[derive(Debug, PartialEq)]
 pub struct Env {
@@ -43,8 +43,8 @@ impl Env {
 }
 
 impl Value {
-    pub fn is_env(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Env(_)))
+    pub fn is_env(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Env(_))))
     }
 }
 
@@ -230,8 +230,8 @@ mod tests {
     fn test_is_env() {
         for val in sample_values() {
             match val {
-                Value::Env(_) => assert_eq!(val.is_env(), Value::boolean(true)),
-                _ => assert_eq!(val.is_env(), Value::boolean(false)),
+                Value::Env(_) => assert_eq!(val.is_env().expect("ok"), Value::boolean(true)),
+                _ => assert_eq!(val.is_env().expect("ok"), Value::boolean(false)),
             }
         }
     }
@@ -244,8 +244,8 @@ mod tests {
         let val1 = Rc::new(Value::Env(env1));
         let val2 = Rc::new(Value::Env(env2));
 
-        assert_eq!(val1.is_eq(&val2), Value::boolean(false));
-        assert_eq!(val2.is_eq(&val1), Value::boolean(false));
+        assert_eq!(val1.is_eq(&val2).expect("ok"), Value::boolean(false));
+        assert_eq!(val2.is_eq(&val1).expect("ok"), Value::boolean(false));
     }
 
     #[parameterized(
@@ -254,6 +254,6 @@ mod tests {
     )]
     fn test_is_eq(env: EnvRef) {
         let val = Rc::new(Value::Env(env));
-        assert_eq!(val.is_eq(&val), Value::boolean(true));
+        assert_eq!(val.is_eq(&val).expect("ok"), Value::boolean(true));
     }
 }

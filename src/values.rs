@@ -9,6 +9,7 @@ use crate::values::numbers::Number;
 use crate::values::pairs::{Pair, PairRef};
 use crate::values::strings::Str;
 use crate::values::symbols::Symbol;
+use crate::errors::RuntimeError;
 
 pub mod bools;
 pub mod constants;
@@ -28,6 +29,7 @@ pub enum Value {
     String(Str),
     Symbol(Symbol),
 }
+type CallResult = Result<Rc<Value>, RuntimeError>;
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

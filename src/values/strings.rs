@@ -1,8 +1,6 @@
 use std::fmt;
-use std::rc::Rc;
-use crate::values::Value;
 
-use super::gen_sym;
+use super::{ Value, gen_sym, CallResult };
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub struct Str(pub String, usize);
@@ -14,8 +12,8 @@ impl fmt::Display for Str {
 }
 
 impl Value {
-    pub fn is_string(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::String(_)))
+    pub fn is_string(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::String(_))))
     }
 }
 
@@ -61,8 +59,8 @@ mod tests {
     fn test_is_string() {
         for val in sample_values() {
             match val {
-                Value::String(_) => assert_eq!(val.is_string(), Value::boolean(true)),
-                _ => assert_eq!(val.is_string(), Value::boolean(false)),
+                Value::String(_) => assert_eq!(val.is_string().expect("ok"), Value::boolean(true)),
+                _ => assert_eq!(val.is_string().expect("ok"), Value::boolean(false)),
             }
         }
     }

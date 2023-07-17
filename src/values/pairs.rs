@@ -2,7 +2,7 @@ use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::errors::{RuntimeError, ErrorTypes};
-use crate::values::{Value, Constant};
+use crate::values::{ CallResult, Constant, Value };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pair {
@@ -58,15 +58,19 @@ impl Pair {
         Rc::new(RefCell::new(Pair { car, cdr, mutable: true }))
     }
 
-    pub fn is_eq(self: &Self, other: &PairRef) -> bool {
-        self.mutable == other.borrow().mutable &&
-        self.car().is_eq(&other.borrow().car().clone()) == Value::boolean(true) &&
-            self.cdr().is_eq(&other.borrow().cdr().clone()) == Value::boolean(true)
+    pub fn is_eq(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
+        Ok(
+            self.mutable == other.borrow().mutable &&
+                self.car().is_eq(&other.borrow().car().clone())? == Value::boolean(true) &&
+                self.cdr().is_eq(&other.borrow().cdr().clone())? == Value::boolean(true)
+        )
     }
 
-    pub fn is_equal(self: &Self, other: &PairRef) -> bool {
-        self.cdr().is_equal(&other.borrow().car().clone()) == Value::boolean(true) &&
-            self.cdr().is_equal(&other.borrow().cdr().clone()) == Value::boolean(true)
+    pub fn is_equal(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
+        Ok(
+            self.cdr().is_equal(&other.borrow().car().clone())? == Value::boolean(true) &&
+            self.cdr().is_equal(&other.borrow().cdr().clone())? == Value::boolean(true)
+        )
     }
 
     fn car(self: &Self) -> Rc<Value> {
@@ -101,15 +105,15 @@ impl Pair {
 }
 
 impl Value {
-    pub fn is_pair(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Pair(_)))
+    pub fn is_pair(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Pair(_))))
     }
 
-    pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> Rc<Value> {
-        Rc::new(Value::Pair(Pair::new(val1, val2)))
+    pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> CallResult {
+        Ok(Rc::new(Value::Pair(Pair::new(val1, val2))))
     }
 
-    pub fn set_car(pair: Rc<Value>, val: Rc<Value>) -> Result<Rc<Value>, RuntimeError> {
+    pub fn set_car(pair: Rc<Value>, val: Rc<Value>) -> CallResult {
         if let Value::Pair(p) = pair.deref() {
             p.borrow_mut().set_car(val)?;
             Ok(Value::make_const(Constant::Inert))
@@ -118,7 +122,7 @@ impl Value {
         }
     }
 
-    pub fn set_cdr(pair: Rc<Value>, val: Rc<Value>) -> Result<Rc<Value>, RuntimeError> {
+    pub fn set_cdr(pair: Rc<Value>, val: Rc<Value>) -> CallResult {
         if let Value::Pair(p) = pair.deref() {
             p.borrow_mut().set_cdr(val)?;
             Ok(Value::make_const(Constant::Inert))
@@ -126,6 +130,10 @@ impl Value {
             Err(RuntimeError::new(ErrorTypes::TypeError, &"set-cdr! expects a pair"))
         }
     }
+
+    // pub fn copy_es_immutable(pair: Rc<Value>) -> Result<Rc<Value>, RuntimeError> {
+
+    // }
 }
 
 
@@ -134,6 +142,7 @@ mod tests {
     use yare::parameterized;
 
     use std::rc::Rc;
+    use crate::errors::RuntimeError;
     use crate::values::{ Bool, Constant, Env, Number, Str, Symbol, Value };
     use crate::values::pairs::{Pair, PairIter};
 
@@ -174,9 +183,9 @@ mod tests {
     fn test_is_pair() {
         for val in sample_values() {
             match val {
-                Value::Pair(_) => assert_eq!(val.is_pair(), Value::boolean(true)),
+                Value::Pair(_) => assert_eq!(val.is_pair().expect("should work"), Value::boolean(true)),
                 _ => {
-                    assert_eq!(val.is_pair(), Value::boolean(false));
+                    assert_eq!(val.is_pair().expect("should work"), Value::boolean(false));
                 },
             }
         }
@@ -188,7 +197,7 @@ mod tests {
             Rc::new(Value::Number(Number::Int(1))),
             Rc::new(Value::Constant(Constant::Null))
         );
-        assert!(val.borrow().is_eq(&val));
+        assert!(val.borrow().is_eq(&val).expect("ok"));
     }
 
     #[parameterized(
@@ -199,26 +208,26 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                )),
+                ).expect("ok")),
             Pair::new(
                 Rc::new(Value::Pair(number_list(vec![5, 3, 2]))),
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                )),
+                ).expect("ok")),
         },
     )]
     fn test_is_eq(val1: PairRef, val2: PairRef) {
-        assert!(val1.borrow().is_eq(&val2));
-        assert!(val2.borrow().is_eq(&val1));
+        assert!(val1.borrow().is_eq(&val2).expect("ok"));
+        assert!(val2.borrow().is_eq(&val1).expect("ok"));
     }
 
     #[parameterized(
         basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2]) },
     )]
     fn test_is_eq_not(val1: PairRef, val2: PairRef) {
-        assert!(!val1.borrow().is_eq(&val2));
-        assert!(!val2.borrow().is_eq(&val1));
+        assert!(!val1.borrow().is_eq(&val2).expect("ok"));
+        assert!(!val2.borrow().is_eq(&val1).expect("ok"));
     }
 
     #[parameterized(
@@ -242,7 +251,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Number(Number::Int(2))),
                     Rc::new(Value::Constant(Constant::Null))
-                )
+                ).expect("ok")
             )),
             "(1 2)"
         },
@@ -256,9 +265,9 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Number(Number::Int(4))),
                             Rc::new(Value::Constant(Constant::Null))
-                        )
-                    )
-                )
+                        ).expect("ok")
+                    ).expect("ok")
+                ).expect("ok")
             )),
             "(1 2 3 4)"
         },
@@ -279,7 +288,7 @@ mod tests {
         let pair = Value::cons(
             Rc::new(Value::Number(Number::Int(4))),
             Rc::new(Value::Constant(Constant::Null))
-        );
+        ).expect("ok");
         assert_eq!(format!("{pair}"), "(4)");
 
         assert_eq!(
@@ -290,18 +299,36 @@ mod tests {
     }
 
     #[test]
-    fn test_set_car_error() {
+    fn test_set_car_bad_type() {
+        let expected_error = RuntimeError::new(
+            crate::errors::ErrorTypes::TypeError,
+            "set-car! expects a pair"
+        );
         for val in sample_values() {
             match val {
                 Value::Pair(_) => (),
                 _ => {
-                    Value::set_car(
-                        Rc::new(val),
-                        Value::boolean(true)
-                    ).expect_err("should have raised an error!");
+                    let err = Value::set_car(Rc::new(val), Value::boolean(true));
+                    assert_eq!(err.expect_err("error"), expected_error);
                 },
             }
         }
+    }
+
+    #[test]
+    fn test_set_car_immutable() {
+        let pair = Value::cons(
+            Rc::new(Value::Number(Number::Int(4))),
+            Rc::new(Value::Constant(Constant::Null))
+        ).expect("ok");
+        let expected_error = RuntimeError::new(
+            crate::errors::ErrorTypes::ImmutableError,
+            "asd"
+        );
+        // let err = Value::set_car(
+        //     Rc::new(val),
+        //     Value::boolean(true)
+        // ).expect_err("should have raised an error!");
     }
 
     #[test]
@@ -309,7 +336,7 @@ mod tests {
         let pair = Value::cons(
             Rc::new(Value::Number(Number::Int(4))),
             Rc::new(Value::Constant(Constant::Null))
-        );
+        ).expect("ok");
         assert_eq!(format!("{pair}"), "(4)");
 
         assert_eq!(
@@ -320,17 +347,20 @@ mod tests {
     }
 
     #[test]
-    fn test_set_cdr_error() {
+    fn test_set_cdr_bad_type() {
+        let expected_error = RuntimeError::new(
+            crate::errors::ErrorTypes::TypeError,
+            "set-cdr! expects a pair"
+        );
         for val in sample_values() {
             match val {
                 Value::Pair(_) => (),
                 _ => {
-                    Value::set_cdr(
-                        Rc::new(val),
-                        Value::boolean(true)
-                    ).expect_err("should have raised an error!");
+                    let err = Value::set_cdr(Rc::new(val), Value::boolean(true));
+                    assert_eq!(err.expect_err("error"), expected_error);
                 },
             }
         }
     }
+
 }

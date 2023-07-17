@@ -1,6 +1,6 @@
 use std::fmt;
-use std::rc::Rc;
-use crate::values::Value;
+
+use super::{ CallResult, Value };
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub struct Symbol(pub String);
@@ -12,8 +12,8 @@ impl fmt::Display for Symbol {
 }
 
 impl Value {
-    pub fn is_symbol(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Symbol(_)))
+    pub fn is_symbol(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Symbol(_))))
     }
 }
 
@@ -51,8 +51,8 @@ mod tests {
     fn test_is_symbol() {
         for val in sample_values() {
             match val {
-                Value::Symbol(_) => assert_eq!(val.is_symbol(), Value::boolean(true)),
-                _ => assert_eq!(val.is_symbol(), Value::boolean(false)),
+                Value::Symbol(_) => assert_eq!(val.is_symbol().expect("ok"), Value::boolean(true)),
+                _ => assert_eq!(val.is_symbol().expect("ok"), Value::boolean(false)),
             }
         }
     }

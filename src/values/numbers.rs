@@ -1,6 +1,5 @@
 use std::fmt;
-use std::rc::Rc;
-use crate::values::Value;
+use crate::values::{ Value, CallResult };
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Number {
@@ -18,8 +17,8 @@ impl fmt::Display for Number {
 }
 
 impl Value {
-    pub fn is_number(&self) -> Rc<Self> {
-        Value::boolean(matches!(self, Value::Number(_)))
+    pub fn is_number(&self) -> CallResult {
+        Ok(Value::boolean(matches!(self, Value::Number(_))))
     }
 }
 
@@ -67,8 +66,8 @@ mod tests {
     fn test_is_number() {
         for val in sample_values() {
             match val {
-                Value::Number(_) => assert_eq!(val.is_number(), Value::boolean(true)),
-                _ => assert_eq!(val.is_number(), Value::boolean(false)),
+                Value::Number(_) => assert_eq!(val.is_number().expect("ok"), Value::boolean(true)),
+                _ => assert_eq!(val.is_number().expect("ok"), Value::boolean(false)),
             }
         }
     }
