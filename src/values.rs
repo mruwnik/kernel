@@ -1,12 +1,13 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::ops::Deref;
 use std::rc::Rc;
 use std::fmt;
 
 use crate::values::bools::Bool;
 use crate::values::constants::Constant;
-use crate::values::envs::{Env, EnvRef};
+use crate::values::envs::EnvRef;
 use crate::values::numbers::Number;
-use crate::values::pairs::{Pair, PairRef};
+use crate::values::pairs::PairRef;
 use crate::values::strings::Str;
 use crate::values::symbols::Symbol;
 use crate::errors::RuntimeError;
@@ -49,6 +50,23 @@ static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 fn gen_sym() -> usize {
     ID_COUNTER.fetch_add(1, Ordering::SeqCst)
 }
+
+
+fn is_val(items: Rc<Value>, checker: &dyn Fn(Rc<Value>) -> bool) -> CallResult {
+    Ok(Value::boolean(
+        match items.deref() {
+            // this will return true when called without args
+            Value::Constant(Constant::Null) => true,
+            Value::Pair(_) => {
+                let car = Value::car(items.clone())?;
+                let cdr = Value::cdr(items.clone())?;
+                checker(car) && Value::is_true(is_val(cdr, checker)?)
+            },
+            _ => false,
+        }
+    ))
+}
+
 
 pub fn tester() {
     // let ground_env = Env::new(vec![]);
@@ -96,8 +114,28 @@ pub fn tester() {
 #[cfg(test)]
 mod tests {
     use yare::parameterized;
+    use std::rc::Rc;
 
     use crate::values::{ Bool, Constant, Env, Number, Str, Symbol, Value };
+
+    // Make a vector of sample values, one of each kind
+    pub fn sample_values() -> Vec<Rc<Value>> {
+        vec![
+            Rc::new(Value::Bool(Bool::True)),
+            Rc::new(Value::Bool(Bool::False)),
+            Rc::new(Value::Constant(Constant::Ignore)),
+            Rc::new(Value::Constant(Constant::Inert)),
+            Rc::new(Value::Constant(Constant::Null)),
+            Value::cons(
+                Rc::new(Value::Constant(Constant::Null)),
+                Rc::new(Value::Constant(Constant::Null)),
+            ).unwrap(),
+            Rc::new(Value::Env(Env::new(vec![]))),
+            Rc::new(Value::Number(Number::Int(123))),
+            Rc::new(Value::String(Str::new("bla"))),
+            Rc::new(Value::Symbol(Symbol("bla".to_string()))),
+        ]
+    }
 
     #[parameterized(
         true_ = { Value::Bool(Bool::True), "#t" },

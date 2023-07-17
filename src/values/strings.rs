@@ -1,6 +1,8 @@
+use std::ops::Deref;
 use std::fmt;
+use std::rc::Rc;
 
-use super::{ Value, gen_sym, CallResult };
+use super::{ Value, gen_sym, is_val, CallResult };
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub struct Str(pub String, usize);
@@ -12,8 +14,8 @@ impl fmt::Display for Str {
 }
 
 impl Value {
-    pub fn is_string(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::String(_))))
+    pub fn is_string(items: Rc<Value>) -> CallResult {
+        is_val(items, &|val| matches!(val.deref(), Value::String(_)))
     }
 }
 
@@ -36,32 +38,39 @@ impl Str {
 mod tests {
     use yare::parameterized;
 
-    use std::rc::Rc;
-    use crate::values::{ Bool, Constant, Env, Number, Pair, Symbol, Value };
+    use std::ops::Deref;
+    use crate::values::{ Value, tests::sample_values };
     use crate::values::strings::Str;
-
-    fn sample_values() -> Vec<Value> {
-        vec![
-            Value::Bool(Bool::True),
-            Value::Constant(Constant::Ignore),
-            Value::Env(Env::new(vec![])),
-            Value::Number(Number::Int(123)),
-            Value::Pair(Pair::new(
-                Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
-                true
-            )),
-            Value::String(Str::new("bla")),
-            Value::Symbol(Symbol("bla".to_string())),
-        ]
-    }
 
     #[test]
     fn test_is_string() {
         for val in sample_values() {
-            match val {
-                Value::String(_) => assert_eq!(val.is_string().expect("ok"), Value::boolean(true)),
-                _ => assert_eq!(val.is_string().expect("ok"), Value::boolean(false)),
+            let listified = Value::as_pair(val.clone());
+            let is_type = Value::is_true(Value::is_string(listified).expect("ok"));
+            match val.deref() {
+                Value::String(_) => assert!(is_type),
+                _ => assert!(!is_type),
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_string_multi() {
+        for val in sample_values() {
+            let listified = Value::cons(
+                val.clone(),
+                Value::cons(
+                    val.clone(),
+                    Value::cons(
+                        val.clone(),
+                        Value::as_pair(val.clone())
+                    ).unwrap(),
+                ).unwrap(),
+            ).unwrap();
+            let is_type = Value::is_true(Value::is_string(listified.clone()).expect("ok"));
+            match val.deref() {
+                Value::String(_) => assert!(is_type),
+                _ => assert!(!is_type),
             }
         }
     }

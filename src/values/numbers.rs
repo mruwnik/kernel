@@ -1,5 +1,7 @@
+use std::rc::Rc;
+use std::ops::Deref;
 use std::fmt;
-use crate::values::{ Value, CallResult };
+use crate::values::{ Value, CallResult, is_val };
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Number {
@@ -17,8 +19,8 @@ impl fmt::Display for Number {
 }
 
 impl Value {
-    pub fn is_number(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Number(_))))
+    pub fn is_number(items: Rc<Value>) -> CallResult {
+        is_val(items, &|val| matches!(val.deref(), Value::Number(_)))
     }
 }
 
@@ -41,34 +43,39 @@ impl Number {
 mod tests {
     use yare::parameterized;
 
-    use std::rc::Rc;
-    use crate::values::{ Bool, Env, Constant, Pair, Str, Symbol, Value };
+    use std::ops::Deref;
+    use crate::values::{ Value, tests::sample_values };
     use crate::values::numbers::Number;
-
-    fn sample_values() -> Vec<Value> {
-        vec![
-            Value::Bool(Bool::True),
-            Value::Constant(Constant::Ignore),
-            Value::Constant(Constant::Inert),
-            Value::Constant(Constant::Null),
-            Value::Pair(Pair::new(
-                Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
-                true
-            )),
-            Value::Env(Env::new(vec![])),
-            Value::Number(Number::Int(123)),
-            Value::String(Str::new("bla")),
-            Value::Symbol(Symbol("bla".to_string())),
-        ]
-    }
 
     #[test]
     fn test_is_number() {
         for val in sample_values() {
-            match val {
-                Value::Number(_) => assert_eq!(val.is_number().expect("ok"), Value::boolean(true)),
-                _ => assert_eq!(val.is_number().expect("ok"), Value::boolean(false)),
+            let listified = Value::as_pair(val.clone());
+            let is_type = Value::is_true(Value::is_number(listified.clone()).expect("ok"));
+            match val.deref() {
+                Value::Number(_) => assert!(is_type),
+                _ => assert!(!is_type),
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_number_multi() {
+        for val in sample_values() {
+            let listified = Value::cons(
+                val.clone(),
+                Value::cons(
+                    val.clone(),
+                    Value::cons(
+                        val.clone(),
+                        Value::as_pair(val.clone())
+                    ).unwrap(),
+                ).unwrap(),
+            ).unwrap();
+            let is_type = Value::is_true(Value::is_number(listified).expect("ok"));
+            match val.deref() {
+                Value::Number(_) => assert!(is_type),
+                _ => assert!(!is_type),
             }
         }
     }

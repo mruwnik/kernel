@@ -2,7 +2,7 @@ use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::errors::{RuntimeError, ErrorTypes};
-use crate::values::{ CallResult, Constant, Value };
+use crate::values::{ CallResult, Constant, Value, is_val };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pair {
@@ -104,8 +104,14 @@ impl Pair {
 }
 
 impl Value {
-    pub fn is_pair(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Pair(_))))
+    // Helper funcs
+    pub fn as_pair(val: Rc<Value>) -> Rc<Value> {
+        Value::cons(val, Value::make_const(Constant::Null)).unwrap()
+    }
+
+    // primatives
+    pub fn is_pair(items: Rc<Value>) -> CallResult {
+        is_val(items, &|val| matches!(val.deref(), Value::Pair(_)))
     }
 
     pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> CallResult {
@@ -145,6 +151,7 @@ impl Value {
         )
     }
 
+    // library funcs
     pub fn copy_es(self: Rc<Value>) -> CallResult {
         Ok(
             match self.deref() {
@@ -159,8 +166,6 @@ impl Value {
             }
         )
     }
-
-    // library funcs
 
     pub fn car(pair: Rc<Value>) -> CallResult {
         if let Value::Pair(p) = pair.deref() {
@@ -204,7 +209,7 @@ mod tests {
     use std::ops::Deref;
     use std::rc::Rc;
     use crate::errors::RuntimeError;
-    use crate::values::{ Bool, Constant, Env, Number, Str, Symbol, Value };
+    use crate::values::{  Constant,  Number, Value, tests::sample_values };
     use crate::values::pairs::{Pair, PairIter};
 
     use super::PairRef;
@@ -235,32 +240,35 @@ mod tests {
         }
     }
 
-    fn sample_values() -> Vec<Value> {
-        vec![
-            Value::Bool(Bool::True),
-            Value::Constant(Constant::Ignore),
-            Value::Constant(Constant::Inert),
-            Value::Constant(Constant::Null),
-            Value::Env(Env::new(vec![])),
-            Value::Number(Number::Int(123)),
-            Value::Pair(Pair::new(
-                Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
-                true
-            )),
-            Value::String(Str::new("bla")),
-            Value::Symbol(Symbol("bla".to_string())),
-        ]
-    }
-
     #[test]
     fn test_is_pair() {
         for val in sample_values() {
-            match val {
-                Value::Pair(_) => assert_eq!(val.is_pair().expect("should work"), Value::boolean(true)),
-                _ => {
-                    assert_eq!(val.is_pair().expect("should work"), Value::boolean(false));
-                },
+            let listified = Value::as_pair(val.clone());
+            let is_type = Value::is_true(Value::is_pair(listified).expect("ok"));
+            match val.deref() {
+                Value::Pair(_) => assert!(is_type),
+                _ => assert!(!is_type),
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_pair_multi() {
+        for val in sample_values() {
+            let listified = Value::cons(
+                val.clone(),
+                Value::cons(
+                    val.clone(),
+                    Value::cons(
+                        val.clone(),
+                        Value::as_pair(val.clone())
+                    ).unwrap(),
+                ).unwrap(),
+            ).unwrap();
+            let is_type = Value::is_true(Value::is_pair(listified.clone()).expect("ok"));
+            match val.deref() {
+                Value::Pair(_) => assert!(is_type),
+                _ => assert!(!is_type),
             }
         }
     }
@@ -442,10 +450,10 @@ mod tests {
             "set-car! expects a pair"
         );
         for val in sample_values() {
-            match val {
+            match val.deref() {
                 Value::Pair(_) => (),
                 _ => {
-                    let err = Value::set_car(Rc::new(val), Value::boolean(true));
+                    let err = Value::set_car(val, Value::boolean(true));
                     assert_eq!(err.expect_err("error"), expected_error);
                 },
             }
@@ -492,10 +500,10 @@ mod tests {
             "set-cdr! expects a pair"
         );
         for val in sample_values() {
-            match val {
+            match val.deref() {
                 Value::Pair(_) => (),
                 _ => {
-                    let err = Value::set_cdr(Rc::new(val), Value::boolean(true));
+                    let err = Value::set_cdr(val, Value::boolean(true));
                     assert_eq!(err.expect_err("error"), expected_error);
                 },
             }

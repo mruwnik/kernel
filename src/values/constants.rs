@@ -1,8 +1,8 @@
-use std::fmt;
+use std::{fmt, ops::Deref};
 use std::rc::Rc;
-use crate::values::{ Value, CallResult };
+use crate::values::{ Value, CallResult, is_val };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Constant {
     Ignore,
     Inert,
@@ -20,16 +20,16 @@ impl fmt::Display for Constant {
 }
 
 impl Value {
-    pub fn is_inert(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Constant(Constant::Inert))))
+    pub fn is_inert(val: Rc<Value>) -> CallResult {
+        is_val(val, &|val| matches!(val.deref(), Value::Constant(Constant::Inert)))
     }
 
-    pub fn is_ignore(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Constant(Constant::Ignore))))
+    pub fn is_ignore(val: Rc<Value>) -> CallResult {
+        is_val(val, &|val| matches!(val.deref(), Value::Constant(Constant::Ignore)))
     }
 
-    pub fn is_null(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Constant(Constant::Null))))
+    pub fn is_null(val: Rc<Value>) -> CallResult {
+        is_val(val, &|val| matches!(val.deref(), Value::Constant(Constant::Null)))
     }
 
     pub fn make_const(c: Constant) -> Rc<Value> {
@@ -39,6 +39,7 @@ impl Value {
 
 impl Constant {
     pub fn is_eq(self: &Self, other: &Self) -> bool {
+        dbg!(self, other);
         self == other
     }
 }
@@ -48,39 +49,48 @@ impl Constant {
 mod tests {
     use yare::parameterized;
 
-    use std::rc::Rc;
-    use crate::values::{ Bool, Env, Number, Pair, Str, Symbol, Value };
+    use std::ops::Deref;
+    use crate::values::{ Value, tests::sample_values };
     use crate::values::constants::Constant;
-
-    fn sample_values() -> Vec<Value> {
-        vec![
-            Value::Bool(Bool::True),
-            Value::Constant(Constant::Ignore),
-            Value::Constant(Constant::Inert),
-            Value::Constant(Constant::Null),
-            Value::Pair(Pair::new(
-                Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
-                true
-            )),
-            Value::Env(Env::new(vec![])),
-            Value::Number(Number::Int(123)),
-            Value::String(Str::new("bla")),
-            Value::Symbol(Symbol("bla".to_string())),
-        ]
-    }
 
     #[test]
     fn test_is_constant() {
         for val in sample_values() {
-            match val {
-                Value::Constant(Constant::Inert) => assert_eq!(val.is_inert().expect("ok"), Value::boolean(true)),
-                Value::Constant(Constant::Ignore) => assert_eq!(val.is_ignore().expect("ok"), Value::boolean(true)),
-                Value::Constant(Constant::Null) => assert_eq!(val.is_null().expect("ok"), Value::boolean(true)),
+            let listified = Value::as_pair(val.clone());
+            match val.deref() {
+                Value::Constant(Constant::Inert) => assert_eq!(Value::is_inert(listified).expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Ignore) => assert_eq!(Value::is_ignore(listified).expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Null) => assert_eq!(Value::is_null(listified).expect("ok"), Value::boolean(true)),
                 _ => {
-                    assert_eq!(val.is_inert().expect("ok"), Value::boolean(false));
-                    assert_eq!(val.is_ignore().expect("ok"), Value::boolean(false));
-                    assert_eq!(val.is_null().expect("ok"), Value::boolean(false));
+                    assert_eq!(Value::is_inert(listified.clone()).expect("ok"), Value::boolean(false));
+                    assert_eq!(Value::is_ignore(listified.clone()).expect("ok"), Value::boolean(false));
+                    assert_eq!(Value::is_null(listified.clone()).expect("ok"), Value::boolean(false));
+                },
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_constant_multi() {
+        for val in sample_values() {
+            let listified = Value::cons(
+                val.clone(),
+                Value::cons(
+                    val.clone(),
+                    Value::cons(
+                        val.clone(),
+                        Value::as_pair(val.clone())
+                    ).unwrap(),
+                ).unwrap(),
+            ).unwrap();
+            match val.deref() {
+                Value::Constant(Constant::Inert) => assert!(Value::is_true(Value::is_inert(listified).expect("ok"))),
+                Value::Constant(Constant::Ignore) => assert_eq!(Value::is_ignore(listified).expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Null) => assert_eq!(Value::is_null(listified).expect("ok"), Value::boolean(true)),
+                _ => {
+                    assert_eq!(Value::is_inert(listified.clone()).expect("ok"), Value::boolean(false));
+                    assert_eq!(Value::is_ignore(listified.clone()).expect("ok"), Value::boolean(false));
+                    assert_eq!(Value::is_null(listified.clone()).expect("ok"), Value::boolean(false));
                 },
             }
         }

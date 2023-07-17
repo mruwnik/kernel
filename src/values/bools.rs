@@ -1,5 +1,5 @@
 use std::{fmt, rc::Rc, ops::Deref};
-use crate::values::{ CallResult, Value };
+use crate::values::{ CallResult, Value, is_val };
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Bool {
@@ -7,6 +7,7 @@ pub enum Bool {
 }
 
 impl Value {
+    // helpers
     pub fn boolean(val: bool) -> Rc<Value> {
         Rc::new(Value::Bool(
             if val {
@@ -16,8 +17,13 @@ impl Value {
             }))
     }
 
-    pub fn is_bool(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Bool(_))))
+    pub fn is_true(val: Rc<Value>) -> bool {
+        val == Value::boolean(true)
+    }
+
+    // primatives
+    pub fn is_boolean(items: Rc<Value>) -> CallResult {
+        is_val(items, &|val| matches!(val.deref(), Value::Bool(_)))
     }
 
     pub fn is_eq(self: &Rc<Self>, other: &Rc<Self>) -> CallResult {
@@ -65,32 +71,40 @@ impl fmt::Display for Bool {
 mod tests {
     use yare::parameterized;
 
+    use std::ops::Deref;
     use std::rc::Rc;
-    use crate::values::{ Constant, Env, Number, Pair, Str, Symbol, Value };
-    use crate::values::bools::Bool;
+    use crate::values::{ Value, tests::sample_values };
 
-    fn sample_values() -> Vec<Value> {
-        vec![
-            Value::Bool(Bool::True),
-            Value::Constant(Constant::Ignore),
-            Value::Env(Env::new(vec![])),
-            Value::Number(Number::Int(123)),
-            Value::Pair(Pair::new(
-                Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
-                true,
-            )),
-            Value::String(Str::new("bla")),
-            Value::Symbol(Symbol("bla".to_string())),
-        ]
+    #[test]
+    fn test_is_boolean_single() {
+        for val in sample_values() {
+            let listified = Value::as_pair(val.clone());
+            let is_type = Value::is_true(Value::is_boolean(listified).expect("ok"));
+            match val.deref() {
+                Value::Bool(_) => assert!(is_type),
+                _ => assert!(!is_type),
+            }
+        }
     }
 
     #[test]
-    fn test_is_bool() {
+    fn test_is_boolean_multi() {
         for val in sample_values() {
-            match val {
-                Value::Bool(_) => assert_eq!(val.is_bool().expect("ok"), Value::boolean(true)),
-                _ => assert_eq!(val.is_bool().expect("ok"), Value::boolean(false)),
+            dbg!("val is");
+            dbg!(val.clone());
+            let listified = Value::cons(
+                val.clone(),
+                Value::cons(
+                    val.clone(),
+                    Value::cons(
+                        val.clone(),
+                        Value::as_pair(val.clone())
+                    ).unwrap(),
+                ).unwrap(),
+            ).unwrap();
+            match val.deref() {
+                Value::Bool(_) => assert!(Value::is_true(Value::is_boolean(listified).expect("ok"))),
+                _ => assert!(!Value::is_true(Value::is_boolean(listified).expect("ok"))),
             }
         }
     }

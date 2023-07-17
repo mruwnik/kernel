@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::{
-    values::{Symbol, Value, CallResult, Constant, gen_sym},
+    values::{Symbol, Value, CallResult, Constant, gen_sym, is_val},
     errors::{ RuntimeError, ErrorTypes }
 };
 
@@ -46,8 +46,8 @@ impl Env {
 }
 
 impl Value {
-    pub fn is_env(&self) -> CallResult {
-        Ok(Value::boolean(matches!(self, Value::Env(_))))
+    pub fn is_env(items: Rc<Value>) -> CallResult {
+        is_val(items, &|val| matches!(val.deref(), Value::Env(_)))
     }
 
     pub fn make_environment(val: Rc<Value>) -> CallResult {
@@ -84,7 +84,7 @@ mod tests {
     use std::rc::Rc;
     use std::ops::Deref;
     use std::collections::HashMap;
-    use crate::values::{ Bool, Constant, Number, Pair, Str, Symbol, Value };
+    use crate::values::{ Constant, Symbol, Value, tests::sample_values };
     use crate::values::envs::Env;
     use yare::parameterized;
 
@@ -97,21 +97,37 @@ mod tests {
         env.borrow_mut().bind(Symbol(key.to_string()), make_value(val));
     }
 
-    // Make a vector of sample values, one of each kind
-    fn sample_values() -> Vec<Value> {
-        vec![
-            Value::Bool(Bool::True),
-            Value::Constant(Constant::Ignore),
-            Value::Env(Env::new(vec![])),
-            Value::Number(Number::Int(123)),
-            Value::Pair(Pair::new(
-                Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
-                true
-            )),
-            Value::String(Str::new("bla")),
-            Value::Symbol(Symbol("bla".to_string())),
-        ]
+    #[test]
+    fn test_is_env() {
+        for val in sample_values() {
+            let listified = Value::as_pair(val.clone());
+            let is_type = Value::is_true(Value::is_env(listified).expect("ok"));
+            match val.deref() {
+                Value::Env(_) => assert!(is_type),
+                _ => assert!(!is_type),
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_env_multi() {
+        for val in sample_values() {
+            let listified = Value::cons(
+                val.clone(),
+                Value::cons(
+                    val.clone(),
+                    Value::cons(
+                        val.clone(),
+                        Value::as_pair(val.clone())
+                    ).unwrap(),
+                ).unwrap(),
+            ).unwrap();
+            let is_type = Value::is_true(Value::is_env(listified).expect("ok"));
+            match val.deref() {
+                Value::Env(_) => assert!(is_type),
+                _ => assert!(!is_type),
+            }
+        }
     }
 
     #[test]
@@ -252,16 +268,6 @@ mod tests {
         assert_eq!(get_key(&env, "key"), make_value("env"));
     }
 
-    #[test]
-    fn test_is_env() {
-        for val in sample_values() {
-            match val {
-                Value::Env(_) => assert_eq!(val.is_env().expect("ok"), Value::boolean(true)),
-                _ => assert_eq!(val.is_env().expect("ok"), Value::boolean(false)),
-            }
-        }
-    }
-
     #[parameterized(
         empty_envs = { Env::new(vec![]), Env::new(vec![]) },
         with_parents = { Env::new(vec![Env::new(vec![])]), Env::new(vec![]) },
@@ -304,7 +310,7 @@ mod tests {
         }
 
         let env = Value::make_environment(Value::cdr(root).unwrap()).expect("invalid parents provided?");
-        assert_eq!(env.is_env().unwrap(), Value::boolean(true));
+        assert!(Value::is_true(Value::is_env(Value::as_pair(env.clone())).unwrap()));
         match env.deref() {
             Value::Env(e) => assert_eq!(e.borrow().parents, parents),
             _ => panic!("Make environment didn't return an env"),
