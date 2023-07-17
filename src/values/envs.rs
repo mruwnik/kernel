@@ -81,7 +81,8 @@ mod tests {
             Value::Number(Number::Int(123)),
             Value::Pair(Pair::new(
                 Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null))
+                Rc::new(Value::Constant(Constant::Null)),
+                true
             )),
             Value::String(Str::new("bla")),
             Value::Symbol(Symbol("bla".to_string())),

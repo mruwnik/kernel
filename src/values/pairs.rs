@@ -54,8 +54,8 @@ impl fmt::Display for Pair {
 
 
 impl Pair {
-    pub fn new(car: Rc<Value>, cdr: Rc<Value>) -> PairRef {
-        Rc::new(RefCell::new(Pair { car, cdr, mutable: true }))
+    pub fn new(car: Rc<Value>, cdr: Rc<Value>, mutable: bool) -> PairRef {
+        Rc::new(RefCell::new(Pair { car, cdr, mutable }))
     }
 
     pub fn is_eq(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
@@ -68,8 +68,8 @@ impl Pair {
 
     pub fn is_equal(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
         Ok(
-            self.cdr().is_equal(&other.borrow().car().clone())? == Value::boolean(true) &&
-            self.cdr().is_equal(&other.borrow().cdr().clone())? == Value::boolean(true)
+                self.car().is_equal(&other.borrow().car().clone())? == Value::boolean(true) &&
+                self.cdr().is_equal(&other.borrow().cdr().clone())? == Value::boolean(true)
         )
     }
 
@@ -110,11 +110,11 @@ impl Value {
     }
 
     pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> CallResult {
-        Ok(Rc::new(Value::Pair(Pair::new(val1, val2))))
+        Ok(Rc::new(Value::Pair(Pair::new(val1, val2, true))))
     }
 
-    pub fn set_car(pair: Rc<Value>, val: Rc<Value>) -> CallResult {
-        if let Value::Pair(p) = pair.deref() {
+    pub fn set_car(self: Rc<Value>, val: Rc<Value>) -> CallResult {
+        if let Value::Pair(p) = self.deref() {
             p.borrow_mut().set_car(val)?;
             Ok(Value::make_const(Constant::Inert))
         } else {
@@ -122,8 +122,8 @@ impl Value {
         }
     }
 
-    pub fn set_cdr(pair: Rc<Value>, val: Rc<Value>) -> CallResult {
-        if let Value::Pair(p) = pair.deref() {
+    pub fn set_cdr(self: Rc<Value>, val: Rc<Value>) -> CallResult {
+        if let Value::Pair(p) = self.deref() {
             p.borrow_mut().set_cdr(val)?;
             Ok(Value::make_const(Constant::Inert))
         } else {
@@ -131,9 +131,20 @@ impl Value {
         }
     }
 
-    // pub fn copy_es_immutable(pair: Rc<Value>) -> Result<Rc<Value>, RuntimeError> {
-
-    // }
+    pub fn copy_es_immutable(self: Rc<Value>) -> CallResult {
+        Ok(
+            match self.deref() {
+                Value::Pair(p) => Rc::new(Value::Pair(
+                    Pair::new(
+                        p.borrow().car().copy_es_immutable()?,
+                        p.borrow().cdr().copy_es_immutable()?,
+                        false
+                    ))
+                ),
+                _ => self.clone(),
+            }
+        )
+    }
 }
 
 
@@ -141,6 +152,7 @@ impl Value {
 mod tests {
     use yare::parameterized;
 
+    use std::ops::Deref;
     use std::rc::Rc;
     use crate::errors::RuntimeError;
     use crate::values::{ Bool, Constant, Env, Number, Str, Symbol, Value };
@@ -152,14 +164,26 @@ mod tests {
         items.reverse();
         let mut iterator = items.iter();
         let i = iterator.next().unwrap();
-        let mut node = Pair::new(i.clone(), Rc::new(Value::Constant(Constant::Null)));
+        let mut node = Pair::new(i.clone(), Rc::new(Value::Constant(Constant::Null)), true);
         for i in iterator {
-            node = Pair::new(i.clone(), Rc::new(Value::Pair(node)));
+            node = Pair::new(i.clone(), Rc::new(Value::Pair(node)), true);
         }
         node
     }
     fn number_list(items: Vec<i64>) -> PairRef {
         make_list(items.iter().map(|i| Rc::new(Value::Number(Number::Int(*i)))).collect())
+    }
+    fn make_immutable(p: PairRef) -> PairRef {
+        let copied = Value::copy_es_immutable(Rc::new(Value::Pair(p))).expect("should work");
+        if let Value::Pair(pair) = copied.deref() {
+            pair.clone()
+        } else {
+            Pair::new(
+                Rc::new(Value::Constant(Constant::Null)),
+                Rc::new(Value::Constant(Constant::Null)),
+                false,
+            )
+        }
     }
 
     fn sample_values() -> Vec<Value> {
@@ -172,7 +196,8 @@ mod tests {
             Value::Number(Number::Int(123)),
             Value::Pair(Pair::new(
                 Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null))
+                Rc::new(Value::Constant(Constant::Null)),
+                true
             )),
             Value::String(Str::new("bla")),
             Value::Symbol(Symbol("bla".to_string())),
@@ -195,7 +220,8 @@ mod tests {
     fn test_is_eq_self() {
         let val = Pair::new(
             Rc::new(Value::Number(Number::Int(1))),
-            Rc::new(Value::Constant(Constant::Null))
+            Rc::new(Value::Constant(Constant::Null)),
+            true
         );
         assert!(val.borrow().is_eq(&val).expect("ok"));
     }
@@ -208,13 +234,17 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok")),
+                ).expect("ok"),
+                true
+            ),
             Pair::new(
                 Rc::new(Value::Pair(number_list(vec![5, 3, 2]))),
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok")),
+                ).expect("ok"),
+                true
+            ),
         },
     )]
     fn test_is_eq(val1: PairRef, val2: PairRef) {
@@ -224,6 +254,7 @@ mod tests {
 
     #[parameterized(
         basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2]) },
+        mutability = { number_list(vec![1, 2, 3]), make_immutable(number_list(vec![1, 2, 3])) },
     )]
     fn test_is_eq_not(val1: PairRef, val2: PairRef) {
         assert!(!val1.borrow().is_eq(&val2).expect("ok"));
@@ -231,10 +262,46 @@ mod tests {
     }
 
     #[parameterized(
+        basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2, 3]) },
+        nested = {
+            Pair::new(
+                Rc::new(Value::Pair(number_list(vec![5, 3, 2]))),
+                Value::cons(
+                    Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+                    Rc::new(Value::Constant(Constant::Null))
+                ).expect("ok"),
+                true
+            ),
+            Pair::new(
+                Rc::new(Value::Pair(number_list(vec![5, 3, 2]))),
+                Value::cons(
+                    Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+                    Rc::new(Value::Constant(Constant::Null))
+                ).expect("ok"),
+                true
+            ),
+        },
+        mutability = { number_list(vec![1, 2, 3]), make_immutable(number_list(vec![1, 2, 3])) },
+    )]
+    fn test_is_equal(val1: PairRef, val2: PairRef) {
+        assert!(val1.borrow().is_equal(&val2).expect("ok"));
+        assert!(val2.borrow().is_equal(&val1).expect("ok"));
+    }
+
+    #[parameterized(
+        basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2]) },
+    )]
+    fn test_is_equal_not(val1: PairRef, val2: PairRef) {
+        assert!(!val1.borrow().is_equal(&val2).expect("ok"));
+        assert!(!val2.borrow().is_equal(&val1).expect("ok"));
+    }
+
+    #[parameterized(
         pair_single = {
             Value::Pair(Pair::new(
                 Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null))
+                Rc::new(Value::Constant(Constant::Null)),
+                true
             )),
             "(1)"
         },
@@ -242,6 +309,7 @@ mod tests {
             Value::Pair(Pair::new(
                 Rc::new(Value::Number(Number::Int(1))),
                 Rc::new(Value::Number(Number::Int(2))),
+                true
             )),
             "(1 . 2)"
         },
@@ -251,7 +319,8 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Number(Number::Int(2))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok")
+                ).expect("ok"),
+                true
             )),
             "(1 2)"
         },
@@ -267,16 +336,35 @@ mod tests {
                             Rc::new(Value::Constant(Constant::Null))
                         ).expect("ok")
                     ).expect("ok")
-                ).expect("ok")
+                ).expect("ok"),
+                true
             )),
             "(1 2 3 4)"
         },
         pair_multi_dotted = {
             Value::Pair(Pair::new(
                 Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null))
+                Rc::new(Value::Constant(Constant::Null)),
+                true
             )),
             "(1)"
+        },
+        pair_nested = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+                Value::cons(
+                    Rc::new(Value::Pair(number_list(vec![4, 5, 6]))),
+                    Value::cons(
+                        Rc::new(Value::Pair(number_list(vec![7, 8, 9]))),
+                        Value::cons(
+                            Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
+                            Rc::new(Value::Constant(Constant::Null))
+                        ).expect("ok")
+                    ).expect("ok")
+                ).expect("ok"),
+                true
+            )),
+            "((1 2 3) (4 5 6) (7 8 9) (10 11 12))"
         },
     )]
     fn test_format(val: Value, expected: &str) {
@@ -317,18 +405,20 @@ mod tests {
 
     #[test]
     fn test_set_car_immutable() {
-        let pair = Value::cons(
+        let pair = Rc::new(Value::Pair(Pair::new(
             Rc::new(Value::Number(Number::Int(4))),
-            Rc::new(Value::Constant(Constant::Null))
-        ).expect("ok");
+            Rc::new(Value::Constant(Constant::Null)),
+            false,
+        )));
         let expected_error = RuntimeError::new(
             crate::errors::ErrorTypes::ImmutableError,
-            "asd"
+            "This pair is immutable"
         );
-        // let err = Value::set_car(
-        //     Rc::new(val),
-        //     Value::boolean(true)
-        // ).expect_err("should have raised an error!");
+        let err = Value::set_car(
+            pair,
+            Value::boolean(true)
+        ).expect_err("should have raised an error!");
+        assert_eq!(err, expected_error);
     }
 
     #[test]
@@ -363,4 +453,107 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_set_cdr_immutable() {
+        let pair = Rc::new(Value::Pair(Pair::new(
+            Rc::new(Value::Number(Number::Int(4))),
+            Rc::new(Value::Constant(Constant::Null)),
+            false,
+        )));
+        let expected_error = RuntimeError::new(
+            crate::errors::ErrorTypes::ImmutableError,
+            "This pair is immutable"
+        );
+        let err = Value::set_cdr(pair, Value::boolean(true)).expect_err("should have raised an error!");
+        assert_eq!(err, expected_error);
+    }
+
+    #[parameterized(
+        pair_single = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Constant(Constant::Null)),
+                true
+            )),
+            "(1)"
+        },
+        pair_dotted = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Number(Number::Int(2))),
+                true
+            )),
+            "(1 . 2)"
+        },
+        pair_double = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Value::cons(
+                    Rc::new(Value::Number(Number::Int(2))),
+                    Rc::new(Value::Constant(Constant::Null))
+                ).expect("ok"),
+                true
+            )),
+            "(1 2)"
+        },
+        pair_multi = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Value::cons(
+                    Rc::new(Value::Number(Number::Int(2))),
+                    Value::cons(
+                        Rc::new(Value::Number(Number::Int(3))),
+                        Value::cons(
+                            Rc::new(Value::Number(Number::Int(4))),
+                            Rc::new(Value::Constant(Constant::Null))
+                        ).expect("ok")
+                    ).expect("ok")
+                ).expect("ok"),
+                true
+            )),
+            "(1 2 3 4)"
+        },
+        pair_multi_dotted = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Constant(Constant::Null)),
+                true
+            )),
+            "(1)"
+        },
+        pair_nested = {
+            Value::Pair(Pair::new(
+                Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+                Value::cons(
+                    Rc::new(Value::Pair(number_list(vec![4, 5, 6]))),
+                    Value::cons(
+                        Rc::new(Value::Pair(number_list(vec![7, 8, 9]))),
+                        Value::cons(
+                            Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
+                            Rc::new(Value::Constant(Constant::Null))
+                        ).expect("ok")
+                    ).expect("ok")
+                ).expect("ok"),
+                true
+            )),
+            "((1 2 3) (4 5 6) (7 8 9) (10 11 12))"
+        },
+    )]
+    fn test_copy_es_immutable(val: Value, expected: &str) {
+        let expected_error = RuntimeError::new(crate::errors::ErrorTypes::ImmutableError, "This pair is immutable");
+        let copies = Value::copy_es_immutable(Rc::new(val)).expect("should work");
+        assert_eq!(format!("{copies}"), expected);
+
+        // Go through all the pairs and make sure they return errors when modified
+        if let Value::Pair(pair) = copies.deref() {
+            for node in pair.borrow().iter() {
+                if let Value::Pair(_) = node.deref() {
+                    let err = Value::set_cdr(node, Value::boolean(true)).expect_err("should have raised an error!");
+                    assert_eq!(err, expected_error);
+                }
+            }
+        } else {
+            panic!("copies is not a pair");
+        }
+    }
 }
