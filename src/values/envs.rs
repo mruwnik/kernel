@@ -68,12 +68,13 @@ impl Value {
     pub fn make_environment(val: Rc<Value>) -> CallResult {
         match val.deref() {
             Value::Constant(Constant::Null) => Ok(Rc::new(Value::Env(Env::new(vec![])))),
-            Value::Pair(root) => {
+            Value::Pair(_) => {
                 let mut parents: Vec<EnvRef> = Vec::new();
                 // TODO: can this be done cleaner? something like root.iter().filter(not env)?
-                for (i, node) in root.borrow().iter().enumerate() {
+                for (i, node) in val.iter().enumerate() {
                     match node.deref() {
                         Value::Env(env) => parents.push(env.clone()),
+                        Value::Constant(Constant::Null) => (),
                         _ => return Err(RuntimeError::new(
                             ErrorTypes::TypeError,
                             format!("{i}-th argumnent to make-environment is not an Environment")

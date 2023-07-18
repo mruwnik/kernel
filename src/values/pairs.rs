@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -12,24 +13,29 @@ pub struct Pair {
 }
 pub type PairRef = Rc<RefCell<Pair>>;
 
-pub struct PairIter {
-    node: Option<Rc<Pair>>,
+pub struct ValueIter {
+    node: Option<Rc<Value>>,
 }
 
-impl Iterator for PairIter {
+impl Iterator for ValueIter {
     type Item = Rc<Value>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let node = self.node.as_ref();
-        if node.is_some() {
-            let val = node.unwrap().clone();
-            self.node = match Pair::cdr(&val).deref() {
-                Value::Pair(p) => Some(Rc::new(p.borrow().clone())),
-                _ => None
-            };
-            Some(val.car().clone())
-        } else {
-            None
+        match self.node.as_deref() {
+            None => None,
+            Some(v) => {
+                let val = Rc::new(v.clone());
+                match v.deref() {
+                    Value::Pair(_) => {
+                        self.node = Some(Value::cdr(val.clone()).unwrap());
+                        Some(Value::car(val.clone()).unwrap())
+                    },
+                    _ => {
+                        self.node = None;
+                        Some(val.clone())
+                    }
+                }
+            }
         }
     }
 }
@@ -38,16 +44,19 @@ impl fmt::Display for Pair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let car = &self.car();
         let cdr = &self.cdr();
-        write!(f, "({car}{})", match cdr.deref() {
-            Value::Pair(p) => {
-                let mut string = String::new();
-                for item in p.borrow().iter() {
-                    string.push_str(&format!(" {item}"));
+        let vals: Vec<Rc<Value>> = cdr.iter().collect();
+        write!(f, "({car}{})", match vals.split_last() {
+            None => ")".to_string(),
+            Some((last, others)) => {
+                let mut rest = others.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(" ");
+                if !rest.is_empty() {
+                    rest.insert_str(0, " ");
                 }
-                string
-            },
-            Value::Constant(Constant::Null) => "".to_string(),
-            _ => format!(" . {cdr}"),
+                match last.deref() {
+                    Value::Constant(Constant::Null) => format!("{rest}"),
+                    _ => format!("{rest} . {last}"),
+                }
+            }
         })
     }
 }
@@ -97,16 +106,16 @@ impl Pair {
             Err(RuntimeError::new(ErrorTypes::ImmutableError, "This pair is immutable"))
         }
     }
-
-    pub fn iter(self: &Self) -> PairIter {
-        PairIter { node: Some(Rc::new(self.clone())) }
-    }
 }
 
 impl Value {
     // Helper funcs
     pub fn as_pair(val: Rc<Value>) -> Rc<Value> {
         Value::cons(val, Value::make_const(Constant::Null)).unwrap()
+    }
+
+    pub fn iter(self: &Self) -> ValueIter {
+        ValueIter { node: Some(Rc::new(self.clone())) }
     }
 
     // primatives
@@ -210,7 +219,7 @@ mod tests {
     use std::rc::Rc;
     use crate::errors::RuntimeError;
     use crate::values::{  Constant,  Number, Value, tests::sample_values };
-    use crate::values::pairs::{Pair, PairIter};
+    use crate::values::pairs::Pair;
 
     use super::PairRef;
 
@@ -401,10 +410,16 @@ mod tests {
         pair_multi_dotted = {
             Value::Pair(Pair::new(
                 Rc::new(Value::Number(Number::Int(1))),
-                Rc::new(Value::Constant(Constant::Null)),
+                Value::cons(
+                    Rc::new(Value::Number(Number::Int(2))),
+                    Value::cons(
+                        Rc::new(Value::Number(Number::Int(3))),
+                        Rc::new(Value::Number(Number::Int(4))),
+                    ).expect("ok")
+                ).expect("ok"),
                 true
             )),
-            "(1)"
+            "(1 2 3 . 4)"
         },
         pair_nested = {
             Value::Pair(Pair::new(
@@ -603,7 +618,7 @@ mod tests {
 
         // Go through all the pairs and make sure they return errors when modified
         if let Value::Pair(pair) = copies.deref() {
-            for node in pair.borrow().iter() {
+            for node in copies.iter() {
                 if let Value::Pair(_) = node.deref() {
                     let err = Value::set_cdr(node, Value::boolean(true)).expect_err("should have raised an error!");
                     assert_eq!(err, expected_error);
@@ -612,6 +627,90 @@ mod tests {
         } else {
             panic!("copies is not a pair");
         }
+    }
+
+    #[parameterized(
+        pair_single = {
+            Value::cons(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Constant(Constant::Null)),
+            ).expect("ok"),
+            "(1)"
+        },
+        pair_dotted = {
+            Value::cons(
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Number(Number::Int(2))),
+            ).expect("ok"),
+            "(1 . 2)"
+        },
+        pair_double = {
+            Value::cons(
+                Rc::new(Value::Number(Number::Int(1))),
+                Value::cons(
+                    Rc::new(Value::Number(Number::Int(2))),
+                    Rc::new(Value::Constant(Constant::Null))
+                ).expect("ok"),
+            ).expect("ok"),
+            "(1 2)"
+        },
+        pair_multi = {
+            Value::cons(
+                Rc::new(Value::Number(Number::Int(1))),
+                Value::cons(
+                    Rc::new(Value::Number(Number::Int(2))),
+                    Value::cons(
+                        Rc::new(Value::Number(Number::Int(3))),
+                        Value::cons(
+                            Rc::new(Value::Number(Number::Int(4))),
+                            Rc::new(Value::Constant(Constant::Null))
+                        ).expect("ok")
+                    ).expect("ok")
+                ).expect("ok"),
+            ).expect("ok"),
+            "(1 2 3 4)"
+        },
+        pair_multi_dotted = {
+            Value::cons(
+                Rc::new(Value::Number(Number::Int(1))),
+                Value::cons(
+                    Rc::new(Value::Number(Number::Int(2))),
+                    Value::cons(
+                        Rc::new(Value::Number(Number::Int(3))),
+                        Rc::new(Value::Number(Number::Int(4))),
+                    ).expect("ok")
+                ).expect("ok"),
+            ).expect("ok"),
+            "(1 2 3 . 4)"
+        },
+        pair_nested = {
+            Value::cons(
+                Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+                Value::cons(
+                    Rc::new(Value::Pair(number_list(vec![4, 5, 6]))),
+                    Value::cons(
+                        Rc::new(Value::Pair(number_list(vec![7, 8, 9]))),
+                        Value::cons(
+                            Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
+                            Rc::new(Value::Constant(Constant::Null))
+                        ).expect("ok")
+                    ).expect("ok")
+                ).expect("ok"),
+            ).expect("ok"),
+            "((1 2 3) (4 5 6) (7 8 9) (10 11 12))"
+        },
+    )]
+    fn test_iterate(val: Rc<Value>, expected: &str) {
+        let mut bits: Vec<Rc<Value>> = Vec::new();
+        let mut bit = val.clone();
+        while Value::is_true(Value::is_pair(Value::as_pair(bit.clone())).unwrap()) {
+            bits.push(Value::car(bit.clone()).unwrap().clone());
+            bit = Value::cdr(bit.clone()).unwrap();
+        }
+        bits.push(bit.clone());
+
+        assert_eq!(val.iter().collect::<Vec<Rc<Value>>>(), bits);
+        assert_eq!(format!("{val}"), expected);
     }
 
     // #[parameterized(

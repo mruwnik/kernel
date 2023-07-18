@@ -1,7 +1,7 @@
 use std::{fmt, rc::Rc, ops::Deref};
 use crate::values::{ CallResult, Value, is_val };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Bool {
     True, False
 }
@@ -92,8 +92,6 @@ mod tests {
     #[test]
     fn test_is_boolean_multi() {
         for val in sample_values() {
-            dbg!("val is");
-            dbg!(val.clone());
             let listified = Value::cons(
                 val.clone(),
                 Value::cons(

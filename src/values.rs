@@ -23,7 +23,7 @@ pub mod numbers;
 pub mod strings;
 pub mod symbols;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Bool(Bool),
     Combiner(Combiner),

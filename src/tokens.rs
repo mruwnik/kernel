@@ -73,39 +73,34 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
 }
 
 fn extract_list(tokens: &mut Iter<Token>) -> Result<Rc<Value>, RuntimeError> {
-    let mut vals: Vec<Rc<Value>> = vec![];
-
+    let root = Value::as_pair(Value::make_null());
+    let mut last = root.clone();
     while let Some(token) = tokens.next() {
-        vals.push(match token {
+        let val = Value::as_pair(match token {
             Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
             Token::Special(SpecialLexeme::RightParam) => break,
             Token::Special(SpecialLexeme::FullStop) => {
-                let next_token = tokens.next();
-                let val = match next_token {
+                let val = match tokens.next() {
                     None => return make_error("expression ended with a dot"),
+                    Some(Token::Special(SpecialLexeme::LeftParam)) => return make_error("dot expressions must end with a value, not a list"),
                     Some(Token::Special(SpecialLexeme::RightParam)) => return make_error("expression ended with a dot"),
                     Some(Token::Special(SpecialLexeme::FullStop)) => return make_error("expression ended with a dot"),
-                    _ => to_value(token, tokens)?,
+                    Some(t) => to_value(t, tokens)?,
                 };
-                vals.push(val);
-                if next_token.is_none() {
-                    return make_error("unclosed expression")
-                } else if let Token::Special(SpecialLexeme::RightParam) = next_token.unwrap() {
-                    break;
-                } else {
-                    return make_error("multiple values provided after a dot")
+                Value::set_cdr(last.clone(), val.clone())?;
+
+                match tokens.next() {
+                    None => return make_error("unclosed expression"),
+                    Some(Token::Special(SpecialLexeme::RightParam)) => break,
+                    _ => return make_error("multiple values provided after a dot"),
                 }
             },
             _ => to_value(token, tokens)?,
         });
+        Value::set_cdr(last.clone(), val.clone())?;
+        last = val;
     }
-    let mut root = Value::make_null();
-    if !vals.is_empty() {
-        for val in vals.iter().rev() {
-            root = Value::cons(val.clone(), root.clone())?;
-        }
-    }
-    Ok(root)
+    Value::cdr(root)
 }
 
 fn make_number(number: &Number) -> Result<Rc<Value>, RuntimeError> {
@@ -154,7 +149,7 @@ mod tests {
     use yare::parameterized;
 
     use crate::lexemes::{Lexeme, SpecialLexeme};
-    use crate::tokens::{parse_token, Token, Number, Constant};
+    use crate::tokens::{parse_token, to_value, make_error, extract_list, Token, Number, Constant};
 
     #[parameterized(
         left_param = { SpecialLexeme::LeftParam },
@@ -265,4 +260,127 @@ mod tests {
         );
     }
 
+    #[parameterized(
+        left = { Token::Special(SpecialLexeme::LeftParam), "(1)" },
+        true_ = { Token::Constant(Constant::True), "#t" },
+        false_ = { Token::Constant(Constant::False), "#f" },
+        ignore = { Token::Constant(Constant::Ignore), "#ignore" },
+        inert = { Token::Constant(Constant::Inert), "#inert" },
+        null = { Token::Constant(Constant::Null), "()" },
+        float = { Token::Number(Number::Float(0.123)), "0.123" },
+        int = { Token::Number(Number::Int(32)), "32" },
+        string = { Token::String("bla".to_string()), "\"bla\"" },
+        symbol = { Token::Symbol("ble".to_string()), "ble" },
+        // char = { Token::Char('a'), "#a" },
+    )]
+    fn test_get_to_value(token: Token, expected: &str) {
+        let tokens = vec![Token::Number(Number::Int(1)), Token::Special(SpecialLexeme::RightParam)];
+        let value = to_value(&token, &mut tokens.iter()).expect("this should work");
+        assert_eq!(format!("{value}"), expected);
+    }
+
+    #[parameterized(
+        right_param = { Token::Special(SpecialLexeme::RightParam), "Dangling closing param found" },
+        full_stop = { Token::Special(SpecialLexeme::FullStop), "Dangling dot found - this can only be provided to mark the ending of a list" },
+        chars = { Token::Char('a'), "Unhandled token found" },
+    )]
+    fn test_get_to_value_errors(token: Token, expected: &str) {
+        let tokens = vec![Token::Number(Number::Int(1)), Token::Special(SpecialLexeme::RightParam)];
+        let value = to_value(&token, &mut tokens.iter()).expect_err("this should fail");
+        assert_eq!(value.to_string(), format!("Parse error: {expected}"));
+    }
+
+
+    #[parameterized(
+        empty = { vec![
+            Token::Special(SpecialLexeme::RightParam),
+        ], "()" },
+        single = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "(bla)" },
+        proper = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Symbol("bla".to_string()),
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "(bla bla bla)" },
+        pair = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::FullStop),
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "(bla . bla)" },
+        list_dotted = { vec![
+            Token::Symbol("bla1".to_string()),
+            Token::Symbol("bla2".to_string()),
+            Token::Special(SpecialLexeme::FullStop),
+            Token::Symbol("bla3".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "(bla1 bla2 . bla3)" },
+        nested = { vec![
+            Token::Special(SpecialLexeme::LeftParam),
+            Token::Symbol("1".to_string()),
+            Token::Symbol("2".to_string()),
+            Token::Symbol("3".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::LeftParam),
+            Token::Symbol("4".to_string()),
+            Token::Symbol("5".to_string()),
+            Token::Symbol("6".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::LeftParam),
+            Token::Symbol("7".to_string()),
+            Token::Symbol("8".to_string()),
+            Token::Symbol("9".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::LeftParam),
+            Token::Symbol("10".to_string()),
+            Token::Symbol("11".to_string()),
+            Token::Symbol("12".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "((1 2 3) bla (4 5 6) bla (7 8 9) bla (10 11 12))" },
+
+    )]
+    fn test_extract_list(tokens: Vec<Token>, expected: &str) {
+        let value = extract_list(&mut tokens.iter()).expect("this should work");
+        assert_eq!(value.to_string(), expected);
+    }
+
+    #[parameterized(
+        non_terminal_dot = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::FullStop),
+            Token::Symbol("bla".to_string()),
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "Parse error: multiple values provided after a dot" },
+        last_dot = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::FullStop),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "Parse error: expression ended with a dot" },
+        terminal_dot = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::FullStop),
+        ], "Parse error: expression ended with a dot" },
+        nested_dotted = { vec![
+            Token::Symbol("bla".to_string()),
+            Token::Special(SpecialLexeme::FullStop),
+            Token::Special(SpecialLexeme::LeftParam),
+            Token::Symbol("10".to_string()),
+            Token::Symbol("11".to_string()),
+            Token::Symbol("12".to_string()),
+            Token::Special(SpecialLexeme::RightParam),
+            Token::Special(SpecialLexeme::RightParam),
+        ], "Parse error: dot expressions must end with a value, not a list" },
+    )]
+    fn test_extract_list_fails(tokens: Vec<Token>, expected: &str) {
+        let value = extract_list(&mut tokens.iter()).expect_err("this should fail");
+        assert_eq!(value.to_string(), expected);
+    }
 }
