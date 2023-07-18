@@ -34,7 +34,7 @@ pub enum Value {
     String(Str),
     Symbol(Symbol),
 }
-type CallResult = Result<Rc<Value>, RuntimeError>;
+pub type CallResult = Result<Rc<Value>, RuntimeError>;
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -70,49 +70,6 @@ fn is_val(items: Rc<Value>, checker: &dyn Fn(Rc<Value>) -> bool) -> CallResult {
             _ => false,
         }
     ))
-}
-
-
-pub fn tester() {
-    // let ground_env = Env::new(vec![]);
-
-    // let parent1_1 = Env::new(vec![ground_env.clone()]);
-    // let parent1_2 = Env::new(vec![parent1_1.clone()]);
-    // let parent1_3 = Env::new(vec![parent1_2.clone()]);
-
-    // let env = Env::new(vec![parent1_3.clone()]);
-
-    // fn add(env: EnvRef, val: &str) {
-    //     env.borrow_mut().bind(
-    //         Symbol("key".to_string()),
-    //         Rc::new(Value::Symbol(Symbol(val.to_string())))
-    //     );
-    // }
-    // add(ground_env.clone(), "ground");
-    // add(parent1_1.clone(), "parent 1 1");
-    // add(parent1_2.clone(), "parent 1 2");
-    // add(parent1_3.clone(), "parent 1 3");
-    // add(env.clone(), "env");
-
-    // let pair = Pair::new(
-    //     Rc::new(Value::Number(Number::Int(1))),
-    //     Rc::new(Value::Constant(Constant::Null))
-    // );
-    // let pair2 = Pair::new(
-    //     Rc::new(Value::Number(Number::Int(1))),
-    //     Rc::new(Value::Number(Number::Int(2))),
-    // );
-    // let pair3 = Pair::new(
-    //     Rc::new(Value::Number(Number::Int(1))),
-    //     Rc::new(Value::Pair(Pair::new(
-    //         Rc::new(Value::Number(Number::Int(2))),
-    //         Rc::new(Value::Constant(Constant::Null))
-    //     )))
-    // );
-    // println!("pair {pair}");
-    // println!("pair2 {pair2}");
-    // println!("pair3 {pair3}");
-    // dbg!(pair.eq(&pair2));
 }
 
 

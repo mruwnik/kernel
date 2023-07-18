@@ -35,6 +35,18 @@ impl Value {
     pub fn make_const(c: Constant) -> Rc<Value> {
         Rc::new(Value::Constant(c))
     }
+
+    pub fn make_null() -> Rc<Value> {
+        Rc::new(Value::Constant(Constant::Null))
+    }
+
+    pub fn make_ignore() -> Rc<Value> {
+        Rc::new(Value::Constant(Constant::Ignore))
+    }
+
+    pub fn make_inert() -> Rc<Value> {
+        Rc::new(Value::Constant(Constant::Inert))
+    }
 }
 
 impl Constant {

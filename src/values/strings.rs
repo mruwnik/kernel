@@ -17,6 +17,10 @@ impl Value {
     pub fn is_string(items: Rc<Value>) -> CallResult {
         is_val(items, &|val| matches!(val.deref(), Value::String(_)))
     }
+
+    pub fn make_string(val: impl Into<String>) -> Rc<Value> {
+        Rc::new(Value::String(Str::new(val)))
+    }
 }
 
 impl Str {
@@ -28,8 +32,8 @@ impl Str {
         self.0 == other.0
     }
 
-    pub fn new(string: &str) -> Self {
-        Self(string.to_string(), gen_sym())
+    pub fn new(string: impl Into<String>) -> Self {
+        Self(string.into(), gen_sym())
     }
 }
 

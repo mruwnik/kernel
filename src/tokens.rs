@@ -1,8 +1,11 @@
-use std::io;
+use std::slice::Iter;
+use std::rc::Rc;
 use crate::lexemes::{Lexeme, SpecialLexeme};
+use crate::errors::{ RuntimeError, ErrorTypes };
+use crate::values::{Value, self};
 
-fn make_error<T>(err: String) -> Result<T, io::Error> {
-    Result::Err(io::Error::new(io::ErrorKind::InvalidData, err))
+fn make_error<T>(err: impl Into<String>) -> Result<T, RuntimeError> {
+    Result::Err(RuntimeError::new(ErrorTypes::ParseError, err.into()))
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -11,6 +14,7 @@ pub enum Constant {
     False,
     Inert,
     Ignore,
+    Null,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -29,19 +33,19 @@ pub enum Token {
     Number(Number),
 }
 
-fn parse_number(lexeme: &str) -> Result<Token, io::Error> {
+fn parse_number(lexeme: &str) -> Result<Token, RuntimeError> {
     Ok(Token::Number({
         if lexeme.contains('.') {
-            let num = lexeme.parse::<f64>().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            let num = lexeme.parse::<f64>().map_err(RuntimeError::from)?;
             Number::Float(num)
         } else {
-            let num = lexeme.parse::<i64>().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            let num = lexeme.parse::<i64>().map_err(RuntimeError::from)?;
             Number::Int(num)
         }
     }))
 }
 
-pub fn parse_token(lexeme: &Lexeme) -> Result<Token, io::Error> {
+pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
     Ok(match lexeme {
         Lexeme::String(v) => Token::String(v.clone()),
         Lexeme::Special(v) => Token::Special(v.clone()),
@@ -66,6 +70,83 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, io::Error> {
             }
         },
     })
+}
+
+fn extract_list(tokens: &mut Iter<Token>) -> Result<Rc<Value>, RuntimeError> {
+    let mut vals: Vec<Rc<Value>> = vec![];
+
+    while let Some(token) = tokens.next() {
+        vals.push(match token {
+            Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
+            Token::Special(SpecialLexeme::RightParam) => break,
+            Token::Special(SpecialLexeme::FullStop) => {
+                let next_token = tokens.next();
+                let val = match next_token {
+                    None => return make_error("expression ended with a dot"),
+                    Some(Token::Special(SpecialLexeme::RightParam)) => return make_error("expression ended with a dot"),
+                    Some(Token::Special(SpecialLexeme::FullStop)) => return make_error("expression ended with a dot"),
+                    _ => to_value(token, tokens)?,
+                };
+                vals.push(val);
+                if next_token.is_none() {
+                    return make_error("unclosed expression")
+                } else if let Token::Special(SpecialLexeme::RightParam) = next_token.unwrap() {
+                    break;
+                } else {
+                    return make_error("multiple values provided after a dot")
+                }
+            },
+            _ => to_value(token, tokens)?,
+        });
+    }
+    let mut root = Value::make_null();
+    if !vals.is_empty() {
+        for val in vals.iter().rev() {
+            root = Value::cons(val.clone(), root.clone())?;
+        }
+    }
+    Ok(root)
+}
+
+fn make_number(number: &Number) -> Result<Rc<Value>, RuntimeError> {
+    Ok(Rc::new(Value::Number(
+        match number {
+            Number::Float(n) => values::numbers::Number::Float(*n),
+            Number::Int(n) => values::numbers::Number::Int(*n),
+        }
+    )))
+}
+
+fn to_value(token: &Token, tokens: &mut Iter<Token>) -> Result<Rc<Value>, RuntimeError> {
+    Ok(match token {
+        Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
+        Token::Special(SpecialLexeme::RightParam) => return make_error("Dangling closing param found"),
+        Token::Special(SpecialLexeme::FullStop) => return make_error("Dangling dot found - this can only be provided to mark the ending of a list"),
+        Token::Constant(Constant::True) => Value::boolean(true),
+        Token::Constant(Constant::False) => Value::boolean(false),
+
+        Token::Constant(Constant::Ignore) => Value::make_ignore(),
+        Token::Constant(Constant::Inert) => Value::make_inert(),
+        Token::Constant(Constant::Null) => Value::make_null(),
+
+        Token::Number(n) => make_number(&n)?,
+        Token::String(s) => Value::make_string(s),
+        Token::Symbol(s) => Value::make_symbol(s),
+
+        // TODO: handle chars
+        _ => return make_error(format!("Unhandled token found")),
+    })
+}
+
+pub fn parse(lexemes: Vec<Lexeme>) -> Result<Vec<Rc<Value>>, RuntimeError> {
+    let tokens = lexemes.iter().map(parse_token).collect::<Result<Vec<Token>, RuntimeError>>()?;
+
+    let mut values: Vec<Rc<Value>> = vec![];
+    let mut tokens = tokens.iter();
+    while let Some(token) = tokens.next() {
+        values.push(to_value(token, &mut tokens)?);
+    }
+    Ok(values)
 }
 
 #[cfg(test)]
@@ -121,7 +202,7 @@ mod tests {
     )]
     fn test_get_unknonwn_constants(val: &str) {
         let err = parse_token(&Lexeme::Symbol(format!("{val}"))).unwrap_err();
-        assert_eq!(err.to_string(), format!("Unknown constant found: {val}"));
+        assert_eq!(err.to_string(), format!("Parse error: Unknown constant found: {val}"));
     }
 
     #[parameterized(
@@ -159,7 +240,7 @@ mod tests {
     )]
     fn test_get_bad_numbers(val: &str) {
         let err = parse_token(&&Lexeme::Symbol(val.to_string())).unwrap_err();
-        assert_eq!(err.to_string(), format!("invalid digit found in string"));
+        assert_eq!(err.to_string(), format!("Parse error: invalid digit found in string"));
     }
 
     #[parameterized(
@@ -167,7 +248,7 @@ mod tests {
     )]
     fn test_get_bad_floats(val: &str) {
         let err = parse_token(&&Lexeme::Symbol(val.to_string())).unwrap_err();
-        assert_eq!(err.to_string(), format!("invalid float literal"));
+        assert_eq!(err.to_string(), format!("Parse error: invalid float literal"));
     }
 
     #[parameterized(

@@ -17,6 +17,10 @@ impl Value {
     pub fn is_symbol(items: Rc<Value>) -> CallResult {
         is_val(items, &|val| matches!(val.deref(), Value::Symbol(_)))
     }
+
+    pub fn make_symbol(name: impl Into<String>) -> Rc<Value> {
+        Rc::new(Value::Symbol(Symbol(name.into())))
+    }
 }
 
 impl Symbol {

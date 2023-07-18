@@ -1,5 +1,6 @@
-use std::io;
 use std::fmt;
+
+use crate::errors::{ RuntimeError, ErrorTypes };
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum SpecialLexeme {
@@ -69,12 +70,12 @@ pub enum Lexeme {
     String(String),
 }
 
-fn make_error<T>(err: String) -> Result<T, io::Error> {
-    Result::Err(io::Error::new(io::ErrorKind::InvalidData, err))
+fn make_error<T>(err: String) -> Result<T, RuntimeError> {
+    Result::Err(RuntimeError::new(ErrorTypes::ParseError, err))
 }
 
 /// Process a string literal, reading chars until it get to the end of the string
-fn parse_str(chars: &mut std::str::Chars) -> Result<Lexeme, io::Error> {
+fn parse_str(chars: &mut std::str::Chars) -> Result<Lexeme, RuntimeError> {
     let mut string = format!("\"");
     let mut prev = ' ';
     for c in chars {
@@ -108,7 +109,7 @@ fn skip_to_line_end(chars: &mut std::str::Chars) -> () {
 /// # Returns
 ///
 /// A vector of the parsed lexemes, if the string was successfully parsed
-pub fn get_lexemes(chars: &mut std::str::Chars) -> Result<Vec<Lexeme>, io::Error> {
+pub fn get_lexemes(chars: &mut std::str::Chars) -> Result<Vec<Lexeme>, RuntimeError> {
     let mut lexemes: Vec<Lexeme> = Vec::new();
 
     let mut prev = Char::None;
@@ -279,7 +280,7 @@ mod tests {
     fn test_get_lexemes_non_terminated_string(input: String) {
         let mut chars = input.chars();
         let err = get_lexemes(&mut chars).unwrap_err();
-        assert_eq!(err.to_string(), "Could not find end of string!")
+        assert_eq!(err.to_string(), "Parse error: Could not find end of string!")
     }
 
     #[parameterized(
@@ -292,7 +293,7 @@ mod tests {
         let input = format!("bla bla {c}wrar ble ble");
         let mut chars = input.chars();
         let err = get_lexemes(&mut chars).unwrap_err();
-        assert_eq!(err.to_string(), format!("Invalid token found: '{c}'"))
+        assert_eq!(err.to_string(), format!("Parse error: Invalid token found: '{c}'"))
     }
 
     #[parameterized(
@@ -306,6 +307,6 @@ mod tests {
         let input = format!("bla bla {c}wrar ble ble");
         let mut chars = input.chars();
         let err = get_lexemes(&mut chars).unwrap_err();
-        assert_eq!(err.to_string(), format!("Reserved token found: '{c}'"))
+        assert_eq!(err.to_string(), format!("Parse error: Reserved token found: '{c}'"))
     }
 }
