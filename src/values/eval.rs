@@ -51,7 +51,7 @@ mod tests {
 
     use std::rc::Rc;
     use crate::errors::{ RuntimeError, ErrorTypes };
-    use crate::values::{ Bool, Constant, Number, Str, Symbol, Value, Combiner };
+    use crate::values::{ Bool, Constant, Number, Str, Symbol, Value };
     use crate::values::envs::Env;
 
     #[parameterized(

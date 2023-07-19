@@ -6,10 +6,8 @@ pub mod errors;
 use std::env;
 use std::rc::Rc;
 use errors::RuntimeError;
-use values::ValueResult;
 
-use crate::values::{ CallResult, CallResultType, Value };
-use crate::values::combiners::Combiner;
+use crate::values::{ CallResult, Value };
 use crate::values::eval::eval;
 
 fn rep(raw: impl Into<String>) -> CallResult {

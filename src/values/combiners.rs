@@ -73,8 +73,22 @@ impl Combiner {
     pub fn minus(vals: Rc<Value>, _: EnvRef) -> CallResult {
         number_applicative(vals, &Value::minus, "-")
     }
-}
 
+    pub fn if_(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let env_val = Rc::new(Value::Env(env.clone()));
+        let params = vals.values(env_val.clone())?;
+        match &params[..] {
+            [test, branch1, branch2] => {
+                if eval(test.clone(), env_val.clone())?.is_true() {
+                    branch1.eval(env_val)
+                } else {
+                    branch2.eval(env_val)
+                }
+            },
+            _ => RuntimeError::type_error("$if requires 3 arguments"),
+        }
+    }
+}
 
 impl Value {
     // helpers
@@ -86,6 +100,14 @@ impl Value {
         Combiner::new(name, func, expr, CombinerType::Operative)
     }
 
+    fn values(&self, env: Rc<Value>) -> Result<Vec<Rc<Value>>, RuntimeError> {
+        let mut params = self.iter()
+            .map(|v| eval(v, env.clone()))
+            .collect::<Result<Vec<Rc<Value>>, RuntimeError>>()?;
+        params.pop();
+        Ok(params)
+    }
+
     pub fn call(fun: Rc<Value>, env: Rc<Value>, params: Rc<Value>) -> CallResult {
         if let Value::Env(e) = env.deref() {
             match fun.deref() {
@@ -93,11 +115,7 @@ impl Value {
                     func(params, e.clone())
                 },
                 Value::Combiner(Combiner{ c_type: CombinerType::Applicative, func, ..}) => {
-                    let mut params = params.iter()
-                        .map(|v| eval(v, env.clone()))
-                        .collect::<Result<Vec<Rc<Value>>, RuntimeError>>()?;
-                    params.pop();
-                    func(Value::to_list(params)?, e.clone())
+                    func(Value::to_list(params.values(env.clone())?)?, e.clone())
                 },
                 _ => Err(RuntimeError::new(ErrorTypes::TypeError, "eval tried to call a non combiner")),
             }
@@ -131,9 +149,7 @@ mod tests {
 
     use std::rc::Rc;
     use std::ops::Deref;
-    use crate::values::symbols::Symbol;
     use crate::values::{ Constant, Number, Value, tests::sample_values };
-    use crate::values::envs::Env;
     use crate::values::eval::eval;
     use crate::values::Combiner;
 
@@ -349,6 +365,22 @@ mod tests {
         if let Value::Env(env_obj) = env.deref() {
             let subtractor = eval(Combiner::minus(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
             assert_eq!(subtractor.to_string(), format!("{expected}"));
+        }
+    }
+
+    #[parameterized(
+        yes = { Value::to_list(
+            vec![Value::boolean(true), Value::make_null(), Value::make_ignore()]).unwrap().into(), "()"
+        },
+        no = { Value::to_list(vec![
+            Value::boolean(false), Value::make_null(), Value::make_ignore(),
+        ]).unwrap().into(), "#ignore" },
+    )]
+    fn test_if(vals: Rc<Value>, expected: &str) {
+        let env = Value::ground_env();
+        if let Value::Env(env_obj) = env.deref() {
+            let func = eval(Combiner::if_(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
+            assert_eq!(func.to_string(), format!("{expected}"));
         }
     }
 }

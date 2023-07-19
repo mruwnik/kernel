@@ -91,6 +91,7 @@ impl Value {
         let env = Env::new(vec![]);
         env.borrow_mut().bind(Symbol("+".to_string()), Value::new_applicative("+", &Combiner::add, Value::make_inert()));
         env.borrow_mut().bind(Symbol("-".to_string()), Value::new_applicative("-", &Combiner::minus, Value::make_inert()));
+        env.borrow_mut().bind(Symbol("$if".to_string()), Value::new_operative("$if", &Combiner::if_, Value::make_inert()));
 
         Rc::new(Value::Env(env))
     }
