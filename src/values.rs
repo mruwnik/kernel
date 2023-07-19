@@ -34,7 +34,14 @@ pub enum Value {
     String(Str),
     Symbol(Symbol),
 }
-pub type CallResult = Result<Rc<Value>, RuntimeError>;
+
+pub type ValueResult = Result<Rc<Value>, RuntimeError>;
+
+impl From<&Value> for Rc<Value> {
+    fn from(val: &Value) -> Self {
+        Rc::new(val.clone())
+    }
+}
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -51,25 +58,66 @@ impl fmt::Display for Value {
     }
 }
 
+impl Value {
+    fn ok(&self) -> ValueResult {
+        Ok(self.into())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CallResultType {
+    Call(Rc<Value>),
+    Value(Rc<Value>),
+}
+
+pub type CallResult = Result<CallResultType, RuntimeError>;
+
+impl CallResultType {
+    pub fn is_true(&self) -> bool {
+        match self {
+            CallResultType::Call(_) => false,
+            CallResultType::Value(v) => v.is_true(),
+        }
+    }
+}
+
+impl fmt::Display for CallResultType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            CallResultType::Call(c) => c.to_string(),
+            CallResultType::Value(v) => v.to_string(),
+        })
+    }
+}
+
+impl From<CallResultType> for Rc<Value> {
+    fn from(val: CallResultType) -> Rc<Value> {
+        match val {
+            CallResultType::Call(c) => c.clone(),
+            CallResultType::Value(c) => c.clone(),
+        }
+    }
+}
+
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 fn gen_sym() -> usize {
     ID_COUNTER.fetch_add(1, Ordering::SeqCst)
 }
 
 
-fn is_val(items: Rc<Value>, checker: &dyn Fn(Rc<Value>) -> bool) -> CallResult {
-    Ok(Value::boolean(
+fn is_val(items: Rc<Value>, checker: &dyn Fn(Rc<Value>) -> bool) -> ValueResult {
+    Value::boolean(
         match items.deref() {
             // this will return true when called without args
             Value::Constant(Constant::Null) => true,
             Value::Pair(_) => {
-                let car = Value::car(items.clone())?;
-                let cdr = Value::cdr(items.clone())?;
-                checker(car) && Value::is_true(is_val(cdr, checker)?)
+                let car: Rc<Value> = Value::car(items.clone())?.into();
+                let cdr: Rc<Value> = Value::cdr(items.clone())?.into();
+                checker(car) && is_val(cdr, checker)?.is_true()
             },
             _ => false,
         }
-    ))
+    ).ok()
 }
 
 
@@ -88,16 +136,16 @@ mod tests {
             Rc::new(Value::Bool(Bool::False)),
             Value::new_applicative(
                 "tester",
-                &|_exprs, _env| Ok(Rc::new(Value::Constant(Constant::Null))),
+                &|_exprs, _env| Value::make_null().as_val(),
                 Rc::new(Value::Constant(Constant::Null))
             ),
             Rc::new(Value::Constant(Constant::Ignore)),
             Rc::new(Value::Constant(Constant::Inert)),
             Rc::new(Value::Constant(Constant::Null)),
             Value::cons(
-                Rc::new(Value::Constant(Constant::Null)),
-                Rc::new(Value::Constant(Constant::Null)),
-            ).unwrap(),
+                Value::make_null(),
+                Value::make_null(),
+            ).unwrap().into(),
             Rc::new(Value::Env(Env::new(vec![]))),
             Rc::new(Value::Number(Number::Int(123))),
             Rc::new(Value::String(Str::new("bla"))),

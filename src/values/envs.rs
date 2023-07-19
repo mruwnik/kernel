@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::{
-    values::{Symbol, Value, CallResult, Constant, gen_sym, is_val},
+    values::{Symbol, Value, ValueResult, Constant, Combiner, gen_sym, is_val},
     errors::{ RuntimeError, ErrorTypes }
 };
 
@@ -46,28 +46,28 @@ impl Env {
 }
 
 impl Value {
-    pub fn is_env(items: Rc<Value>) -> CallResult {
+    pub fn is_env(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::Env(_)))
     }
 
-    pub fn env_set(env_expr: Rc<Value>, formals: Rc<Value>, vals_expr: Rc<Value>) -> CallResult {
+    pub fn env_set(env_expr: Rc<Value>, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
         // TODO: properly evaluate the parameters
-        if !Value::is_true(Value::is_env(Value::as_pair(env_expr.clone()))?) {
+        if !Value::is_env(env_expr.as_pair())?.is_true() {
             Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires an env as its first argument"))
-        } else if !Value::is_true(Value::is_symbol(Value::as_pair(formals.clone()))?) {
+        } else if !Value::is_symbol(formals.as_pair())?.is_true() {
             Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires a symbol as its second argument"))
         } else {
             match (env_expr.deref(), formals.deref()) {
                 (Value::Env(e), Value::Symbol(s)) => e.borrow_mut().bind(s.clone(), vals_expr),
                 _ => (),
             }
-            Ok(Value::make_const(Constant::Inert))
+            Value::make_const(Constant::Inert).ok()
         }
     }
 
-    pub fn make_environment(val: Rc<Value>) -> CallResult {
+    pub fn make_environment(val: Rc<Value>) -> ValueResult {
         match val.deref() {
-            Value::Constant(Constant::Null) => Ok(Rc::new(Value::Env(Env::new(vec![])))),
+            Value::Constant(Constant::Null) => Value::Env(Env::new(vec![])).ok(),
             Value::Pair(_) => {
                 let mut parents: Vec<EnvRef> = Vec::new();
                 // TODO: can this be done cleaner? something like root.iter().filter(not env)?
@@ -81,10 +81,17 @@ impl Value {
                         )),
                     }
                 }
-                Ok(Rc::new(Value::Env(Env::new(parents))))
+                Value::Env(Env::new(parents)).ok()
             },
             _ => Err(RuntimeError::new(ErrorTypes::TypeError, "make-environment expects a list of parents"))
         }
+    }
+
+    pub fn ground_env() -> Rc<Value> {
+        let env = Env::new(vec![]);
+        env.borrow_mut().bind(Symbol("+".to_string()), Value::new_operative("+", &Combiner::add, Value::make_inert()));
+
+        Rc::new(Value::Env(env))
     }
 }
 
@@ -116,8 +123,8 @@ mod tests {
     #[test]
     fn test_is_env() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
-            let is_type = Value::is_true(Value::is_env(listified).expect("ok"));
+            let listified = val.as_pair();
+            let is_type = Value::is_env(listified).expect("ok").is_true();
             match val.deref() {
                 Value::Env(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -134,11 +141,11 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
-            ).unwrap();
-            let is_type = Value::is_true(Value::is_env(listified).expect("ok"));
+                        val.as_pair()
+                    ).unwrap().into(),
+                ).unwrap().into(),
+            ).unwrap().into();
+            let is_type = Value::is_env(listified).expect("ok").is_true();
             match val.deref() {
                 Value::Env(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -292,8 +299,8 @@ mod tests {
         let val1 = Rc::new(Value::Env(env1));
         let val2 = Rc::new(Value::Env(env2));
 
-        assert_eq!(val1.is_eq(&val2).expect("ok"), Value::boolean(false));
-        assert_eq!(val2.is_eq(&val1).expect("ok"), Value::boolean(false));
+        assert!(!val1.is_eq(&val2).expect("ok").is_true());
+        assert!(!val2.is_eq(&val1).expect("ok").is_true());
     }
 
     #[parameterized(
@@ -302,7 +309,7 @@ mod tests {
     )]
     fn test_is_eq(env: EnvRef) {
         let val = Rc::new(Value::Env(env));
-        assert_eq!(val.is_eq(&val).expect("ok"), Value::boolean(true));
+        assert!(val.is_eq(&val).expect("ok").is_true());
     }
 
     #[parameterized(
@@ -321,12 +328,12 @@ mod tests {
                 Rc::new(Value::Env(parent.clone())),
                 Value::make_const(Constant::Null),
             ).unwrap();
-            Value::set_cdr(prev.clone(), next.clone()).expect("This should work");
+            Value::set_cdr(prev.into(), next.clone().into()).expect("This should work");
             prev = next;
         }
 
-        let env = Value::make_environment(Value::cdr(root).unwrap()).expect("invalid parents provided?");
-        assert!(Value::is_true(Value::is_env(Value::as_pair(env.clone())).unwrap()));
+        let env: Rc<Value> = Value::make_environment(Value::cdr(root.into()).unwrap().into()).expect("invalid parents provided?").into();
+        assert!(Value::is_env(env.as_pair()).unwrap().is_true());
         match env.deref() {
             Value::Env(e) => assert_eq!(e.borrow().parents, parents),
             _ => panic!("Make environment didn't return an env"),

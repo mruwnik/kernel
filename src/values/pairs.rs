@@ -1,9 +1,8 @@
-use std::fmt::format;
 use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::errors::{RuntimeError, ErrorTypes};
-use crate::values::{ CallResult, Constant, Value, is_val };
+use crate::values::{ ValueResult, Constant, Value, is_val };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pair {
@@ -27,8 +26,8 @@ impl Iterator for ValueIter {
                 let val = Rc::new(v.clone());
                 match v.deref() {
                     Value::Pair(_) => {
-                        self.node = Some(Value::cdr(val.clone()).unwrap());
-                        Some(Value::car(val.clone()).unwrap())
+                        self.node = Some(Value::cdr(val.clone()).unwrap().into());
+                        Some(Value::car(val.clone()).unwrap().into())
                     },
                     _ => {
                         self.node = None;
@@ -69,15 +68,15 @@ impl Pair {
     pub fn is_eq(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
         Ok(
             self.mutable == other.borrow().mutable &&
-                self.car().is_eq(&other.borrow().car().clone())? == Value::boolean(true) &&
-                self.cdr().is_eq(&other.borrow().cdr().clone())? == Value::boolean(true)
+                self.car().is_eq(&other.borrow().car().clone())?.is_true() &&
+                self.cdr().is_eq(&other.borrow().cdr().clone())?.is_true()
         )
     }
 
     pub fn is_equal(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
         Ok(
-                self.car().is_equal(&other.borrow().car().clone())? == Value::boolean(true) &&
-                self.cdr().is_equal(&other.borrow().cdr().clone())? == Value::boolean(true)
+            self.car().is_equal(&other.borrow().car().clone())?.is_true() &&
+                self.cdr().is_equal(&other.borrow().cdr().clone())?.is_true()
         )
     }
 
@@ -110,100 +109,146 @@ impl Pair {
 
 impl Value {
     // Helper funcs
-    pub fn as_pair(val: Rc<Value>) -> Rc<Value> {
-        Value::cons(val, Value::make_const(Constant::Null)).unwrap()
+    pub fn as_pair(&self) -> Rc<Value> {
+        Value::cons(self.into(), Value::make_const(Constant::Null)).unwrap().into()
+    }
+
+    pub fn as_list(&self) -> Rc<Value> {
+        match self.clone() {
+            Value::Constant(Constant::Null) => self.into(),
+            Value::Pair(_) => self.into(),
+            _ => Value::as_pair(self.into()),
+        }
+    }
+
+    pub fn is_last(&self) -> bool {
+        match self {
+            Value::Pair(p) => {
+                match p.borrow().cdr().deref() {
+                    Value::Constant(Constant::Null) => true,
+                    _ => false,
+                }
+            },
+            _ => true
+        }
+    }
+
+    pub fn last(&self) -> Rc<Value> {
+        match self.clone() {
+            Value::Pair(p) => {
+                if self.is_last() {
+                    self.into()
+                } else {
+                    p.borrow().cdr().last()
+                }
+            }
+            _ => self.into(),
+        }
     }
 
     pub fn iter(self: &Self) -> ValueIter {
         ValueIter { node: Some(Rc::new(self.clone())) }
     }
 
+    pub fn to_list(vals: Vec<Rc<Value>>) -> ValueResult {
+        let root = Value::make_null().as_pair();
+        let mut last = root.clone();
+        for item in vals {
+            let next = item.as_pair();
+            Value::set_cdr(last.clone(), next.clone())?;
+            last = next;
+        }
+        Value::cdr(root)
+    }
+
     // primatives
-    pub fn is_pair(items: Rc<Value>) -> CallResult {
+    pub fn is_pair(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::Pair(_)))
     }
 
-    pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> CallResult {
-        Ok(Rc::new(Value::Pair(Pair::new(val1, val2, true))))
+    pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        Value::Pair(Pair::new(val1, val2, true)).ok()
     }
 
-    pub fn set_car(self: Rc<Value>, val: Rc<Value>) -> CallResult {
+    pub fn set_car(self: Rc<Value>, val: Rc<Value>) -> ValueResult {
         if let Value::Pair(p) = self.deref() {
             p.borrow_mut().set_car(val)?;
-            Ok(Value::make_const(Constant::Inert))
+            Value::make_inert().ok()
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "set-car! expects a pair"))
         }
     }
 
-    pub fn set_cdr(self: Rc<Value>, val: Rc<Value>) -> CallResult {
+    pub fn set_cdr(self: Rc<Value>, val: Rc<Value>) -> ValueResult {
         if let Value::Pair(p) = self.deref() {
             p.borrow_mut().set_cdr(val)?;
-            Ok(Value::make_const(Constant::Inert))
+            Value::make_inert().ok()
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "set-cdr! expects a pair"))
         }
     }
 
-    pub fn copy_es_immutable(self: Rc<Value>) -> CallResult {
-        Ok(
-            match self.deref() {
-                Value::Pair(p) => Rc::new(Value::Pair(
-                    Pair::new(
-                        p.borrow().car().copy_es_immutable()?,
-                        p.borrow().cdr().copy_es_immutable()?,
-                        false
-                    ))
-                ),
-                _ => self.clone(),
-            }
-        )
+    pub fn copy_es_immutable(self: Rc<Value>) -> ValueResult {
+        match self.deref() {
+            Value::Pair(p) => Rc::new(Value::Pair(
+                Pair::new(
+                    p.borrow().car().copy_es_immutable()?.into(),
+                    p.borrow().cdr().copy_es_immutable()?.into(),
+                    false
+                ))
+            ),
+            _ => self.clone(),
+        }.ok()
     }
 
     // library funcs
-    pub fn copy_es(self: Rc<Value>) -> CallResult {
-        Ok(
-            match self.deref() {
-                Value::Pair(p) => Rc::new(Value::Pair(
-                    Pair::new(
-                        p.borrow().car().copy_es_immutable()?,
-                        p.borrow().cdr().copy_es_immutable()?,
-                        true
-                    ))
-                ),
-                _ => self.clone(),
-            }
-        )
+    pub fn copy_es(self: Rc<Value>) -> ValueResult {
+        match self.deref() {
+            Value::Pair(p) => Rc::new(Value::Pair(
+                Pair::new(
+                    p.borrow().car().copy_es()?.into(),
+                    p.borrow().cdr().copy_es()?.into(),
+                    true
+                ))
+            ),
+            _ => self.clone(),
+        }.ok()
     }
 
-    pub fn car(pair: Rc<Value>) -> CallResult {
+    pub fn car(pair: Rc<Value>) -> ValueResult {
         if let Value::Pair(p) = pair.deref() {
-            Ok(p.borrow().car())
+            p.borrow().car().ok()
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "car expects a pair"))
         }
     }
 
-    pub fn cdr(pair: Rc<Value>) -> CallResult {
+    pub fn cdr(pair: Rc<Value>) -> ValueResult {
         if let Value::Pair(p) = pair.deref() {
-            Ok(p.borrow().cdr())
+            p.borrow().cdr().ok()
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "cdr expects a pair"))
         }
     }
 
-    // pub fn append(lists: Rc<Value>) -> CallResult {
+    // pub fn append(lists: Rc<Value>) -> ValueResult {
     //     match lists.deref() {
-    //         Value::Pair(_) => {
-    //             let car = Value::copy_es(Value::car(lists.clone())?)?;
+    //         Value::Pair(p) => {
     //             let cdr = Value::cdr(lists.clone())?;
-    //             match car.clone().deref() {
-    //                 Value::Pair(_) => {
-    //                     Value::set_cdr(car.clone(), cdr)?;
-    //                     Ok(car)
-    //                 }
-    //                 _ => Ok(car),
+    //             let mut car = Value::car(lists.clone())?;
+    //             println!("{car}");
+    //             if let Value::Pair(_) = cdr.deref() {
+    //                 car = Value::copy_es(car.clone())?.as_list();
+    //                 let last = car.last();
+    //                 println!("{car}");
+    //                 dbg!(car.clone());
+    //                 Value::set_cdr(last.clone(), cdr.clone())?;
+    //                 println!("{lists}");
+    //                 println!("{cdr}");
+    //                 println!("{car}");
     //             }
+    //             Ok(car)
+
     //         },
     //        _ =>  Ok(lists),
     //     }
@@ -237,7 +282,7 @@ mod tests {
         make_list(items.iter().map(|i| Rc::new(Value::Number(Number::Int(*i)))).collect())
     }
     fn make_immutable(p: PairRef) -> PairRef {
-        let copied = Value::copy_es_immutable(Rc::new(Value::Pair(p))).expect("should work");
+        let copied: Rc<Value> = Value::copy_es_immutable(Rc::new(Value::Pair(p))).expect("should work").into();
         if let Value::Pair(pair) = copied.deref() {
             pair.clone()
         } else {
@@ -252,8 +297,8 @@ mod tests {
     #[test]
     fn test_is_pair() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
-            let is_type = Value::is_true(Value::is_pair(listified).expect("ok"));
+            let listified = val.as_pair();
+            let is_type = Value::is_pair(listified).expect("ok").is_true();
             match val.deref() {
                 Value::Pair(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -270,11 +315,11 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
+                        val.as_pair()
+                    ).unwrap().into(),
+                ).unwrap().into(),
             ).unwrap();
-            let is_type = Value::is_true(Value::is_pair(listified.clone()).expect("ok"));
+            let is_type = Value::is_pair(listified.into()).expect("ok").is_true();
             match val.deref() {
                 Value::Pair(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -300,7 +345,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
+                ).expect("ok").into(),
                 true
             ),
             Pair::new(
@@ -308,7 +353,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
+                ).expect("ok").into(),
                 true
             ),
         },
@@ -335,7 +380,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
+                ).expect("ok").into(),
                 true
             ),
             Pair::new(
@@ -343,7 +388,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
+                ).expect("ok").into(),
                 true
             ),
         },
@@ -385,7 +430,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Number(Number::Int(2))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
+                ).expect("ok").into(),
                 true
             )),
             "(1 2)"
@@ -400,9 +445,9 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Number(Number::Int(4))),
                             Rc::new(Value::Constant(Constant::Null))
-                        ).expect("ok")
-                    ).expect("ok")
-                ).expect("ok"),
+                        ).expect("ok").into()
+                    ).expect("ok").into()
+                ).expect("ok").into(),
                 true
             )),
             "(1 2 3 4)"
@@ -415,8 +460,8 @@ mod tests {
                     Value::cons(
                         Rc::new(Value::Number(Number::Int(3))),
                         Rc::new(Value::Number(Number::Int(4))),
-                    ).expect("ok")
-                ).expect("ok"),
+                    ).expect("ok").into()
+                ).expect("ok").into(),
                 true
             )),
             "(1 2 3 . 4)"
@@ -431,9 +476,9 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
                             Rc::new(Value::Constant(Constant::Null))
-                        ).expect("ok")
-                    ).expect("ok")
-                ).expect("ok"),
+                        ).expect("ok").into()
+                    ).expect("ok").into()
+                ).expect("ok").into(),
                 true
             )),
             "((1 2 3) (4 5 6) (7 8 9) (10 11 12))"
@@ -451,10 +496,8 @@ mod tests {
         ).expect("ok");
         assert_eq!(format!("{pair}"), "(4)");
 
-        assert_eq!(
-            Value::set_car(pair.clone(), Value::boolean(true)).expect("Could not set"),
-            Value::make_const(Constant::Inert)
-        );
+        let res: Rc<Value> = Value::set_car(pair.clone().into(), Value::boolean(true)).expect("Could not set").into();
+        assert_eq!(res, Value::make_const(Constant::Inert));
         assert_eq!(format!("{pair}"), "(#t)");
     }
 
@@ -501,10 +544,8 @@ mod tests {
         ).expect("ok");
         assert_eq!(format!("{pair}"), "(4)");
 
-        assert_eq!(
-            Value::set_cdr(pair.clone(), Value::boolean(true)).expect("Could not set"),
-            Value::make_const(Constant::Inert)
-        );
+        let res: Rc<Value> = Value::set_cdr(pair.clone().into(), Value::boolean(true)).expect("Could not set").into();
+        assert_eq!(res, Value::make_const(Constant::Inert));
         assert_eq!(format!("{pair}"), "(4 . #t)");
     }
 
@@ -563,7 +604,7 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Number(Number::Int(2))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
+                ).expect("ok").into(),
                 true
             )),
             "(1 2)"
@@ -578,9 +619,9 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Number(Number::Int(4))),
                             Rc::new(Value::Constant(Constant::Null))
-                        ).expect("ok")
-                    ).expect("ok")
-                ).expect("ok"),
+                        ).expect("ok").into()
+                    ).expect("ok").into()
+                ).expect("ok").into(),
                 true
             )),
             "(1 2 3 4)"
@@ -603,9 +644,9 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
                             Rc::new(Value::Constant(Constant::Null))
-                        ).expect("ok")
-                    ).expect("ok")
-                ).expect("ok"),
+                        ).expect("ok").into()
+                    ).expect("ok").into()
+                ).expect("ok").into(),
                 true
             )),
             "((1 2 3) (4 5 6) (7 8 9) (10 11 12))"
@@ -613,11 +654,11 @@ mod tests {
     )]
     fn test_copy_es_immutable(val: Value, expected: &str) {
         let expected_error = RuntimeError::new(crate::errors::ErrorTypes::ImmutableError, "This pair is immutable");
-        let copies = Value::copy_es_immutable(Rc::new(val)).expect("should work");
+        let copies: Rc<Value> = Value::copy_es_immutable(Rc::new(val)).expect("should work").into();
         assert_eq!(format!("{copies}"), expected);
 
         // Go through all the pairs and make sure they return errors when modified
-        if let Value::Pair(pair) = copies.deref() {
+        if let Value::Pair(_) = copies.deref() {
             for node in copies.iter() {
                 if let Value::Pair(_) = node.deref() {
                     let err = Value::set_cdr(node, Value::boolean(true)).expect_err("should have raised an error!");
@@ -634,14 +675,14 @@ mod tests {
             Value::cons(
                 Rc::new(Value::Number(Number::Int(1))),
                 Rc::new(Value::Constant(Constant::Null)),
-            ).expect("ok"),
+            ).expect("ok").into(),
             "(1)"
         },
         pair_dotted = {
             Value::cons(
                 Rc::new(Value::Number(Number::Int(1))),
                 Rc::new(Value::Number(Number::Int(2))),
-            ).expect("ok"),
+            ).expect("ok").into(),
             "(1 . 2)"
         },
         pair_double = {
@@ -650,8 +691,8 @@ mod tests {
                 Value::cons(
                     Rc::new(Value::Number(Number::Int(2))),
                     Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok"),
-            ).expect("ok"),
+                ).expect("ok").into(),
+            ).expect("ok").into(),
             "(1 2)"
         },
         pair_multi = {
@@ -664,10 +705,10 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Number(Number::Int(4))),
                             Rc::new(Value::Constant(Constant::Null))
-                        ).expect("ok")
-                    ).expect("ok")
-                ).expect("ok"),
-            ).expect("ok"),
+                        ).expect("ok").into()
+                    ).expect("ok").into()
+                ).expect("ok").into(),
+            ).expect("ok").into(),
             "(1 2 3 4)"
         },
         pair_multi_dotted = {
@@ -678,9 +719,9 @@ mod tests {
                     Value::cons(
                         Rc::new(Value::Number(Number::Int(3))),
                         Rc::new(Value::Number(Number::Int(4))),
-                    ).expect("ok")
-                ).expect("ok"),
-            ).expect("ok"),
+                    ).expect("ok").into()
+                ).expect("ok").into(),
+            ).expect("ok").into(),
             "(1 2 3 . 4)"
         },
         pair_nested = {
@@ -693,24 +734,53 @@ mod tests {
                         Value::cons(
                             Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
                             Rc::new(Value::Constant(Constant::Null))
-                        ).expect("ok")
-                    ).expect("ok")
-                ).expect("ok"),
-            ).expect("ok"),
+                        ).expect("ok").into()
+                    ).expect("ok").into()
+                ).expect("ok").into(),
+            ).expect("ok").into(),
             "((1 2 3) (4 5 6) (7 8 9) (10 11 12))"
         },
     )]
     fn test_iterate(val: Rc<Value>, expected: &str) {
         let mut bits: Vec<Rc<Value>> = Vec::new();
         let mut bit = val.clone();
-        while Value::is_true(Value::is_pair(Value::as_pair(bit.clone())).unwrap()) {
-            bits.push(Value::car(bit.clone()).unwrap().clone());
-            bit = Value::cdr(bit.clone()).unwrap();
+        while Value::is_pair(bit.as_pair()).unwrap().is_true() {
+            bits.push(Value::car(bit.clone()).unwrap().into());
+            bit = Value::cdr(bit.clone()).unwrap().into();
         }
         bits.push(bit.clone());
 
         assert_eq!(val.iter().collect::<Vec<Rc<Value>>>(), bits);
         assert_eq!(format!("{val}"), expected);
+    }
+
+    #[parameterized(
+        empty = {vec![], "()"},
+        single = {
+            vec![Rc::new(Value::Number(Number::Int(1)))],
+            "(1)"
+        },
+        multi = {
+            vec![
+                Rc::new(Value::Number(Number::Int(1))),
+                Rc::new(Value::Number(Number::Int(2))),
+                Rc::new(Value::Number(Number::Int(3))),
+                Rc::new(Value::Number(Number::Int(4))),
+            ],
+            "(1 2 3 4)"
+        },
+
+        mulit_nested = {
+            vec![
+                Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
+                Rc::new(Value::Pair(number_list(vec![4, 5, 6]))),
+                Rc::new(Value::Pair(number_list(vec![7, 8, 9]))),
+            ],
+            "((1 2 3) (4 5 6) (7 8 9))"
+        },
+    )]
+    fn test_to_list(vals: Vec<Rc<Value>>, expected: &str) {
+        assert_eq!(Value::to_list(vals).expect("ok").to_string(), expected);
     }
 
     // #[parameterized(
@@ -740,6 +810,19 @@ mod tests {
     //             ).expect("ok")
     //         ).expect("ok"),
     //         "(1 2 3 4)"
+    //     },
+    //     to_empty = {
+    //         Value::cons(
+    //             Value::make_null(),
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(2))),
+    //                 Value::cons(
+    //                     Rc::new(Value::Number(Number::Int(2))),
+    //                     Rc::new(Value::Constant(Constant::Null))
+    //                 ).expect("ok"),
+    //             ).expect("ok"),
+    //         ).expect("ok"),
+    //         "(1 2)"
     //     },
     //     pair_double = {
     //         Value::cons(
@@ -781,15 +864,22 @@ mod tests {
     //         "(1 . 2)"
     //     },
 
+    //     pair_null_dotted = {
+    //         Value::cons(
+    //             Value::make_null(),
+    //             Value::cons(
+    //                 Rc::new(Value::Number(Number::Int(2))),
+    //                 Rc::new(Value::Number(Number::Int(3))),
+    //             ).expect("ok"),
+    //         ).expect("ok"),
+    //         "(2 . 3)"
+    //     },
     //     pair_multi_dotted = {
     //         Value::cons(
     //             Rc::new(Value::Number(Number::Int(1))),
     //             Value::cons(
     //                 Rc::new(Value::Number(Number::Int(2))),
-    //                 Value::cons(
-    //                     Rc::new(Value::Number(Number::Int(3))),
-    //                     Rc::new(Value::Constant(Constant::Null)),
-    //                 ).expect("ok"),
+    //                 Rc::new(Value::Number(Number::Int(3))),
     //             ).expect("ok"),
     //         ).expect("ok"),
     //         "(1 2 . 3)"
@@ -801,7 +891,7 @@ mod tests {
     //                 Rc::new(Value::Pair(number_list(vec![4, 5, 6]))),
     //                 Value::cons(
     //                     Rc::new(Value::Pair(number_list(vec![7, 8, 9]))),
-    //                     Rc::new(Value::Pair(number_list(vec![10, 11, 12]))),
+    //                     Value::as_pair(Rc::new(Value::Pair(number_list(vec![10, 11, 12])))),
     //                 ).expect("ok")
     //             ).expect("ok"),
     //         ).expect("ok"),
@@ -809,6 +899,7 @@ mod tests {
     //     },
     // )]
     // fn test_append(lists: Rc<Value>, expected: &str) {
+    //     println!("{expected}");
     //     let appended = Value::append(lists).expect("should work");
     //     assert_eq!(format!("{appended}"), expected)
     // }

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::ops::Deref;
 use std::fmt;
-use crate::values::{ Value, CallResult, is_val };
+use crate::{values::{ Value, ValueResult, Constant, is_val }, errors::RuntimeError};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Number {
@@ -19,12 +19,47 @@ impl fmt::Display for Number {
 }
 
 impl Value {
-    pub fn is_number(items: Rc<Value>) -> CallResult {
+    pub fn is_number(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::Number(_)))
+    }
+
+    // Adds the first 2 items, returning a list of all remaining items to sum, or the final sum if fewer
+    // than 2 items provided
+    pub fn add(items: Rc<Value>) -> ValueResult {
+        match items.deref() {
+            Value::Constant(Constant::Null) => Number::int(0).ok(),
+            Value::Pair(_) => {
+                let num1: Rc<Value> = Value::car(items.clone())?.into();
+                let cdr: Rc<Value> = Value::cdr(items.clone())?.into();
+                match cdr.deref() {
+                    Value::Constant(Constant::Null) => num1.ok(),
+                    Value::Number(_) => Number::add(num1, cdr),
+                    Value::Pair(_) => {
+                        let num2: Rc<Value> = Value::car(cdr.clone())?.into();
+                        Value::cons(
+                            Number::add(num1, num2)?.into(),
+                            Value::cdr(cdr)?.into()
+                        )
+                    }
+                    _ => RuntimeError::type_error("+ only works on numbers"),
+                }
+            },
+            _ => RuntimeError::type_error("+ only works on numbers"),
+        }
     }
 }
 
 impl Number {
+    // helpers
+    fn int(val: i64) -> Rc<Value> {
+        Rc::new(Value::Number(Number::Int(val)))
+    }
+
+    fn float(val: f64) -> Rc<Value> {
+        Rc::new(Value::Number(Number::Float(val)))
+    }
+
+    // primitives
     pub fn is_eq(self: &Self, other: &Self) -> bool {
         match (self, other) {
             (Number::Int(a), Number::Int(b)) => a == b,
@@ -36,6 +71,22 @@ impl Number {
     pub fn is_equal(self: &Self, other: &Self) -> bool {
         self.eq(other)
     }
+
+    // functions
+    fn add(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let num = match (n1, n2) {
+                    (Number::Int(n1), Number::Int(n2)) => Number::Int(n1 + n2),
+                    (Number::Float(n1), Number::Int(n2)) => Number::Float(n1 + *n2 as f64),
+                    (Number::Int(n1), Number::Float(n2)) => Number::Float(*n1 as f64 + n2),
+                    (Number::Float(n1), Number::Float(n2)) => Number::Float(n1 + n2),
+                };
+                Value::Number(num).ok()
+            },
+            _ => RuntimeError::type_error(format!("+ only works on numbers - got (+ {val1} {val2})")),
+        }
+    }
 }
 
 
@@ -43,6 +94,7 @@ impl Number {
 mod tests {
     use yare::parameterized;
 
+    use std::rc::Rc;
     use std::ops::Deref;
     use crate::values::{ Value, tests::sample_values };
     use crate::values::numbers::Number;
@@ -50,8 +102,8 @@ mod tests {
     #[test]
     fn test_is_number() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
-            let is_type = Value::is_true(Value::is_number(listified.clone()).expect("ok"));
+            let listified = val.as_pair();
+            let is_type = Value::is_number(listified.clone()).expect("ok").is_true();
             match val.deref() {
                 Value::Number(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -68,11 +120,11 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
+                        val.as_pair()
+                    ).unwrap().into(),
+                ).unwrap().into(),
             ).unwrap();
-            let is_type = Value::is_true(Value::is_number(listified).expect("ok"));
+            let is_type = Value::is_number(listified.into()).expect("ok").is_true();
             match val.deref() {
                 Value::Number(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -108,5 +160,29 @@ mod tests {
     fn test_is_eq_not(val1: Number, val2: Number) {
         assert!(!val1.is_eq(&val2));
         assert!(!val2.is_eq(&val1));
+    }
+
+    #[parameterized(
+        ints = { Rc::new(Value::Number(Number::Int(1))), Rc::new(Value::Number(Number::Int(2))), "3" },
+        floats = { Rc::new(Value::Number(Number::Float(1.23))), Rc::new(Value::Number(Number::Float(2.32))), "3.55" },
+        int_float = { Rc::new(Value::Number(Number::Int(1))), Rc::new(Value::Number(Number::Float(2.32))), "3.32" },
+        float_int = { Rc::new(Value::Number(Number::Float(1.23))), Rc::new(Value::Number(Number::Int(2))), "3.23" },
+    )]
+    fn test_number_add(num1: Rc<Value>, num2: Rc<Value>, expected: &str) {
+        assert_eq!(Number::add(num1, num2).unwrap().to_string(), format!("{expected}"));
+    }
+
+    #[parameterized(
+        empty = { Value::make_null(), "0" },
+        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
+        multi = { Value::to_list(vec![
+            Rc::new(Value::Number(Number::Int(1))),
+            Rc::new(Value::Number(Number::Int(2))),
+            Rc::new(Value::Number(Number::Int(3))),
+            Rc::new(Value::Number(Number::Int(4))),
+        ]).unwrap().into(), "(3 3 4)" },
+    )]
+    fn test_add(vals: Rc<Value>, expected: &str) {
+        assert_eq!(Value::add(vals).unwrap().to_string(), format!("{expected}"));
     }
 }

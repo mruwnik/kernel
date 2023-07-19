@@ -1,7 +1,7 @@
 use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use crate::errors::{ RuntimeError, ErrorTypes };
-use crate::values::{ Value, CallResult, is_val };
+use crate::values::{ Value, ValueResult, CallResult, CallResultType, is_val };
 
 use super::envs::EnvRef;
 
@@ -48,8 +48,21 @@ impl Combiner {
     }
 
     pub fn is_eq(self: &Self, other: &Self) -> Result<bool, RuntimeError> {
-        let same_exprs = Value::is_eq(&self.expr, &other.expr)?;
-        Ok(self.name == other.name && self.c_type == other.c_type && Value::is_true(same_exprs))
+        let same_exprs = Value::is_eq(&self.expr, &other.expr)?.is_true();
+        Ok(self.name == other.name && self.c_type == other.c_type && same_exprs)
+    }
+
+    // proper underlying combiner implementations
+    pub fn add(vals: Rc<Value>, _: EnvRef) -> CallResult {
+        let res: Rc<Value> = Value::add(vals.clone())?.into();
+        match res.deref() {
+            Value::Number(_) => res.as_val(),
+            Value::Pair(_) => Value::cons(
+                Value::make_symbol("+"),
+                res,
+            )?.as_tail_call(),
+            _ => RuntimeError::type_error("+ can only handle numbers and lists"),
+        }
     }
 }
 
@@ -78,12 +91,20 @@ impl Value {
     }
 
     // primatives
-    pub fn is_operative(val: Rc<Value>) -> CallResult {
+    pub fn is_operative(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Combiner(Combiner{ c_type: CombinerType::Operative, .. })))
     }
 
-    pub fn is_applicative(val: Rc<Value>) -> CallResult {
+    pub fn is_applicative(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Combiner(Combiner{ c_type: CombinerType::Applicative, .. })))
+    }
+
+    pub fn as_tail_call(&self) -> CallResult {
+        Ok(CallResultType::Call(self.into()))
+    }
+
+    pub fn as_val(&self) -> CallResult {
+        Ok(CallResultType::Value(self.into()))
     }
 }
 
@@ -94,7 +115,10 @@ mod tests {
 
     use std::rc::Rc;
     use std::ops::Deref;
-    use crate::values::{ Constant, Value, tests::sample_values };
+    use crate::values::symbols::Symbol;
+    use crate::values::{ Constant, Number, Value, tests::sample_values };
+    use crate::values::envs::Env;
+    use crate::values::eval::eval;
     use crate::values::Combiner;
 
     use super::CombinerType;
@@ -102,9 +126,9 @@ mod tests {
     #[test]
     fn test_is_combiner() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
-            let is_applicative = Value::is_true(Value::is_applicative(listified.clone()).expect("ok"));
-            let is_operative = Value::is_true(Value::is_operative(listified.clone()).expect("ok"));
+            let listified = val.as_pair();
+            let is_applicative = Value::is_applicative(listified.clone()).expect("ok").is_true();
+            let is_operative = Value::is_operative(listified.clone()).expect("ok").is_true();
             match val.deref() {
                 Value::Combiner(Combiner{ c_type: CombinerType::Applicative, ..}) => assert!(is_applicative && !is_operative),
                 Value::Combiner(Combiner{ c_type: CombinerType::Operative, ..}) => assert!(is_operative && !is_applicative),
@@ -125,12 +149,12 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
+                        val.as_pair()
+                    ).unwrap().into(),
+                ).unwrap().into(),
             ).unwrap();
-            let is_applicative = Value::is_true(Value::is_applicative(listified.clone()).expect("ok"));
-            let is_operative = Value::is_true(Value::is_operative(listified.clone()).expect("ok"));
+            let is_applicative = Value::is_applicative(listified.clone().into()).expect("ok").is_true();
+            let is_operative = Value::is_operative(listified.into()).expect("ok").is_true();
             match val.deref() {
                 Value::Combiner(Combiner{ c_type: CombinerType::Applicative, ..}) => assert!(is_applicative && !is_operative),
                 Value::Combiner(Combiner{ c_type: CombinerType::Operative, ..}) => assert!(is_operative && !is_applicative),
@@ -146,7 +170,7 @@ mod tests {
         applicative = {
             Combiner{
                 name: "applicative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             }
@@ -154,7 +178,7 @@ mod tests {
         operative = {
             Combiner{
                 name: "operative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             }
@@ -168,13 +192,13 @@ mod tests {
         applicatives = {
             Combiner{
                 name: "applicative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             },
             Combiner{
                 name: "applicative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             }
@@ -182,13 +206,13 @@ mod tests {
         operatives = {
             Combiner{
                 name: "operative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             },
             Combiner{
                 name: "operative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             }
@@ -203,13 +227,13 @@ mod tests {
         applicative_different_names = {
             Combiner{
                 name: "applicativebla".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             },
             Combiner{
                 name: "applicative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             }
@@ -217,13 +241,13 @@ mod tests {
         applicatives_differnt_expr = {
             Combiner{
                 name: "applicative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Inert)),
                 c_type: CombinerType::Applicative,
             },
             Combiner{
                 name: "applicative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             }
@@ -231,13 +255,13 @@ mod tests {
         operatives_diff_names = {
             Combiner{
                 name: "operativebla".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             },
             Combiner{
                 name: "operative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             }
@@ -245,13 +269,13 @@ mod tests {
         operatives_diff_exprs = {
             Combiner{
                 name: "operative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Inert)),
                 c_type: CombinerType::Operative,
             },
             Combiner{
                 name: "operative".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             }
@@ -259,13 +283,13 @@ mod tests {
         different_types = {
             Combiner{
                 name: "bla".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Applicative,
             },
             Combiner{
                 name: "bla".to_string(),
-                func: &|_e, _en| Ok(Rc::new(Value::Constant(Constant::Null))),
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
                 expr: Rc::new(Value::Constant(Constant::Null)),
                 c_type: CombinerType::Operative,
             }
@@ -274,5 +298,23 @@ mod tests {
     fn test_is_eq_not(val1: Combiner, val2: Combiner) {
         assert!(!val1.is_eq(&val2).unwrap());
         assert!(!val2.is_eq(&val1).unwrap());
+    }
+
+    #[parameterized(
+        empty = { Value::make_null(), "0" },
+        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
+        multi = { Value::to_list(vec![
+            Rc::new(Value::Number(Number::Int(1))),
+            Rc::new(Value::Number(Number::Int(2))),
+            Rc::new(Value::Number(Number::Int(3))),
+            Rc::new(Value::Number(Number::Int(4))),
+        ]).unwrap().into(), "10" },
+    )]
+    fn test_add(vals: Rc<Value>, expected: &str) {
+        let env = Value::ground_env();
+        if let Value::Env(env_obj) = env.deref() {
+            let adder = eval(Combiner::add(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
+            assert_eq!(adder.to_string(), format!("{expected}"));
+        }
     }
 }

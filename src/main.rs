@@ -6,8 +6,11 @@ pub mod errors;
 use std::env;
 use std::rc::Rc;
 use errors::RuntimeError;
+use values::ValueResult;
 
-use crate::values::{ CallResult, Value };
+use crate::values::{ CallResult, CallResultType, Value };
+use crate::values::combiners::Combiner;
+use crate::values::eval::eval;
 
 fn rep(raw: impl Into<String>) -> CallResult {
     let raw = raw.into();
@@ -16,25 +19,24 @@ fn rep(raw: impl Into<String>) -> CallResult {
     let lexes = lexemes::get_lexemes(&mut chars)?;
     let values = tokens::parse(lexes)?;
     // dbg!(values);
-    let base_env = Value::make_environment(Value::make_null())?;
+    let base_env = Value::ground_env();
 
-    let printer = Value::new_applicative("printer", &|params, _env| {println!("evaling! {params}"); Ok(Value::make_inert())}, Value::make_inert());
+    let printer = Value::new_applicative("printer", &|params, _env| {println!("evaling! {params}"); Value::make_inert().as_val()}, Value::make_inert());
     Value::env_set(base_env.clone(), Value::make_symbol("bla"), Value::make_string("this is from bla"))?;
     Value::env_set(base_env.clone(), Value::make_symbol("ble"), Value::make_string("this is from ble"))?;
-    Value::env_set(base_env.clone(), Value::make_symbol("+"), printer.clone())?;
     Value::env_set(base_env.clone(), Value::make_symbol("-"), printer.clone())?;
 
     let results = values.iter()
-        .map(|v| Value::eval(v.clone(), base_env.clone()))
+        .map(|v| eval(v.clone(), base_env.clone()))
         .collect::<Result<Vec<Rc<Value>>, RuntimeError>>()?;
 
     results.iter().for_each(|r| println!("{r}"));
 
-    Ok(Value::make_inert())
+    Value::make_inert().as_val()
 }
 
 fn main() {
-    let raw = format!("1231 bla ble (+ (- 1 2) \"asd\\\"asd\" 3 4)");
+    let raw = format!("1231 bla ble (+ 1 2 3 4)");
     let _ = rep(raw);
 
     env::args()

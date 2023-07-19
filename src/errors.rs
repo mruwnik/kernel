@@ -41,4 +41,20 @@ impl RuntimeError {
     pub fn new(error_type: ErrorTypes, cause: impl Into<String>) -> Self {
         Self { error_type, cause: cause.into() }
     }
+
+    pub fn type_error<T>(cause: impl Into<String>) -> Result<T, RuntimeError> {
+        Err(RuntimeError::new(ErrorTypes::TypeError, cause))
+    }
+
+    pub fn lookup_error<T>(cause: impl Into<String>) -> Result<T, RuntimeError> {
+        Err(RuntimeError::new(ErrorTypes::LookupError, cause))
+    }
+
+    pub fn parse_error<T>(cause: impl Into<String>) -> Result<T, RuntimeError> {
+        Err(RuntimeError::new(ErrorTypes::ParseError, cause))
+    }
+
+    pub fn immutable_error<T>(cause: impl Into<String>) -> Result<T, RuntimeError> {
+        Err(RuntimeError::new(ErrorTypes::ImmutableError, cause))
+    }
 }

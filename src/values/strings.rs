@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::fmt;
 use std::rc::Rc;
 
-use super::{ Value, gen_sym, is_val, CallResult };
+use super::{ Value, gen_sym, is_val, ValueResult };
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub struct Str(pub String, usize);
@@ -14,7 +14,7 @@ impl fmt::Display for Str {
 }
 
 impl Value {
-    pub fn is_string(items: Rc<Value>) -> CallResult {
+    pub fn is_string(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::String(_)))
     }
 
@@ -49,8 +49,8 @@ mod tests {
     #[test]
     fn test_is_string() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
-            let is_type = Value::is_true(Value::is_string(listified).expect("ok"));
+            let listified = val.as_pair();
+            let is_type = Value::is_string(listified).expect("ok").is_true();
             match val.deref() {
                 Value::String(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -67,11 +67,11 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
+                        val.as_pair()
+                    ).unwrap().into(),
+                ).unwrap().into(),
             ).unwrap();
-            let is_type = Value::is_true(Value::is_string(listified.clone()).expect("ok"));
+            let is_type = Value::is_string(listified.into()).expect("ok").is_true();
             match val.deref() {
                 Value::String(_) => assert!(is_type),
                 _ => assert!(!is_type),

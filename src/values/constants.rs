@@ -1,6 +1,6 @@
 use std::{fmt, ops::Deref};
 use std::rc::Rc;
-use crate::values::{ Value, CallResult, is_val };
+use crate::values::{ Value, ValueResult, is_val };
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Constant {
@@ -20,15 +20,15 @@ impl fmt::Display for Constant {
 }
 
 impl Value {
-    pub fn is_inert(val: Rc<Value>) -> CallResult {
+    pub fn is_inert(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Constant(Constant::Inert)))
     }
 
-    pub fn is_ignore(val: Rc<Value>) -> CallResult {
+    pub fn is_ignore(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Constant(Constant::Ignore)))
     }
 
-    pub fn is_null(val: Rc<Value>) -> CallResult {
+    pub fn is_null(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Constant(Constant::Null)))
     }
 
@@ -67,15 +67,15 @@ mod tests {
     #[test]
     fn test_is_constant() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
+            let listified = val.as_pair();
             match val.deref() {
-                Value::Constant(Constant::Inert) => assert_eq!(Value::is_inert(listified).expect("ok"), Value::boolean(true)),
-                Value::Constant(Constant::Ignore) => assert_eq!(Value::is_ignore(listified).expect("ok"), Value::boolean(true)),
-                Value::Constant(Constant::Null) => assert_eq!(Value::is_null(listified).expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Inert) => assert!(Value::is_inert(listified).expect("ok").is_true()),
+                Value::Constant(Constant::Ignore) => assert!(Value::is_ignore(listified).expect("ok").is_true()),
+                Value::Constant(Constant::Null) => assert!(Value::is_null(listified).expect("ok").is_true()),
                 _ => {
-                    assert_eq!(Value::is_inert(listified.clone()).expect("ok"), Value::boolean(false));
-                    assert_eq!(Value::is_ignore(listified.clone()).expect("ok"), Value::boolean(false));
-                    assert_eq!(Value::is_null(listified.clone()).expect("ok"), Value::boolean(false));
+                    assert!(!Value::is_inert(listified.clone()).expect("ok").is_true());
+                    assert!(!Value::is_ignore(listified.clone()).expect("ok").is_true());
+                    assert!(!Value::is_null(listified.clone()).expect("ok").is_true());
                 },
             }
         }
@@ -90,18 +90,18 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
-            ).unwrap();
+                        val.as_pair(),
+                    ).unwrap().into(),
+                ).unwrap().into(),
+            ).unwrap().into();
             match val.deref() {
-                Value::Constant(Constant::Inert) => assert!(Value::is_true(Value::is_inert(listified).expect("ok"))),
-                Value::Constant(Constant::Ignore) => assert_eq!(Value::is_ignore(listified).expect("ok"), Value::boolean(true)),
-                Value::Constant(Constant::Null) => assert_eq!(Value::is_null(listified).expect("ok"), Value::boolean(true)),
+                Value::Constant(Constant::Inert) => assert!(Value::is_inert(listified).expect("ok").is_true()),
+                Value::Constant(Constant::Ignore) => assert!(Value::is_ignore(listified).expect("ok").is_true()),
+                Value::Constant(Constant::Null) => assert!(Value::is_null(listified).expect("ok").is_true()),
                 _ => {
-                    assert_eq!(Value::is_inert(listified.clone()).expect("ok"), Value::boolean(false));
-                    assert_eq!(Value::is_ignore(listified.clone()).expect("ok"), Value::boolean(false));
-                    assert_eq!(Value::is_null(listified.clone()).expect("ok"), Value::boolean(false));
+                    assert!(!Value::is_inert(listified.clone()).expect("ok").is_true());
+                    assert!(!Value::is_ignore(listified.clone()).expect("ok").is_true());
+                    assert!(!Value::is_null(listified.clone()).expect("ok").is_true());
                 },
             }
         }

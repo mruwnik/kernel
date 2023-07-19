@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::ops::Deref;
 
-use super::{ CallResult, Value, is_val };
+use super::{ ValueResult, Value, is_val };
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub struct Symbol(pub String);
@@ -14,7 +14,7 @@ impl fmt::Display for Symbol {
 }
 
 impl Value {
-    pub fn is_symbol(items: Rc<Value>) -> CallResult {
+    pub fn is_symbol(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::Symbol(_)))
     }
 
@@ -41,8 +41,8 @@ mod tests {
     #[test]
     fn test_is_symbol() {
         for val in sample_values() {
-            let listified = Value::as_pair(val.clone());
-            let is_type = Value::is_true(Value::is_symbol(listified).expect("ok"));
+            let listified = val.as_pair();
+            let is_type = Value::is_symbol(listified).expect("ok").is_true();
             match val.deref() {
                 Value::Symbol(_) => assert!(is_type),
                 _ => assert!(!is_type),
@@ -59,11 +59,11 @@ mod tests {
                     val.clone(),
                     Value::cons(
                         val.clone(),
-                        Value::as_pair(val.clone())
-                    ).unwrap(),
-                ).unwrap(),
+                        val.as_pair()
+                    ).unwrap().into(),
+                ).unwrap().into(),
             ).unwrap();
-            let is_type = Value::is_true(Value::is_symbol(listified.clone()).expect("ok"));
+            let is_type = Value::is_symbol(listified.into()).expect("ok").is_true();
             match val.deref() {
                 Value::Symbol(_) => assert!(is_type),
                 _ => assert!(!is_type),

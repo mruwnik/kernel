@@ -1,26 +1,46 @@
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::errors::{ RuntimeError, ErrorTypes };
-use crate::values::{ Value, CallResult };
+use crate::errors::RuntimeError;
+use crate::values::{ Value, ValueResult, CallResult, CallResultType };
 
+pub fn eval(val: Rc<Value>, env: Rc<Value>) -> ValueResult {
+    let mut current = val;
+    loop {
+        match current.eval(env.clone())? {
+            CallResultType::Value(v) => {
+                return v.ok()
+            },
+            CallResultType::Call(c) => {
+                current = c;
+            }
+        }
+    }
+}
 
 impl Value {
-    pub fn eval(exprs: Rc<Value>, env: Rc<Value>) -> CallResult {
+    pub fn eval(&self, env: Rc<Value>) -> CallResult {
         if let Value::Env(e) = env.deref() {
-            match exprs.clone().deref() {
+            match self.clone() {
+                // If it's a symbol find it in the env and return it
                 Value::Symbol(s) => match e.borrow().get(s.clone()) {
-                    None => Err(RuntimeError::new(ErrorTypes::LookupError, format!("Could not find symbol {s}"))),
-                    Some(v) => Ok(v),
+                    None => RuntimeError::lookup_error(format!("Could not find symbol {s}")),
+                    Some(v) => v.as_val(),
                 },
-                Value::Pair(_) => Value::call(
-                    Value::eval(Value::car(exprs.clone())?, env.clone())?,
-                    e.clone(),
-                    Value::cdr(exprs)?
-                ),
-                _ => Ok(exprs),
+                // pairs should be evaluated such that the car gets evaluated and then is called with the cdr
+                Value::Pair(_) => {
+                    let car: Rc<Value> = eval(Value::car(self.into())?.into(), env.clone())?;
+                    Value::call(
+                        car,
+                        // eval the car properly
+                        e.clone(),
+                        Value::cdr(self.into())?.into()
+                    )
+                },
+                // anything else should just be returned
+                _ => self.as_val(),
             }
         } else {
-            Err(RuntimeError::new(ErrorTypes::TypeError, "eval expects an environment as its second param") )
+            RuntimeError::type_error("eval expects an environment as its second param")
         }
     }
 }
@@ -31,33 +51,9 @@ mod tests {
     use yare::parameterized;
 
     use std::rc::Rc;
-    use std::ops::Deref;
     use crate::errors::{ RuntimeError, ErrorTypes };
     use crate::values::{ Bool, Constant, Number, Str, Symbol, Value, Combiner };
     use crate::values::envs::Env;
-
-    // pub fn self_eval_values() -> Vec<Rc<Value>> {
-    //     vec![
-    //         Rc::new(Value::Bool(Bool::True)),
-    //         Rc::new(Value::Bool(Bool::False)),
-    //         Value::new_applicative(
-    //             "tester",
-    //             &|_exprs, _env| Ok(Rc::new(Value::Constant(Constant::Null))),
-    //             Rc::new(Value::Constant(Constant::Null))
-    //         ),
-    //         Rc::new(Value::Constant(Constant::Ignore)),
-    //         Rc::new(Value::Constant(Constant::Inert)),
-    //         Rc::new(Value::Constant(Constant::Null)),
-    //         Value::cons(
-    //             Rc::new(Value::Constant(Constant::Null)),
-    //             Rc::new(Value::Constant(Constant::Null)),
-    //         ).unwrap(),
-    //         Rc::new(Value::Env(Env::new(vec![]))),
-    //         Rc::new(Value::Number(Number::Int(123))),
-    //         Rc::new(Value::String(Str::new("bla"))),
-    //         Rc::new(Value::Symbol(Symbol("bla".to_string()))),
-    //     ]
-    // }
 
     #[parameterized(
         true_ = { Rc::new(Value::Bool(Bool::True)) },
@@ -71,14 +67,14 @@ mod tests {
     )]
     fn test_eval_self(val: Rc<Value>) {
         let env = Rc::new(Value::Env(Env::new(vec![])));
-        let evaled = Value::eval(val.clone(), env).expect("This should evaluate");
-        assert!(Value::is_true(Value::is_eq(&val, &evaled).unwrap()));
+        let evaled = val.eval(env).expect("This should evaluate");
+        assert!(Value::is_eq(&val, &evaled.into()).unwrap().is_true());
     }
 
     #[test]
     fn test_eval_non_env() {
         let val = Rc::new(Value::Bool(Bool::True));
-        let evaled = Value::eval(val.clone(), val).expect_err("This should fail");
+        let evaled = val.eval(val.clone()).expect_err("This should fail");
         assert_eq!(evaled, RuntimeError::new(ErrorTypes::TypeError, "eval expects an environment as its second param"))
     }
 
@@ -86,7 +82,7 @@ mod tests {
     fn test_eval_non_env_lookup() {
         let val = Rc::new(Value::Symbol(Symbol("bla".to_string())));
         let env = Rc::new(Value::Env(Env::new(vec![])));
-        let evaled = Value::eval(val.clone(), env).expect_err("This should fail");
+        let evaled = val.eval(env).expect_err("This should fail");
         assert_eq!(evaled, RuntimeError::new(ErrorTypes::LookupError, "Could not find symbol bla"))
     }
 
@@ -95,22 +91,22 @@ mod tests {
         let val = Rc::new(Value::Symbol(Symbol("bla".to_string())));
         let env = Rc::new(Value::Env(Env::new(vec![])));
         let _ = Value::env_set(env.clone(), val.clone(), Value::make_const(Constant::Null));
-        let evaled = Value::eval(val.clone(), env).expect("This should work");
+        let evaled: Rc<Value> = val.eval(env).expect("This should work").into();
         assert_eq!(evaled, Value::make_const(Constant::Null));
     }
 
     #[test]
     fn test_eval_call() {
-        let val = Value::cons(
+        let val: Rc<Value> = Value::cons(
             Value::new_applicative(
                 "tester",
-                &|_exprs, _env| Ok(Rc::new(Value::Constant(Constant::Null))),
+                &|_exprs, _env| Value::Constant(Constant::Null).as_val(),
                 Rc::new(Value::Constant(Constant::Null))
             ),
             Rc::new(Value::Constant(Constant::Null)),
-        ).unwrap();
+        ).unwrap().into();
         let env = Rc::new(Value::Env(Env::new(vec![])));
-        let evaled = Value::eval(val, env).expect("This should work");
+        let evaled: Rc<Value> = val.eval(env).expect("This should work").into();
         assert_eq!(evaled, Value::make_const(Constant::Null));
     }
 }

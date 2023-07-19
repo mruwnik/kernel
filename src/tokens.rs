@@ -1,12 +1,8 @@
 use std::slice::Iter;
 use std::rc::Rc;
 use crate::lexemes::{Lexeme, SpecialLexeme};
-use crate::errors::{ RuntimeError, ErrorTypes };
-use crate::values::{Value, self};
-
-fn make_error<T>(err: impl Into<String>) -> Result<T, RuntimeError> {
-    Result::Err(RuntimeError::new(ErrorTypes::ParseError, err.into()))
-}
+use crate::errors::RuntimeError;
+use crate::values::{Value, self, ValueResult};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Constant {
@@ -60,7 +56,7 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
                 "#inert" => Token::Constant(Constant::Inert),
                 "#ignore" => Token::Constant(Constant::Ignore),
                 v if v.len() == 3 && v.starts_with("#\\") => Token::Char(val.chars().nth(2).unwrap()),
-                v if v.starts_with("#") => return make_error(format!("Unknown constant found: {v}")),
+                v if v.starts_with("#") => return RuntimeError::parse_error(format!("Unknown constant found: {v}")),
 
                 v => match val.chars().next().unwrap() {
                     '+' | '-' => parse_number(v)?,
@@ -72,31 +68,31 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
     })
 }
 
-fn extract_list(tokens: &mut Iter<Token>) -> Result<Rc<Value>, RuntimeError> {
-    let root = Value::as_pair(Value::make_null());
+fn extract_list(tokens: &mut Iter<Token>) -> ValueResult {
+    let root = Value::make_null().as_pair();
     let mut last = root.clone();
     while let Some(token) = tokens.next() {
-        let val = Value::as_pair(match token {
+        let val = match token {
             Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
             Token::Special(SpecialLexeme::RightParam) => break,
             Token::Special(SpecialLexeme::FullStop) => {
                 let val = match tokens.next() {
-                    None => return make_error("expression ended with a dot"),
-                    Some(Token::Special(SpecialLexeme::LeftParam)) => return make_error("dot expressions must end with a value, not a list"),
-                    Some(Token::Special(SpecialLexeme::RightParam)) => return make_error("expression ended with a dot"),
-                    Some(Token::Special(SpecialLexeme::FullStop)) => return make_error("expression ended with a dot"),
+                    None => return RuntimeError::parse_error("expression ended with a dot"),
+                    Some(Token::Special(SpecialLexeme::LeftParam)) => return RuntimeError::parse_error("dot expressions must end with a value, not a list"),
+                    Some(Token::Special(SpecialLexeme::RightParam)) => return RuntimeError::parse_error("expression ended with a dot"),
+                    Some(Token::Special(SpecialLexeme::FullStop)) => return RuntimeError::parse_error("expression ended with a dot"),
                     Some(t) => to_value(t, tokens)?,
                 };
                 Value::set_cdr(last.clone(), val.clone())?;
 
                 match tokens.next() {
-                    None => return make_error("unclosed expression"),
+                    None => return RuntimeError::parse_error("unclosed expression"),
                     Some(Token::Special(SpecialLexeme::RightParam)) => break,
-                    _ => return make_error("multiple values provided after a dot"),
+                    _ => return RuntimeError::parse_error("multiple values provided after a dot"),
                 }
             },
             _ => to_value(token, tokens)?,
-        });
+        }.as_pair();
         Value::set_cdr(last.clone(), val.clone())?;
         last = val;
     }
@@ -112,11 +108,11 @@ fn make_number(number: &Number) -> Result<Rc<Value>, RuntimeError> {
     )))
 }
 
-fn to_value(token: &Token, tokens: &mut Iter<Token>) -> Result<Rc<Value>, RuntimeError> {
+fn to_value(token: &Token, tokens: &mut Iter<Token>) -> ValueResult {
     Ok(match token {
         Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
-        Token::Special(SpecialLexeme::RightParam) => return make_error("Dangling closing param found"),
-        Token::Special(SpecialLexeme::FullStop) => return make_error("Dangling dot found - this can only be provided to mark the ending of a list"),
+        Token::Special(SpecialLexeme::RightParam) => return RuntimeError::parse_error("Dangling closing param found"),
+        Token::Special(SpecialLexeme::FullStop) => return RuntimeError::parse_error("Dangling dot found - this can only be provided to mark the ending of a list"),
         Token::Constant(Constant::True) => Value::boolean(true),
         Token::Constant(Constant::False) => Value::boolean(false),
 
@@ -129,7 +125,7 @@ fn to_value(token: &Token, tokens: &mut Iter<Token>) -> Result<Rc<Value>, Runtim
         Token::Symbol(s) => Value::make_symbol(s),
 
         // TODO: handle chars
-        _ => return make_error(format!("Unhandled token found")),
+        _ => return RuntimeError::parse_error(format!("Unhandled token found")),
     })
 }
 
@@ -149,7 +145,7 @@ mod tests {
     use yare::parameterized;
 
     use crate::lexemes::{Lexeme, SpecialLexeme};
-    use crate::tokens::{parse_token, to_value, make_error, extract_list, Token, Number, Constant};
+    use crate::tokens::{parse_token, to_value, extract_list, Token, Number, Constant};
 
     #[parameterized(
         left_param = { SpecialLexeme::LeftParam },
