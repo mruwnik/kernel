@@ -88,6 +88,10 @@ impl Combiner {
             _ => RuntimeError::type_error("$if requires 3 arguments"),
         }
     }
+
+    pub fn is_boolean(vals: Rc<Value>, _: EnvRef) -> CallResult {
+        Value::is_boolean(vals)?.as_val()
+    }
 }
 
 impl Value {
