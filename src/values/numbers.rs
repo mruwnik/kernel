@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, os::unix::process};
 use std::ops::Deref;
 use std::fmt;
 use crate::{values::{ Value, ValueResult, Constant, is_val }, errors::RuntimeError};
@@ -18,6 +18,29 @@ impl fmt::Display for Number {
     }
 }
 
+fn process(items: Rc<Value>, func: &dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult) -> ValueResult {
+    match items.deref() {
+        Value::Constant(Constant::Null) => Number::int(0).ok(),
+        Value::Pair(_) => {
+            let num1: Rc<Value> = Value::car(items.clone())?.into();
+            let cdr: Rc<Value> = Value::cdr(items.clone())?.into();
+            match cdr.deref() {
+                Value::Constant(Constant::Null) => num1.ok(),
+                Value::Number(_) => Number::add(num1, cdr),
+                Value::Pair(_) => {
+                    let num2: Rc<Value> = Value::car(cdr.clone())?.into();
+                    Value::cons(
+                        func(num1, num2)?.into(),
+                        Value::cdr(cdr)?.into()
+                    )
+                }
+                _ => RuntimeError::type_error("+ only works on numbers"),
+            }
+        },
+        _ => RuntimeError::type_error("+ only works on numbers"),
+    }
+}
+
 impl Value {
     pub fn is_number(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::Number(_)))
@@ -26,26 +49,11 @@ impl Value {
     // Adds the first 2 items, returning a list of all remaining items to sum, or the final sum if fewer
     // than 2 items provided
     pub fn add(items: Rc<Value>) -> ValueResult {
-        match items.deref() {
-            Value::Constant(Constant::Null) => Number::int(0).ok(),
-            Value::Pair(_) => {
-                let num1: Rc<Value> = Value::car(items.clone())?.into();
-                let cdr: Rc<Value> = Value::cdr(items.clone())?.into();
-                match cdr.deref() {
-                    Value::Constant(Constant::Null) => num1.ok(),
-                    Value::Number(_) => Number::add(num1, cdr),
-                    Value::Pair(_) => {
-                        let num2: Rc<Value> = Value::car(cdr.clone())?.into();
-                        Value::cons(
-                            Number::add(num1, num2)?.into(),
-                            Value::cdr(cdr)?.into()
-                        )
-                    }
-                    _ => RuntimeError::type_error("+ only works on numbers"),
-                }
-            },
-            _ => RuntimeError::type_error("+ only works on numbers"),
-        }
+        process(items, &Number::add)
+    }
+
+    pub fn minus(items: Rc<Value>) -> ValueResult {
+        process(items, &Number::minus)
     }
 }
 
@@ -85,6 +93,21 @@ impl Number {
                 Value::Number(num).ok()
             },
             _ => RuntimeError::type_error(format!("+ only works on numbers - got (+ {val1} {val2})")),
+        }
+    }
+
+    fn minus(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let num = match (n1, n2) {
+                    (Number::Int(n1), Number::Int(n2)) => Number::Int(n1 - n2),
+                    (Number::Float(n1), Number::Int(n2)) => Number::Float(n1 - *n2 as f64),
+                    (Number::Int(n1), Number::Float(n2)) => Number::Float(*n1 as f64 - n2),
+                    (Number::Float(n1), Number::Float(n2)) => Number::Float(n1 - n2),
+                };
+                Value::Number(num).ok()
+            },
+            _ => RuntimeError::type_error(format!("+ only works on numbers - got (- {val1} {val2})")),
         }
     }
 }
@@ -184,5 +207,29 @@ mod tests {
     )]
     fn test_add(vals: Rc<Value>, expected: &str) {
         assert_eq!(Value::add(vals).unwrap().to_string(), format!("{expected}"));
+    }
+
+    #[parameterized(
+        ints = { Rc::new(Value::Number(Number::Int(1))), Rc::new(Value::Number(Number::Int(2))), "-1" },
+        floats = { Rc::new(Value::Number(Number::Float(3.23))), Rc::new(Value::Number(Number::Float(2.32))), "0.9100000000000001" },
+        int_float = { Rc::new(Value::Number(Number::Int(1))), Rc::new(Value::Number(Number::Float(2.32))), "-1.3199999999999998" },
+        float_int = { Rc::new(Value::Number(Number::Float(4.23))), Rc::new(Value::Number(Number::Int(2))), "2.2300000000000004" },
+    )]
+    fn test_number_minue(num1: Rc<Value>, num2: Rc<Value>, expected: &str) {
+        assert_eq!(Number::minus(num1, num2).unwrap().to_string(), format!("{expected}"));
+    }
+
+    #[parameterized(
+        empty = { Value::make_null(), "0" },
+        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
+        multi = { Value::to_list(vec![
+            Rc::new(Value::Number(Number::Int(1))),
+            Rc::new(Value::Number(Number::Int(2))),
+            Rc::new(Value::Number(Number::Int(3))),
+            Rc::new(Value::Number(Number::Int(4))),
+        ]).unwrap().into(), "(-1 3 4)" },
+    )]
+    fn test_minus(vals: Rc<Value>, expected: &str) {
+        assert_eq!(Value::minus(vals).unwrap().to_string(), format!("{expected}"));
     }
 }

@@ -71,30 +71,35 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
 fn extract_list(tokens: &mut Iter<Token>) -> ValueResult {
     let root = Value::make_null().as_pair();
     let mut last = root.clone();
-    while let Some(token) = tokens.next() {
-        let val = match token {
-            Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
-            Token::Special(SpecialLexeme::RightParam) => break,
-            Token::Special(SpecialLexeme::FullStop) => {
-                let val = match tokens.next() {
-                    None => return RuntimeError::parse_error("expression ended with a dot"),
-                    Some(Token::Special(SpecialLexeme::LeftParam)) => return RuntimeError::parse_error("dot expressions must end with a value, not a list"),
-                    Some(Token::Special(SpecialLexeme::RightParam)) => return RuntimeError::parse_error("expression ended with a dot"),
-                    Some(Token::Special(SpecialLexeme::FullStop)) => return RuntimeError::parse_error("expression ended with a dot"),
-                    Some(t) => to_value(t, tokens)?,
-                };
-                Value::set_cdr(last.clone(), val.clone())?;
+    loop {
+        match tokens.next() {
+            Some(token) => {
+                let val = match token {
+                    Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
+                    Token::Special(SpecialLexeme::RightParam) => break,
+                    Token::Special(SpecialLexeme::FullStop) => {
+                        let val = match tokens.next() {
+                            None => return RuntimeError::parse_error("expression ended with a dot"),
+                            Some(Token::Special(SpecialLexeme::LeftParam)) => return RuntimeError::parse_error("dot expressions must end with a value, not a list"),
+                            Some(Token::Special(SpecialLexeme::RightParam)) => return RuntimeError::parse_error("expression ended with a dot"),
+                            Some(Token::Special(SpecialLexeme::FullStop)) => return RuntimeError::parse_error("expression ended with a dot"),
+                            Some(t) => to_value(t, tokens)?,
+                        };
+                        Value::set_cdr(last.clone(), val.clone())?;
 
-                match tokens.next() {
-                    None => return RuntimeError::parse_error("unclosed expression"),
-                    Some(Token::Special(SpecialLexeme::RightParam)) => break,
-                    _ => return RuntimeError::parse_error("multiple values provided after a dot"),
-                }
-            },
-            _ => to_value(token, tokens)?,
-        }.as_pair();
-        Value::set_cdr(last.clone(), val.clone())?;
-        last = val;
+                        match tokens.next() {
+                            None => return RuntimeError::parse_error("unclosed expression"),
+                            Some(Token::Special(SpecialLexeme::RightParam)) => break,
+                            _ => return RuntimeError::parse_error("multiple values provided after a dot"),
+                        }
+                    },
+                    _ => to_value(token, tokens)?,
+                }.as_pair();
+                Value::set_cdr(last.clone(), val.clone())?;
+                last = val;
+            }
+            None => return RuntimeError::parse_error("expression ended without a closing parenthesis"),
+        }
     }
     Value::cdr(root)
 }

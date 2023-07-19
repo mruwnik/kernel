@@ -2,6 +2,7 @@ use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use crate::errors::{ RuntimeError, ErrorTypes };
 use crate::values::{ Value, ValueResult, CallResult, CallResultType, is_val };
+use crate::values::eval::eval;
 
 use super::envs::EnvRef;
 
@@ -42,6 +43,18 @@ impl PartialEq for Combiner {
     }
 }
 
+pub fn number_applicative(vals: Rc<Value>, func: &dyn Fn(Rc<Value>) -> ValueResult, symbol: impl Into<String>) -> CallResult {
+    let res: Rc<Value> = func(vals.clone())?.into();
+    match res.deref() {
+        Value::Number(_) => res.as_val(),
+        Value::Pair(_) => Value::cons(
+            Value::make_symbol(symbol),
+            res,
+        )?.as_tail_call(),
+        _ => RuntimeError::type_error("+ can only handle numbers and lists"),
+    }
+}
+
 impl Combiner {
     fn new(name: impl Into<String>, func: Func, expr: Rc<Value>, c_type: CombinerType) -> Rc<Value> {
         Rc::new(Value::Combiner(Combiner { c_type, name: name.into(), func, expr }))
@@ -54,15 +67,11 @@ impl Combiner {
 
     // proper underlying combiner implementations
     pub fn add(vals: Rc<Value>, _: EnvRef) -> CallResult {
-        let res: Rc<Value> = Value::add(vals.clone())?.into();
-        match res.deref() {
-            Value::Number(_) => res.as_val(),
-            Value::Pair(_) => Value::cons(
-                Value::make_symbol("+"),
-                res,
-            )?.as_tail_call(),
-            _ => RuntimeError::type_error("+ can only handle numbers and lists"),
-        }
+        number_applicative(vals, &Value::add, "+")
+    }
+
+    pub fn minus(vals: Rc<Value>, _: EnvRef) -> CallResult {
+        number_applicative(vals, &Value::minus, "-")
     }
 }
 
@@ -77,16 +86,23 @@ impl Value {
         Combiner::new(name, func, expr, CombinerType::Operative)
     }
 
-    pub fn call(fun: Rc<Value>, env: EnvRef, params: Rc<Value>) -> CallResult {
-        match fun.deref() {
-            Value::Combiner(Combiner{ c_type: CombinerType::Operative, func, ..}) => {
-                func(params, env)
-            },
-            Value::Combiner(Combiner{ c_type: CombinerType::Applicative, func, ..}) => {
-                // TODO: eval params
-                func(params, env)
-            },
-            _ => Err(RuntimeError::new(ErrorTypes::TypeError, "eval tried to call a non combiner")),
+    pub fn call(fun: Rc<Value>, env: Rc<Value>, params: Rc<Value>) -> CallResult {
+        if let Value::Env(e) = env.deref() {
+            match fun.deref() {
+                Value::Combiner(Combiner{ c_type: CombinerType::Operative, func, ..}) => {
+                    func(params, e.clone())
+                },
+                Value::Combiner(Combiner{ c_type: CombinerType::Applicative, func, ..}) => {
+                    let mut params = params.iter()
+                        .map(|v| eval(v, env.clone()))
+                        .collect::<Result<Vec<Rc<Value>>, RuntimeError>>()?;
+                    params.pop();
+                    func(Value::to_list(params)?, e.clone())
+                },
+                _ => Err(RuntimeError::new(ErrorTypes::TypeError, "eval tried to call a non combiner")),
+            }
+        } else {
+            RuntimeError::type_error("eval got a non environment")
         }
     }
 
@@ -315,6 +331,24 @@ mod tests {
         if let Value::Env(env_obj) = env.deref() {
             let adder = eval(Combiner::add(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
             assert_eq!(adder.to_string(), format!("{expected}"));
+        }
+    }
+
+    #[parameterized(
+        empty = { Value::make_null(), "0" },
+        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
+        multi = { Value::to_list(vec![
+            Rc::new(Value::Number(Number::Int(1))),
+            Rc::new(Value::Number(Number::Int(2))),
+            Rc::new(Value::Number(Number::Int(3))),
+            Rc::new(Value::Number(Number::Int(4))),
+        ]).unwrap().into(), "-8" },
+    )]
+    fn test_minus(vals: Rc<Value>, expected: &str) {
+        let env = Value::ground_env();
+        if let Value::Env(env_obj) = env.deref() {
+            let subtractor = eval(Combiner::minus(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
+            assert_eq!(subtractor.to_string(), format!("{expected}"));
         }
     }
 }

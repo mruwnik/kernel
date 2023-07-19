@@ -28,11 +28,10 @@ impl Value {
                 },
                 // pairs should be evaluated such that the car gets evaluated and then is called with the cdr
                 Value::Pair(_) => {
-                    let car: Rc<Value> = eval(Value::car(self.into())?.into(), env.clone())?;
                     Value::call(
-                        car,
                         // eval the car properly
-                        e.clone(),
+                        eval(Value::car(self.into())?.into(), env.clone())?.into(),
+                        env,
                         Value::cdr(self.into())?.into()
                     )
                 },

@@ -21,10 +21,8 @@ fn rep(raw: impl Into<String>) -> CallResult {
     // dbg!(values);
     let base_env = Value::ground_env();
 
-    let printer = Value::new_applicative("printer", &|params, _env| {println!("evaling! {params}"); Value::make_inert().as_val()}, Value::make_inert());
     Value::env_set(base_env.clone(), Value::make_symbol("bla"), Value::make_string("this is from bla"))?;
     Value::env_set(base_env.clone(), Value::make_symbol("ble"), Value::make_string("this is from ble"))?;
-    Value::env_set(base_env.clone(), Value::make_symbol("-"), printer.clone())?;
 
     let results = values.iter()
         .map(|v| eval(v.clone(), base_env.clone()))
@@ -36,7 +34,7 @@ fn rep(raw: impl Into<String>) -> CallResult {
 }
 
 fn main() {
-    let raw = format!("1231 bla ble (+ 1 2 3 4)");
+    let raw = format!("1231 bla ble (+ 1 (- 4 9) 3 4)");
     let _ = rep(raw);
 
     env::args()
