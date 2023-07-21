@@ -63,10 +63,6 @@ impl Number {
         Rc::new(Value::Number(Number::Int(val)))
     }
 
-    fn float(val: f64) -> Rc<Value> {
-        Rc::new(Value::Number(Number::Float(val)))
-    }
-
     // primitives
     pub fn is_eq(self: &Self, other: &Self) -> bool {
         match (self, other) {

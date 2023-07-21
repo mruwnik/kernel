@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::{
     values::{Symbol, Value, ValueResult, Constant, Combiner, gen_sym, is_val},
-    errors::{ RuntimeError, ErrorTypes }
+    errors::{ RuntimeError, ErrorTypes },
 };
 
 #[derive(Debug, PartialEq)]
@@ -89,14 +89,7 @@ impl Value {
 
     pub fn ground_env() -> Rc<Value> {
         let env = Env::new(vec![]);
-        // primatives
-        env.borrow_mut().bind(Symbol("$if".to_string()), Value::new_operative("$if", &Combiner::if_, Value::make_inert()));
-        env.borrow_mut().bind(Symbol("boolean?".to_string()), Value::new_operative("boolean?", &Combiner::is_boolean, Value::make_inert()));
-
-        // library
-        env.borrow_mut().bind(Symbol("+".to_string()), Value::new_applicative("+", &Combiner::add, Value::make_inert()));
-        env.borrow_mut().bind(Symbol("-".to_string()), Value::new_applicative("-", &Combiner::minus, Value::make_inert()));
-
+        Combiner::bind_ground(&env);
         Rc::new(Value::Env(env))
     }
 }
@@ -305,8 +298,8 @@ mod tests {
         let val1 = Rc::new(Value::Env(env1));
         let val2 = Rc::new(Value::Env(env2));
 
-        assert!(!val1.is_eq(&val2).expect("ok").is_true());
-        assert!(!val2.is_eq(&val1).expect("ok").is_true());
+        assert!(!val1.clone().is_eq(val2.clone()).expect("ok").is_true());
+        assert!(!val2.is_eq(val1).expect("ok").is_true());
     }
 
     #[parameterized(
@@ -315,7 +308,7 @@ mod tests {
     )]
     fn test_is_eq(env: EnvRef) {
         let val = Rc::new(Value::Env(env));
-        assert!(val.is_eq(&val).expect("ok").is_true());
+        assert!(val.clone().is_eq(val).expect("ok").is_true());
     }
 
     #[parameterized(
@@ -345,4 +338,5 @@ mod tests {
             _ => panic!("Make environment didn't return an env"),
         }
     }
+
 }

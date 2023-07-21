@@ -149,8 +149,8 @@ pub fn parse(lexemes: Vec<Lexeme>) -> Result<Vec<Rc<Value>>, RuntimeError> {
 mod tests {
     use yare::parameterized;
 
-    use crate::lexemes::{Lexeme, SpecialLexeme};
-    use crate::tokens::{parse_token, to_value, extract_list, Token, Number, Constant};
+    use crate::lexemes::{Lexeme, SpecialLexeme, get_lexemes};
+    use crate::tokens::{parse_token, to_value, extract_list, parse, Token, Number, Constant};
 
     #[parameterized(
         left_param = { SpecialLexeme::LeftParam },
@@ -383,5 +383,39 @@ mod tests {
     fn test_extract_list_fails(tokens: Vec<Token>, expected: &str) {
         let value = extract_list(&mut tokens.iter()).expect_err("this should fail");
         assert_eq!(value.to_string(), expected);
+    }
+
+    #[parameterized(
+        true_ = { "#t" },
+        false_ = { "#f" },
+
+        empty = { "()"},
+        ignore = { "#ignore" },
+        inert = { "#inert" },
+
+        zero = { "0" },
+        int = { "123" },
+        neg_int = { "-134" },
+
+        float = { "1.234" },
+        neg_float = { "-1.234" },
+
+        pair = { "(1 . 2)" },
+        list = { "(1 2 3 4)" },
+        dotted_list = { "(1 2 3 . 4)" },
+        nested_list = { "(1 (2 5 6) (3 7 8) 4)" },
+        nested_dotted_list = { "(1 (2 5 6) (3 7 8) . 4)" },
+
+        string = { "\"bla bla bla\"" },
+        empty_string = { "\"\"" },
+        symbol = { "bla" },
+        if_ = { "($if #t 1 2)"},
+    )]
+    fn test_tokenization_flow(expr: &str) {
+        let mut chars = expr.chars();
+        let lexes = get_lexemes(&mut chars).expect("ok");
+        dbg!(&lexes);
+        let value = parse(lexes).expect("ok")[0].to_string();
+        assert_eq!(expr.to_string(), value);
     }
 }

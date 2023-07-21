@@ -26,7 +26,7 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Bool(_)))
     }
 
-    pub fn is_eq(self: &Rc<Self>, other: &Rc<Self>) -> ValueResult {
+    pub fn is_eq(self: Rc<Self>, other: Rc<Self>) -> ValueResult {
         Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
@@ -42,7 +42,7 @@ impl Value {
         ).ok()
     }
 
-    pub fn is_equal(self: &Rc<Self>, other: &Rc<Self>) -> ValueResult {
+    pub fn is_equal(self: Rc<Self>, other: Rc<Self>) -> ValueResult {
         Value::boolean(
             match (self.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
@@ -114,7 +114,7 @@ mod tests {
         false_ = { Value::boolean(false) },
     )]
     fn test_is_eq_self(val: Rc<Value>) {
-        assert!(val.is_eq(&val).expect("ok").is_true());
+        assert!(val.clone().is_eq(val).expect("ok").is_true());
     }
 
     #[parameterized(
@@ -125,7 +125,7 @@ mod tests {
         let val1 = Value::boolean(val);
         let val2 = Value::boolean(val);
 
-        assert!(val1.is_eq(&val2).expect("ok").is_true());
-        assert!(val2.is_eq(&val1).expect("ok").is_true());
+        assert!(val1.clone().is_eq(val2.clone()).expect("ok").is_true());
+        assert!(val2.is_eq(val1).expect("ok").is_true());
     }
 }

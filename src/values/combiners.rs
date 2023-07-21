@@ -1,18 +1,19 @@
 use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use crate::errors::{ RuntimeError, ErrorTypes };
-use crate::values::{ Value, ValueResult, CallResult, CallResultType, is_val };
+use crate::values::{ Value, ValueResult, CallResult, Symbol, CallResultType, is_val };
 use crate::values::eval::eval;
 
 use super::envs::EnvRef;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum CombinerType {
+pub enum CombinerType {
     Operative,
     Applicative,
 }
 
 type Func = &'static dyn Fn(Rc<Value>, EnvRef) -> CallResult;
+type ValueFunc = &'static dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult;
 #[derive(Clone)]
 pub struct Combiner {
     c_type: CombinerType,
@@ -55,28 +56,40 @@ pub fn number_applicative(vals: Rc<Value>, func: &dyn Fn(Rc<Value>) -> ValueResu
     }
 }
 
+pub fn two_val_fn(params: Vec<Rc<Value>>, name: impl Into<String>, func: ValueFunc) -> ValueResult {
+    match &params[..] {
+        [val1, val2] => {
+            func(val1.clone(), val2.clone())
+        },
+        _ => RuntimeError::type_error(format!("{} requires 2 arguments", name.into())),
+    }
+}
+
+pub fn two_arg(vals: Rc<Value>, env: EnvRef, name: impl Into<String>, func: ValueFunc) -> ValueResult {
+    let env_val = Rc::new(Value::Env(env.clone()));
+    let params = vals.arguments(env_val.clone())?;
+    two_val_fn(params, name, func)
+}
+
+pub fn two_oper(vals: Rc<Value>, name: impl Into<String>, func: ValueFunc) -> ValueResult {
+    let params = vals.operands()?;
+    two_val_fn(params, name, func)
+}
+
 impl Combiner {
     fn new(name: impl Into<String>, func: Func, expr: Rc<Value>, c_type: CombinerType) -> Rc<Value> {
         Rc::new(Value::Combiner(Combiner { c_type, name: name.into(), func, expr }))
     }
 
     pub fn is_eq(self: &Self, other: &Self) -> Result<bool, RuntimeError> {
-        let same_exprs = Value::is_eq(&self.expr, &other.expr)?.is_true();
+        let same_exprs = Value::is_eq(self.expr.clone(), other.expr.clone())?.is_true();
         Ok(self.name == other.name && self.c_type == other.c_type && same_exprs)
     }
 
     // proper underlying combiner implementations
-    pub fn add(vals: Rc<Value>, _: EnvRef) -> CallResult {
-        number_applicative(vals, &Value::add, "+")
-    }
-
-    pub fn minus(vals: Rc<Value>, _: EnvRef) -> CallResult {
-        number_applicative(vals, &Value::minus, "-")
-    }
-
     pub fn if_(vals: Rc<Value>, env: EnvRef) -> CallResult {
         let env_val = Rc::new(Value::Env(env.clone()));
-        let params = vals.values(env_val.clone())?;
+        let params = vals.arguments(env_val.clone())?;
         match &params[..] {
             [test, branch1, branch2] => {
                 if eval(test.clone(), env_val.clone())?.is_true() {
@@ -89,8 +102,37 @@ impl Combiner {
         }
     }
 
-    pub fn is_boolean(vals: Rc<Value>, _: EnvRef) -> CallResult {
-        Value::is_boolean(vals)?.as_val()
+    pub fn bind_ground(env: &EnvRef) {
+        fn bind(env: &EnvRef, name: impl Into<String>, type_: CombinerType, func: Func) {
+            let name = name.into();
+            env.borrow_mut().bind(
+                Symbol(name.clone()),
+                Combiner::new(name, func, Value::make_null(), type_)
+            );
+        }
+
+        // primatives
+        bind(&env, "$if", CombinerType::Operative, &Combiner::if_);
+        bind(&env, "eq?", CombinerType::Operative, &|vals, _| two_oper(vals, "eq?", &Value::is_eq)?.as_val());
+        bind(&env, "equal?", CombinerType::Operative, &|vals, _| two_oper(vals, "equal?", &Value::is_equal)?.as_val());
+        bind(&env, "cons", CombinerType::Operative, &|vals, _| two_oper(vals, "cons", &Value::cons)?.as_val());
+
+        // Type checkers
+        bind(&env, "boolean?", CombinerType::Operative, &|vals, _| Value::is_boolean(vals)?.as_val());
+        bind(&env, "applicative?", CombinerType::Operative, &|vals, _| Value::is_applicative(vals)?.as_val());
+        bind(&env, "operative?", CombinerType::Operative, &|vals, _| Value::is_operative(vals)?.as_val());
+        bind(&env, "inert?", CombinerType::Operative, &|vals, _| Value::is_inert(vals)?.as_val());
+        bind(&env, "ignore?", CombinerType::Operative, &|vals, _| Value::is_ignore(vals)?.as_val());
+        bind(&env, "null?", CombinerType::Operative, &|vals, _| Value::is_null(vals)?.as_val());
+        bind(&env, "env?", CombinerType::Operative, &|vals, _| Value::is_env(vals)?.as_val());
+        bind(&env, "number?", CombinerType::Operative, &|vals, _| Value::is_number(vals)?.as_val());
+        bind(&env, "pair?", CombinerType::Operative, &|vals, _| Value::is_pair(vals)?.as_val());
+        bind(&env, "string?", CombinerType::Operative, &|vals, _| Value::is_string(vals)?.as_val());
+        bind(&env, "symbol?", CombinerType::Operative, &|vals, _| Value::is_symbol(vals)?.as_val());
+
+        // library
+        bind(&env, "+", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::add, "+"));
+        bind(&env, "-", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::minus, "-"));
     }
 }
 
@@ -104,10 +146,16 @@ impl Value {
         Combiner::new(name, func, expr, CombinerType::Operative)
     }
 
-    fn values(&self, env: Rc<Value>) -> Result<Vec<Rc<Value>>, RuntimeError> {
+    fn arguments(&self, env: Rc<Value>) -> Result<Vec<Rc<Value>>, RuntimeError> {
         let mut params = self.iter()
             .map(|v| eval(v, env.clone()))
             .collect::<Result<Vec<Rc<Value>>, RuntimeError>>()?;
+        params.pop();
+        Ok(params)
+    }
+
+    fn operands(&self) -> Result<Vec<Rc<Value>>, RuntimeError> {
+        let mut params: Vec<Rc<Value>> = self.iter().collect();
         params.pop();
         Ok(params)
     }
@@ -119,7 +167,7 @@ impl Value {
                     func(params, e.clone())
                 },
                 Value::Combiner(Combiner{ c_type: CombinerType::Applicative, func, ..}) => {
-                    func(Value::to_list(params.values(env.clone())?)?, e.clone())
+                    func(Value::to_list(params.arguments(env.clone())?)?, e.clone())
                 },
                 _ => Err(RuntimeError::new(ErrorTypes::TypeError, "eval tried to call a non combiner")),
             }
@@ -177,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_string_multi() {
+    fn test_is_combiner_multi() {
         for val in sample_values() {
             let listified = Value::cons(
                 val.clone(),
@@ -335,43 +383,6 @@ mod tests {
         assert!(!val1.is_eq(&val2).unwrap());
         assert!(!val2.is_eq(&val1).unwrap());
     }
-
-    #[parameterized(
-        empty = { Value::make_null(), "0" },
-        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
-        multi = { Value::to_list(vec![
-            Rc::new(Value::Number(Number::Int(1))),
-            Rc::new(Value::Number(Number::Int(2))),
-            Rc::new(Value::Number(Number::Int(3))),
-            Rc::new(Value::Number(Number::Int(4))),
-        ]).unwrap().into(), "10" },
-    )]
-    fn test_add(vals: Rc<Value>, expected: &str) {
-        let env = Value::ground_env();
-        if let Value::Env(env_obj) = env.deref() {
-            let adder = eval(Combiner::add(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
-            assert_eq!(adder.to_string(), format!("{expected}"));
-        }
-    }
-
-    #[parameterized(
-        empty = { Value::make_null(), "0" },
-        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
-        multi = { Value::to_list(vec![
-            Rc::new(Value::Number(Number::Int(1))),
-            Rc::new(Value::Number(Number::Int(2))),
-            Rc::new(Value::Number(Number::Int(3))),
-            Rc::new(Value::Number(Number::Int(4))),
-        ]).unwrap().into(), "-8" },
-    )]
-    fn test_minus(vals: Rc<Value>, expected: &str) {
-        let env = Value::ground_env();
-        if let Value::Env(env_obj) = env.deref() {
-            let subtractor = eval(Combiner::minus(vals, env_obj.clone()).unwrap().into(), env).expect("ok");
-            assert_eq!(subtractor.to_string(), format!("{expected}"));
-        }
-    }
-
     #[parameterized(
         yes = { Value::to_list(
             vec![Value::boolean(true), Value::make_null(), Value::make_ignore()]).unwrap().into(), "()"
@@ -387,4 +398,5 @@ mod tests {
             assert_eq!(func.to_string(), format!("{expected}"));
         }
     }
+
 }

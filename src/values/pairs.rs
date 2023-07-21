@@ -68,15 +68,15 @@ impl Pair {
     pub fn is_eq(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
         Ok(
             self.mutable == other.borrow().mutable &&
-                self.car().is_eq(&other.borrow().car().clone())?.is_true() &&
-                self.cdr().is_eq(&other.borrow().cdr().clone())?.is_true()
+                self.car().is_eq(other.borrow().car().clone())?.is_true() &&
+                self.cdr().is_eq(other.borrow().cdr().clone())?.is_true()
         )
     }
 
     pub fn is_equal(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
         Ok(
-            self.car().is_equal(&other.borrow().car().clone())?.is_true() &&
-                self.cdr().is_equal(&other.borrow().cdr().clone())?.is_true()
+            self.car().is_equal(other.borrow().car().clone())?.is_true() &&
+                self.cdr().is_equal(other.borrow().cdr().clone())?.is_true()
         )
     }
 

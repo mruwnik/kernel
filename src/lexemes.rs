@@ -76,13 +76,13 @@ fn make_error<T>(err: String) -> Result<T, RuntimeError> {
 
 /// Process a string literal, reading chars until it get to the end of the string
 fn parse_str(chars: &mut std::str::Chars) -> Result<Lexeme, RuntimeError> {
-    let mut string = format!("\"");
+    let mut string = String::new();
     let mut prev = ' ';
     for c in chars {
-        string.push(c);
         if prev != '\\' && c == '"' {
             return Result::Ok(Lexeme::String(string));
         }
+        string.push(c);
         prev = c;
     }
     make_error(format!("Could not find end of string!"))
@@ -174,22 +174,22 @@ mod tests {
         symbol = { format!("bla"), vec![Lexeme::Symbol(format!("bla"))]  },
         symbol_w_whitespace = { format!("    bla\n   "), vec![Lexeme::Symbol(format!("bla"))]  },
 
-        single_string = { format!("\"asd\""), vec![Lexeme::String(format!("\"asd\""))]  },
-        string_w_whitespace = { format!(" \"a  sdn \n\"  "), vec![Lexeme::String(format!("\"a  sdn \n\""))]  },
-        escape_quote_string = { format!("\"asd\\\"\""), vec![Lexeme::String(format!("\"asd\\\"\""))]  },
+        single_string = { format!("\"asd\""), vec![Lexeme::String(format!("asd"))]  },
+        string_w_whitespace = { format!(" \"a  sdn \n\"  "), vec![Lexeme::String(format!("a  sdn \n"))]  },
+        escape_quote_string = { format!("\"asd\\\"\""), vec![Lexeme::String(format!("asd\\\""))]  },
 
         multi_string = {
             format!("  \"bla\" \"asd\""),
             vec![
-                Lexeme::String(format!("\"bla\"")),
-                Lexeme::String(format!("\"asd\"")),
+                Lexeme::String(format!("bla")),
+                Lexeme::String(format!("asd")),
             ]
         },
         multi_string_no_space = {
             format!("  \"bla\"\"asd\""),
             vec![
-                Lexeme::String(format!("\"bla\"")),
-                Lexeme::String(format!("\"asd\"")),
+                Lexeme::String(format!("bla")),
+                Lexeme::String(format!("asd")),
             ]
         },
 
