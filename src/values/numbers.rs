@@ -59,7 +59,7 @@ impl Value {
 
 impl Number {
     // helpers
-    fn int(val: i64) -> Rc<Value> {
+    pub fn int(val: i64) -> Rc<Value> {
         Rc::new(Value::Number(Number::Int(val)))
     }
 

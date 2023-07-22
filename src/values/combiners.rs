@@ -14,6 +14,8 @@ pub enum CombinerType {
 
 type Func = &'static dyn Fn(Rc<Value>, EnvRef) -> CallResult;
 type ValueFunc = &'static dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult;
+type Method = &'static dyn Fn(Rc<Value>) -> ValueResult;
+
 #[derive(Clone)]
 pub struct Combiner {
     c_type: CombinerType,
@@ -24,7 +26,7 @@ pub struct Combiner {
 
 impl fmt::Display for Combiner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.expr)
+        write!(f, "({} {})", self.name, self.expr)
     }
 }
 
@@ -65,15 +67,9 @@ pub fn two_val_fn(params: Vec<Rc<Value>>, name: impl Into<String>, func: ValueFu
     }
 }
 
-pub fn two_arg(vals: Rc<Value>, env: EnvRef, name: impl Into<String>, func: ValueFunc) -> ValueResult {
-    let env_val = Rc::new(Value::Env(env.clone()));
-    let params = vals.arguments(env_val.clone())?;
-    two_val_fn(params, name, func)
-}
 
-pub fn two_oper(vals: Rc<Value>, name: impl Into<String>, func: ValueFunc) -> ValueResult {
-    let params = vals.operands()?;
-    two_val_fn(params, name, func)
+fn method(val: Rc<Value>, func: Method) -> ValueResult {
+    Value::car(func(val)?)
 }
 
 impl Combiner {
@@ -87,9 +83,9 @@ impl Combiner {
     }
 
     // proper underlying combiner implementations
-    pub fn if_(vals: Rc<Value>, env: EnvRef) -> CallResult {
+    fn if_(vals: Rc<Value>, env: EnvRef) -> CallResult {
         let env_val = Rc::new(Value::Env(env.clone()));
-        let params = vals.arguments(env_val.clone())?;
+        let params = vals.operands()?;
         match &params[..] {
             [test, branch1, branch2] => {
                 if eval(test.clone(), env_val.clone())?.is_true() {
@@ -99,6 +95,16 @@ impl Combiner {
                 }
             },
             _ => RuntimeError::type_error("$if requires 3 arguments"),
+        }
+    }
+
+    fn eval(vals: Rc<Value>, _: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        match &params[..] {
+            [val1, val2] => {
+                val1.eval(val2.clone())
+            },
+            _ => RuntimeError::type_error(format!("eval requires 2 arguments")),
         }
     }
 
@@ -113,9 +119,14 @@ impl Combiner {
 
         // primatives
         bind(&env, "$if", CombinerType::Operative, &Combiner::if_);
-        bind(&env, "eq?", CombinerType::Operative, &|vals, _| two_oper(vals, "eq?", &Value::is_eq)?.as_val());
-        bind(&env, "equal?", CombinerType::Operative, &|vals, _| two_oper(vals, "equal?", &Value::is_equal)?.as_val());
-        bind(&env, "cons", CombinerType::Operative, &|vals, _| two_oper(vals, "cons", &Value::cons)?.as_val());
+        bind(&env, "eq?", CombinerType::Operative, &|vals, _| two_val_fn(vals.operands()?, "eq?", &Value::is_eq)?.as_val());
+        bind(&env, "equal?", CombinerType::Operative, &|vals, _| two_val_fn(vals.operands()?, "equal?", &Value::is_equal)?.as_val());
+        bind(&env, "cons", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "cons", &Value::cons)?.as_val());
+        bind(&env, "set-car!", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "set-car!", &Value::set_car)?.as_val());
+        bind(&env, "set-cdr!", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "set-cdr!", &Value::set_cdr)?.as_val());
+        bind(&env, "copy-es-immutable", CombinerType::Applicative, &|vals, _| method(vals, &Value::copy_es_immutable)?.as_val());
+        bind(&env, "make-environment", CombinerType::Applicative, &|vals, _| Value::make_environment(vals)?.as_val());
+        bind(&env, "eval", CombinerType::Applicative, &Combiner::eval);
 
         // Type checkers
         bind(&env, "boolean?", CombinerType::Operative, &|vals, _| Value::is_boolean(vals)?.as_val());
@@ -133,6 +144,8 @@ impl Combiner {
         // library
         bind(&env, "+", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::add, "+"));
         bind(&env, "-", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::minus, "-"));
+        bind(&env, "car", CombinerType::Applicative, &|vals, _| Value::car(Value::car(vals)?)?.as_val());
+        bind(&env, "cdr", CombinerType::Applicative, &|vals, _| Value::cdr(Value::car(vals)?)?.as_val());
     }
 }
 
@@ -167,7 +180,8 @@ impl Value {
                     func(params, e.clone())
                 },
                 Value::Combiner(Combiner{ c_type: CombinerType::Applicative, func, ..}) => {
-                    func(Value::to_list(params.arguments(env.clone())?)?, e.clone())
+                    let args = params.arguments(env.clone())?;
+                    func(Value::to_list(args)?, e.clone())
                 },
                 _ => Err(RuntimeError::new(ErrorTypes::TypeError, "eval tried to call a non combiner")),
             }

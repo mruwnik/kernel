@@ -410,6 +410,8 @@ mod tests {
         empty_string = { "\"\"" },
         symbol = { "bla" },
         if_ = { "($if #t 1 2)"},
+
+        cons = { "(cons 1 (cons 2 (cons 3 (cons 4 ()))))"},
     )]
     fn test_tokenization_flow(expr: &str) {
         let mut chars = expr.chars();

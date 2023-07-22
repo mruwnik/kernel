@@ -50,14 +50,14 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Env(_)))
     }
 
-    pub fn env_set(env_expr: Rc<Value>, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
+    pub fn env_set(&self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
         // TODO: properly evaluate the parameters
-        if !Value::is_env(env_expr.as_pair())?.is_true() {
+        if !Value::is_env(self.as_pair())?.is_true() {
             Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires an env as its first argument"))
         } else if !Value::is_symbol(formals.as_pair())?.is_true() {
             Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires a symbol as its second argument"))
         } else {
-            match (env_expr.deref(), formals.deref()) {
+            match (self, formals.deref()) {
                 (Value::Env(e), Value::Symbol(s)) => e.borrow_mut().bind(s.clone(), vals_expr),
                 _ => (),
             }
@@ -67,18 +67,14 @@ impl Value {
 
     pub fn make_environment(val: Rc<Value>) -> ValueResult {
         match val.deref() {
-            Value::Constant(Constant::Null) => Value::Env(Env::new(vec![])).ok(),
+            Value::Constant(Constant::Null) => Value::make_environment(Value::ground_env().as_pair()),
             Value::Pair(_) => {
                 let mut parents: Vec<EnvRef> = Vec::new();
-                // TODO: can this be done cleaner? something like root.iter().filter(not env)?
                 for (i, node) in val.iter().enumerate() {
                     match node.deref() {
                         Value::Env(env) => parents.push(env.clone()),
                         Value::Constant(Constant::Null) => (),
-                        _ => return Err(RuntimeError::new(
-                            ErrorTypes::TypeError,
-                            format!("{i}-th argumnent to make-environment is not an Environment")
-                        )),
+                        _ => return RuntimeError::type_error(format!("argument {i} to make-environment is not an Environment")),
                     }
                 }
                 Value::Env(Env::new(parents)).ok()
@@ -106,6 +102,7 @@ mod tests {
     use std::rc::Rc;
     use std::ops::Deref;
     use std::collections::HashMap;
+    use crate::errors::RuntimeError;
     use crate::values::{ Constant, Symbol, Value, tests::sample_values };
     use crate::values::envs::Env;
     use yare::parameterized;
@@ -312,7 +309,6 @@ mod tests {
     }
 
     #[parameterized(
-        empty_env = { vec![] },
         with_parents = { vec![Env::new(vec![Env::new(vec![])]), Env::new(vec![])] },
     )]
     fn test_make_env(parents: Vec<EnvRef>) {
@@ -339,4 +335,27 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_make_env_empty() {
+        let ground = Value::ground_env();
+        let env: Rc<Value> = Value::make_environment(Value::make_null()).expect("invalid parents provided?").into();
+        assert!(Value::is_env(env.as_pair()).unwrap().is_true());
+        match (ground.deref(), env.deref()) {
+            (Value::Env(g), Value::Env(e)) => assert_eq!(e.borrow().parents[0].borrow().bindings, g.clone().borrow().bindings),
+            _ => panic!("Make environment didn't return an env"),
+        }
+    }
+
+    #[test]
+    fn test_make_env_fails() {
+        let parents = Value::to_list(vec![
+            Rc::new(Value::Env(Env::new(vec![]))),
+            Value::make_string("bla"),
+            Rc::new(Value::Env(Env::new(vec![]))),
+            Value::make_string("bla"),
+            Value::make_string("bla"),
+        ]).unwrap();
+        let err = Value::make_environment(parents);
+        assert_eq!(err, RuntimeError::type_error("argument 1 to make-environment is not an Environment"));
+    }
 }

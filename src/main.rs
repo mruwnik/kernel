@@ -19,8 +19,8 @@ fn rep(raw: impl Into<String>) -> CallResult {
     // dbg!(values);
     let base_env = Value::ground_env();
 
-    Value::env_set(base_env.clone(), Value::make_symbol("bla"), Value::make_string("this is from bla"))?;
-    Value::env_set(base_env.clone(), Value::make_symbol("ble"), Value::make_string("this is from ble"))?;
+    base_env.env_set(Value::make_symbol("bla"), Value::make_string("this is from bla"))?;
+    base_env.env_set(Value::make_symbol("ble"), Value::make_string("this is from ble"))?;
 
     let results = values.iter()
         .map(|v| eval(v.clone(), base_env.clone()))
