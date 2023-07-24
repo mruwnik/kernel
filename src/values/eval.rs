@@ -54,6 +54,10 @@ mod tests {
     use crate::values::tests::sample_values;
     use super::eval;
 
+    fn list(vals: Vec<Rc<Value>>) -> Rc<Value> {
+        Value::to_list(vals).unwrap()
+    }
+
     #[parameterized(
         true_ = { Rc::new(Value::Bool(Bool::True)) },
         false_ = { Rc::new(Value::Bool(Bool::False)) },
@@ -139,13 +143,13 @@ mod tests {
 
     #[parameterized(
         empty = { Value::make_null(), "0" },
-        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
-        multi = { Value::to_list(vec![
+        single = { list(vec![Rc::new(Value::Number(Number::Int(1)))]), "1" },
+        multi = { list(vec![
             Rc::new(Value::Number(Number::Int(1))),
             Rc::new(Value::Number(Number::Int(2))),
             Rc::new(Value::Number(Number::Int(3))),
             Rc::new(Value::Number(Number::Int(4))),
-        ]).unwrap().into(), "10" },
+        ]), "10" },
     )]
     fn test_add(vals: Rc<Value>, expected: &str) {
         let env = Value::ground_env();
@@ -156,13 +160,13 @@ mod tests {
 
     #[parameterized(
         empty = { Value::make_null(), "0" },
-        single = { Value::to_list(vec![Rc::new(Value::Number(Number::Int(1)))]).unwrap().into(), "1" },
-        multi = { Value::to_list(vec![
+        single = { list(vec![Rc::new(Value::Number(Number::Int(1)))]).into(), "1" },
+        multi = { list(vec![
             Rc::new(Value::Number(Number::Int(1))),
             Rc::new(Value::Number(Number::Int(2))),
             Rc::new(Value::Number(Number::Int(3))),
             Rc::new(Value::Number(Number::Int(4))),
-        ]).unwrap().into(), "-8" },
+        ]).into(), "-8" },
     )]
     fn test_minus(vals: Rc<Value>, expected: &str) {
         let env = Value::ground_env();
@@ -172,9 +176,9 @@ mod tests {
     }
 
     #[parameterized(
-        yes = { Value::to_list(vec![Value::boolean(true), Value::boolean(true)]).unwrap().into(), "#t" },
-        no = { Value::to_list(vec![Value::boolean(true), Value::boolean(false)]).unwrap().into(), "#f" },
-        no_switched = { Value::to_list(vec![Value::boolean(false), Value::boolean(true)]).unwrap().into(), "#f" },
+        yes = { list(vec![Value::boolean(true), Value::boolean(true)]).into(), "#t" },
+        no = { list(vec![Value::boolean(true), Value::boolean(false)]).into(), "#f" },
+        no_switched = { list(vec![Value::boolean(false), Value::boolean(true)]).into(), "#f" },
     )]
     fn test_eq(vals: Rc<Value>, expected: &str) {
         let env = Value::ground_env();
@@ -184,9 +188,9 @@ mod tests {
     }
 
     #[parameterized(
-        yes = { Value::to_list(vec![Value::boolean(true), Value::boolean(true)]).unwrap().into(), "#t" },
-        no = { Value::to_list(vec![Value::boolean(true), Value::boolean(false)]).unwrap().into(), "#f" },
-        no_switched = { Value::to_list(vec![Value::boolean(false), Value::boolean(true)]).unwrap().into(), "#f" },
+        yes = { list(vec![Value::boolean(true), Value::boolean(true)]).into(), "#t" },
+        no = { list(vec![Value::boolean(true), Value::boolean(false)]).into(), "#f" },
+        no_switched = { list(vec![Value::boolean(false), Value::boolean(true)]).into(), "#f" },
     )]
     fn test_equal(vals: Rc<Value>, expected: &str) {
         let env = Value::ground_env();
@@ -196,46 +200,46 @@ mod tests {
     }
 
     #[parameterized(
-        basic = { Value::to_list(vec![Value::boolean(true), Value::boolean(true)]).unwrap().into(), "(#t . #t)"},
+        basic = { list(vec![Value::boolean(true), Value::boolean(true)]).into(), "(#t . #t)"},
         nested_car = {
-            Value::to_list(vec![
-                Value::to_list(vec![Value::make_symbol("cons"), Value::boolean(true), Value::boolean(false)]).unwrap().into(),
+            list(vec![
+                list(vec![Value::make_symbol("cons"), Value::boolean(true), Value::boolean(false)]).into(),
                 Value::make_ignore(),
-            ]).unwrap().into(),
+            ]).into(),
             "((#t . #f) . #ignore)"
         },
         nested_cdr = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_ignore(),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("cons"),
                     Value::boolean(true),
-                    Value::to_list(vec![
+                    list(vec![
                         Value::make_symbol("cons"),
                         Value::boolean(false),
                         Value::make_null(),
-                    ]).unwrap()
-                ]).unwrap(),
-            ]).unwrap(),
+                    ])
+                ]),
+            ]),
             "(#ignore #t #f)"
         },
         nested_cons = {
-            Value::to_list(vec![
+            list(vec![
                 Number::int(1),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("cons"),
                     Number::int(2),
-                    Value::to_list(vec![
+                    list(vec![
                         Value::make_symbol("cons"),
                         Number::int(3),
-                        Value::to_list(vec![
+                        list(vec![
                             Value::make_symbol("cons"),
                             Number::int(4),
                             Value::make_null(),
-                        ]).unwrap(),
-                    ]).unwrap(),
-                ]).unwrap(),
-            ]).unwrap(),
+                        ]),
+                    ]),
+                ]),
+            ]),
             "(1 2 3 4)"
         }
     )]
@@ -249,62 +253,65 @@ mod tests {
     #[test]
     fn test_set_car() {
         let env = Value::ground_env();
-        let target = Value::as_list(&Value::make_string("initial value"));
+        let target = list(vec![Value::make_symbol("cons"), Value::make_string("initial value"), Value::make_null()]);
         env.define(Value::make_symbol("target"), target.clone()).unwrap();
 
-        let vals = Value::to_list(vec![
+        let vals = list(vec![
             Value::make_symbol("set-car!"),
             Value::make_symbol("target"),
             Value::make_string("bla"),
-        ]).unwrap();
+        ]);
 
-        assert_eq!(target.clone().to_string(), "(\"initial value\")");
-        let res = eval(vals, env).expect("ok");
+        assert_eq!(eval(Value::make_symbol("target"), env.clone()).unwrap().to_string(), "(\"initial value\")");
+        let res = eval(vals, env.clone()).expect("ok");
         assert_eq!(res.to_string(), "#inert".to_string());
-        assert_eq!(target.to_string(), "(\"bla\")");
+        assert_eq!(eval(Value::make_symbol("target"), env.clone()).unwrap().to_string(), "(\"bla\")");
     }
 
     #[test]
     fn test_set_cdr() {
         let env = Value::ground_env();
-        let target = Value::as_list(&Value::make_string("initial value"));
+        let target = list(vec![Value::make_symbol("cons"), Value::make_string("initial value"), Value::make_null()]);
         env.define(Value::make_symbol("target"), target.clone()).unwrap();
 
-        let vals = Value::to_list(vec![
+        let vals = list(vec![
             Value::make_symbol("set-cdr!"),
             Value::make_symbol("target"),
             Value::make_string("bla"),
-        ]).unwrap();
+        ]);
 
-        assert_eq!(target.clone().to_string(), "(\"initial value\")");
-        let res = eval(vals, env).expect("ok");
+        assert_eq!(eval(Value::make_symbol("target"), env.clone()).unwrap().to_string(), "(\"initial value\")");
+        let res = eval(vals, env.clone()).expect("ok");
         assert_eq!(res.to_string(), "#inert".to_string());
-        assert_eq!(target.to_string(), "(\"initial value\" . \"bla\")");
+        assert_eq!(eval(Value::make_symbol("target"), env.clone()).unwrap().to_string(), "(\"initial value\" . \"bla\")");
     }
 
     #[parameterized(
-        cons = { Value::cons(Value::make_symbol("bla"), Value::make_symbol("ble")).unwrap() },
-        list = {
-            Value::to_list(vec![
+        cons = { list(vec![Value::make_symbol("cons"), Value::make_symbol("bla"), Value::make_string("ble")]) },
+        list_ = {
+            list(vec![
+                Value::make_symbol("list"),
                 Value::make_symbol("bla"),
                 Value::make_symbol("bla"),
                 Value::make_symbol("bla"),
-            ]).unwrap()
+            ])
         },
         nested_list = {
-            Value::to_list(vec![
-                Value::to_list(vec![Value::make_symbol("bla"), Value::make_symbol("bla"), Value::make_symbol("bla")]).unwrap(),
-                Value::to_list(vec![Value::make_symbol("bla"), Value::make_symbol("bla"), Value::make_symbol("bla")]).unwrap(),
-            ]).unwrap()
+            list(vec![
+                Value::make_symbol("list"),
+                list(vec![Value::make_symbol("list"), Value::make_symbol("bla"), Value::make_symbol("bla")]),
+                list(vec![Value::make_symbol("list"), Value::make_symbol("bla"), Value::make_symbol("bla")]),
+            ])
         },
     )]
     fn test_copy_es_immutable(vals: Rc<Value>) {
         let env = Value::ground_env();
+        env.define(Value::make_symbol("bla"), Value::make_string("blee")).unwrap();
         env.define(Value::make_symbol("target"), vals.clone()).unwrap();
 
         let expr = Value::cons(Value::make_symbol("copy-es-immutable"), Value::make_symbol("target").as_list()).unwrap();
-        let res = eval(expr, env).expect("ok");
-        assert_eq!(res.to_string(), vals.to_string());
+        let res = eval(expr, env.clone()).expect("ok");
+        assert_eq!(res.to_string(), eval(vals, env).expect("ok").to_string());
 
         let expected_error = RuntimeError::new(crate::errors::ErrorTypes::ImmutableError, "This pair is immutable");
         if let Value::Pair(_) = res.deref() {
@@ -321,81 +328,81 @@ mod tests {
 
     #[parameterized(
         basic_first = {
-            Value::to_list(vec![Value::make_symbol("$if"), Value::boolean(true), Number::int(1), Number::int(2),]).unwrap(),
+            list(vec![Value::make_symbol("$if"), Value::boolean(true), Number::int(1), Number::int(2),]),
             "1"
         },
         basic_second = {
-            Value::to_list(vec![Value::make_symbol("$if"), Value::boolean(false), Number::int(1), Number::int(2),]).unwrap(),
+            list(vec![Value::make_symbol("$if"), Value::boolean(false), Number::int(1), Number::int(2),]),
             "2"
         },
         first_eval_cond = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("$if"),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("boolean?"),
                     Value::boolean(true),
-                ]).unwrap(),
+                ]),
                 Number::int(1), Number::int(2)
-            ]).unwrap(),
+            ]),
             "1"
         },
         second_eval_cond = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("$if"),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("boolean?"),
                     Value::make_null(),
-                ]).unwrap(),
+                ]),
                 Number::int(1), Number::int(2)
-            ]).unwrap(),
+            ]),
             "2"
         },
         first_eval_branch = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("$if"),
                 Value::boolean(true),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("boolean?"),
                     Value::boolean(true),
-                ]).unwrap(),
+                ]),
                 Number::int(2)
-            ]).unwrap(),
+            ]),
             "#t"
         },
         second_eval_branch = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("$if"),
                 Value::boolean(false),
                 Number::int(2),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("boolean?"),
                     Value::boolean(true),
-                ]).unwrap(),
-            ]).unwrap(),
+                ]),
+            ]),
             "#t"
         },
         first_branch_other_not_evaled = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("$if"),
                 Value::boolean(true),
                 Number::int(2),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("set-car!"),
                     Value::boolean(true),
-                ]).unwrap(),
-            ]).unwrap(),
+                ]),
+            ]),
             "2"
         },
         second_branch_other_not_evaled = {
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("$if"),
                 Value::boolean(false),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("set-car!"),
                     Value::boolean(true),
-                ]).unwrap(),
+                ]),
                 Number::int(2),
-            ]).unwrap(),
+            ]),
             "2"
         },
     )]
@@ -443,72 +450,72 @@ mod tests {
     )]
     fn test_car(vals: Rc<Value>, expected: &str) {
         let env = Value::make_environment(Value::make_null()).unwrap();
-        let expr = Value::to_list(vec![Value::make_symbol("car"), vals.clone()]).unwrap();
+        let expr = list(vec![Value::make_symbol("car"), vals.clone()]);
         let res = eval(expr, env).expect("ok");
         assert_eq!(res.to_string(), expected);
     }
 
     #[parameterized(
-        basic_pair = { Value::to_list(vec![
+        basic_pair = { list(vec![
             Value::make_symbol("cons"), Number::int(1), Value::make_null()
-        ]).unwrap(), "()" },
-        basic_list = { Value::to_list(vec![
+        ]), "()" },
+        basic_list = { list(vec![
             Value::make_symbol("cons"),
             Number::int(1),
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("cons"),
                 Number::int(2),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("cons"),
                     Number::int(3),
-                    Value::to_list(vec![
+                    list(vec![
                         Value::make_symbol("cons"),
                         Number::int(4),
                         Value::make_null()
-                    ]).unwrap()
-                ]).unwrap()
-            ]).unwrap()
-        ]).unwrap(), "(2 3 4)" },
+                    ])
+                ])
+            ])
+        ]), "(2 3 4)" },
     )]
     fn test_cdr(vals: Rc<Value>, expected: &str) {
         let env = Value::make_environment(Value::make_null()).unwrap();
-        let expr = Value::to_list(vec![Value::make_symbol("cdr"), vals.clone()]).unwrap();
+        let expr = list(vec![Value::make_symbol("cdr"), vals.clone()]);
         let res = eval(expr, env).expect("ok");
         assert_eq!(res.to_string(), expected);
     }
 
     #[parameterized(
         single = { Number::int(1).as_list(), "(1)" },
-        evaluated_returns = { Value::to_list(vec![
+        evaluated_returns = { list(vec![
             Number::int(1),
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("+"), Number::int(1), Number::int(2),
-            ]).unwrap(),
+            ]),
             Number::int(2),
-        ]).unwrap(), "(1 3 2)" },
-        symbols = { Value::to_list(vec![
+        ]), "(1 3 2)" },
+        symbols = { list(vec![
             Value::make_symbol("bla"),
             Value::make_symbol("bla"),
-        ]).unwrap(),
+        ]),
                     "(\"bla\" \"bla\")" },
         symbols_list = { Value::cons(
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("cons"),
                 Value::make_symbol("bla"),
-                Value::to_list(vec![
+                list(vec![
                     Value::make_symbol("cons"),
                     Value::make_symbol("bla"),
                     Value::make_null(),
-                ]).unwrap()
-            ]).unwrap(),
+                ])
+            ]),
             Value::make_null(),
         ).unwrap(), "((\"bla\" \"bla\"))" },
         nested_list = { Value::cons(
-            Value::to_list(vec![
+            list(vec![
                 Value::make_symbol("list"),
                 Value::make_symbol("bla"),
                 Value::make_symbol("bla"),
-            ]).unwrap(),
+            ]),
             Value::make_null(),
         ).unwrap(), "((\"bla\" \"bla\"))" },
     )]
@@ -522,21 +529,95 @@ mod tests {
     }
 
     #[parameterized(
+        null = { Value::make_null(), Value::make_null(), vec![] },
+        ignore = { Value::make_ignore(), Value::make_ignore(), vec![] },
+        symbol = { Value::make_symbol("bla"), Number::int(1), vec![(Value::make_symbol("bla"), Number::int(1))] },
+        pair = {
+            Value::cons(
+                Value::make_symbol("bla"),
+                Value::make_symbol("ble")
+            ).unwrap(),
+            list(vec![
+                Value::make_symbol("cons"),
+                Number::int(1),
+                Number::int(2),
+            ]),
+            vec![
+                (Value::make_symbol("bla"), Number::int(1)),
+                (Value::make_symbol("ble"), Number::int(2)),
+            ]
+        },
+        nested = {
+            Value::cons(
+                Value::cons(
+                    Value::make_symbol("sym1"),
+                    Value::cons(
+                        Value::make_symbol("sym2"),
+                        Value::make_symbol("sym3")
+                    ).unwrap()
+                ).unwrap(),
+                Value::cons(
+                    Value::cons(
+                        Value::make_symbol("sym4"),
+                        Value::make_null()
+                    ).unwrap(),
+                    Value::make_symbol("sym5")
+                ).unwrap()
+            ).unwrap(),
+            list(vec![
+                Value::make_symbol("cons"),
+                list(vec![
+                    Value::make_symbol("cons"),
+                    Number::int(1),
+                    list(vec![
+                        Value::make_symbol("cons"),
+                        Number::int(2),
+                        Number::int(3),
+                    ]),
+                ]),
+                list(vec![
+                    Value::make_symbol("cons"),
+                    list(vec![
+                        Value::make_symbol("cons"),
+                        Number::int(4),
+                        Value::make_null()
+                    ]),
+                    Number::int(5),
+                ])
+            ]),
+            vec![
+                (Value::make_symbol("sym1"), Number::int(1)),
+                (Value::make_symbol("sym2"), Number::int(2)),
+                (Value::make_symbol("sym3"), Number::int(3)),
+                (Value::make_symbol("sym4"), Number::int(4)),
+                (Value::make_symbol("sym5"), Number::int(5)),
+            ]
+        },
+    )]
+    fn test_define(defined: Rc<Value>, exprs: Rc<Value>, expected: Vec<(Rc<Value>, Rc<Value>)>) {
+        let env = Value::ground_env();
+        let expr = Value::to_list(vec![Value::make_symbol("$define!"), defined, exprs]).unwrap();
+
+        let res = eval(expr, env.clone()).expect("ok");
+        assert_eq!(res.to_string(), "#inert".to_string());
+
+        let symbols = Value::to_list(expected.iter().map(|(s, _)| s.clone()).collect()).unwrap();
+        let res = eval(Value::cons(Value::make_symbol("list"), symbols).unwrap(), env).expect("ok");
+        let symbols = expected.iter().map(|(_, v)| v.to_string()).collect::<Vec<String>>().join(" ");
+        assert_eq!(res.to_string(), format!("({symbols})"));
+    }
+
+    #[parameterized(
         basic_returns = { Value::make_null(), "()" },
         evaluated_returns = { Value::to_list(vec![
             Value::make_symbol("+"), Number::int(1), Number::int(2),
         ]).unwrap(), "3" },
-        // TODO: test the rest of this
-        // symbols = { Value::to_list(vec![
-        //     Value::make_symbol("bla"),
-        //     Value::cons(
-        //         Value::make_symbol("bla"),
-        //     )
-        // ]), "\"bla\"" },
+        // TODO: add tests
+        // symbols = { Value::make_symbol("bla"), "\"ble\"" },
     )]
     fn test_eval(vals: Rc<Value>, expected: &str) {
         let env = Value::make_environment(Value::make_null()).unwrap();
-        env.define(Value::make_symbol("bla"), Value::make_string("bla")).unwrap();
+        env.define(Value::make_symbol("bla"), Value::make_string("ble")).unwrap();
         let expr = Value::to_list(vec![Value::make_symbol("eval"), vals.clone(), env.clone()]).unwrap();
 
         let res = eval(expr, Value::ground_env()).expect("ok");

@@ -108,6 +108,17 @@ impl Combiner {
         }
     }
 
+    fn define(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let env_val = Rc::new(Value::Env(env.clone()));
+        let params = vals.operands()?;
+        match &params[..] {
+            [val1, val2] => {
+                env_val.define(val1.clone(), val2.clone())?.as_val()
+            },
+            _ => RuntimeError::type_error(format!("$define! requires 2 arguments")),
+        }
+    }
+
     pub fn bind_ground(env: &EnvRef) {
         fn bind(env: &EnvRef, name: impl Into<String>, type_: CombinerType, func: Func) {
             let name = name.into();
@@ -127,7 +138,7 @@ impl Combiner {
         bind(&env, "copy-es-immutable", CombinerType::Applicative, &|vals, _| method(vals, &Value::copy_es_immutable)?.as_val());
         bind(&env, "make-environment", CombinerType::Applicative, &|vals, _| Value::make_environment(vals)?.as_val());
         bind(&env, "eval", CombinerType::Applicative, &Combiner::eval);
-        bind(&env, "$define!", CombinerType::Operative, &Combiner::eval);
+        bind(&env, "$define!", CombinerType::Operative, &Combiner::define);
 
         // Type checkers
         bind(&env, "boolean?", CombinerType::Operative, &|vals, _| Value::is_boolean(vals)?.as_val());
