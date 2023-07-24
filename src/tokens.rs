@@ -101,7 +101,7 @@ fn extract_list(tokens: &mut Iter<Token>) -> ValueResult {
             None => return RuntimeError::parse_error("expression ended without a closing parenthesis"),
         }
     }
-    Value::cdr(root)
+    root.cdr()
 }
 
 fn make_number(number: &Number) -> Result<Rc<Value>, RuntimeError> {
@@ -416,7 +416,6 @@ mod tests {
     fn test_tokenization_flow(expr: &str) {
         let mut chars = expr.chars();
         let lexes = get_lexemes(&mut chars).expect("ok");
-        dbg!(&lexes);
         let value = parse(lexes).expect("ok")[0].to_string();
         assert_eq!(expr.to_string(), value);
     }

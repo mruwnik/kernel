@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crate::{
     values::{Symbol, Value, ValueResult, Constant, Combiner, gen_sym, is_val},
     errors::{ RuntimeError, ErrorTypes },
+    values::eval::eval,
 };
 
 #[derive(Debug, PartialEq)]
@@ -43,6 +44,20 @@ impl Env {
     pub fn is_eq(&self, other: EnvRef) -> bool {
         *self == *other.borrow()
     }
+
+    pub fn set(&mut self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
+        match (formals.deref(), vals_expr.deref()) {
+            (Value::Constant(Constant::Null), Value::Constant(Constant::Null)) => (),
+            (Value::Constant(Constant::Ignore), _) => (),
+            (Value::Symbol(s), v) => self.bind(s.clone(), v.into()),
+            (Value::Pair(_), Value::Pair(_)) => {
+                self.set(formals.car()?, vals_expr.car()?)?;
+                self.set(formals.cdr()?, vals_expr.cdr()?)?;
+            },
+            _ => return RuntimeError::type_error(format!("Invalid parameter tree provided - got {formals} and {vals_expr}")),
+        }
+        Value::make_const(Constant::Inert).ok()
+    }
 }
 
 impl Value {
@@ -50,18 +65,12 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Env(_)))
     }
 
-    pub fn env_set(&self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
-        // TODO: properly evaluate the parameters
-        if !Value::is_env(self.as_pair())?.is_true() {
-            Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires an env as its first argument"))
-        } else if !Value::is_symbol(formals.as_pair())?.is_true() {
-            Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires a symbol as its second argument"))
+    pub fn define(&self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
+        if let Value::Env(e) = self {
+            let vals = eval(vals_expr, self.into())?;
+            e.deref().borrow_mut().set(formals, vals)
         } else {
-            match (self, formals.deref()) {
-                (Value::Env(e), Value::Symbol(s)) => e.borrow_mut().bind(s.clone(), vals_expr),
-                _ => (),
-            }
-            Value::make_const(Constant::Inert).ok()
+            Err(RuntimeError::new(ErrorTypes::TypeError, "$define! requires an env as its first argument"))
         }
     }
 
@@ -103,7 +112,7 @@ mod tests {
     use std::ops::Deref;
     use std::collections::HashMap;
     use crate::errors::RuntimeError;
-    use crate::values::{ Constant, Symbol, Value, tests::sample_values };
+    use crate::values::{ Constant, Number, Symbol, Value, tests::sample_values };
     use crate::values::envs::Env;
     use yare::parameterized;
 
@@ -327,7 +336,7 @@ mod tests {
             prev = next;
         }
 
-        let env: Rc<Value> = Value::make_environment(Value::cdr(root.into()).unwrap().into()).expect("invalid parents provided?").into();
+        let env: Rc<Value> = Value::make_environment(root.cdr().unwrap().into()).expect("invalid parents provided?").into();
         assert!(Value::is_env(env.as_pair()).unwrap().is_true());
         match env.deref() {
             Value::Env(e) => assert_eq!(e.borrow().parents, parents),
@@ -357,5 +366,77 @@ mod tests {
         ]).unwrap();
         let err = Value::make_environment(parents);
         assert_eq!(err, RuntimeError::type_error("argument 1 to make-environment is not an Environment"));
+    }
+
+    #[parameterized(
+        null = { Value::make_null(), Value::make_null(), vec![] },
+        ignore = { Value::make_ignore(), Value::make_ignore(), vec![] },
+        symbol = { Value::make_symbol("bla"), Number::int(1), vec![(Symbol("bla".to_string()), Number::int(1))] },
+        pair = {
+            Value::cons(
+                Value::make_symbol("bla"),
+                Value::make_symbol("ble")
+            ).unwrap(),
+            Value::cons(
+                Number::int(1),
+                Number::int(2),
+            ).unwrap(),
+            vec![
+                (Symbol("bla".to_string()), Number::int(1)),
+                (Symbol("ble".to_string()), Number::int(2)),
+            ]
+        },
+        nested = {
+            Value::cons(
+                Value::cons(
+                    Value::make_symbol("sym1"),
+                    Value::cons(
+                        Value::make_symbol("sym2"),
+                        Value::make_symbol("sym3")
+                    ).unwrap()
+                ).unwrap(),
+                Value::cons(
+                    Value::cons(
+                        Value::make_symbol("sym4"),
+                        Value::make_null()
+                    ).unwrap(),
+                    Value::make_symbol("sym5")
+                ).unwrap()
+            ).unwrap(),
+            Value::cons(
+                Value::cons(
+                    Number::int(1),
+                    Value::cons(
+                        Number::int(2),
+                        Number::int(3),
+                    ).unwrap(),
+                ).unwrap(),
+                Value::cons(
+                    Value::cons(
+                        Number::int(4),
+                        Value::make_null()
+                    ).unwrap(),
+                    Number::int(5),
+                ).unwrap()
+            ).unwrap(),
+            vec![
+                (Symbol("sym1".to_string()), Number::int(1)),
+                (Symbol("sym2".to_string()), Number::int(2)),
+                (Symbol("sym3".to_string()), Number::int(3)),
+                (Symbol("sym4".to_string()), Number::int(4)),
+                (Symbol("sym5".to_string()), Number::int(5)),
+            ]
+        },
+    )]
+    fn test_env_set(defined: Rc<Value>, exprs: Rc<Value>, expected: Vec<(Symbol, Rc<Value>)>) {
+        let env = Env::new(vec![]);
+        assert_eq!(env.deref().borrow_mut().set(defined, exprs).unwrap(), Value::make_inert());
+
+        let mut bindings = HashMap::new();
+        for (symbol, value) in expected {
+            bindings.insert(symbol, value);
+        }
+
+        assert_eq!(env.borrow().bindings, bindings);
     }
 }

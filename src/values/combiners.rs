@@ -26,7 +26,7 @@ pub struct Combiner {
 
 impl fmt::Display for Combiner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} {})", self.name, self.expr)
+        write!(f, "#func({} {})", self.name, self.expr)
     }
 }
 
@@ -69,7 +69,7 @@ pub fn two_val_fn(params: Vec<Rc<Value>>, name: impl Into<String>, func: ValueFu
 
 
 fn method(val: Rc<Value>, func: Method) -> ValueResult {
-    Value::car(func(val)?)
+    func(val)?.car()
 }
 
 impl Combiner {
@@ -127,6 +127,7 @@ impl Combiner {
         bind(&env, "copy-es-immutable", CombinerType::Applicative, &|vals, _| method(vals, &Value::copy_es_immutable)?.as_val());
         bind(&env, "make-environment", CombinerType::Applicative, &|vals, _| Value::make_environment(vals)?.as_val());
         bind(&env, "eval", CombinerType::Applicative, &Combiner::eval);
+        bind(&env, "$define!", CombinerType::Operative, &Combiner::eval);
 
         // Type checkers
         bind(&env, "boolean?", CombinerType::Operative, &|vals, _| Value::is_boolean(vals)?.as_val());
@@ -144,8 +145,9 @@ impl Combiner {
         // library
         bind(&env, "+", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::add, "+"));
         bind(&env, "-", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::minus, "-"));
-        bind(&env, "car", CombinerType::Applicative, &|vals, _| Value::car(Value::car(vals)?)?.as_val());
-        bind(&env, "cdr", CombinerType::Applicative, &|vals, _| Value::cdr(Value::car(vals)?)?.as_val());
+        bind(&env, "car", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.as_val());
+        bind(&env, "cdr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.as_val());
+        bind(&env, "list", CombinerType::Applicative, &|vals, _| vals.as_val());
     }
 }
 

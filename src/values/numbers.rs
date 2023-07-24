@@ -22,16 +22,16 @@ fn process(items: Rc<Value>, func: &dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult)
     match items.deref() {
         Value::Constant(Constant::Null) => Number::int(0).ok(),
         Value::Pair(_) => {
-            let num1: Rc<Value> = Value::car(items.clone())?.into();
-            let cdr: Rc<Value> = Value::cdr(items.clone())?.into();
+            let num1: Rc<Value> = items.car()?.into();
+            let cdr: Rc<Value> = items.cdr()?.into();
             match cdr.deref() {
                 Value::Constant(Constant::Null) => num1.ok(),
                 Value::Number(_) => Number::add(num1, cdr),
                 Value::Pair(_) => {
-                    let num2: Rc<Value> = Value::car(cdr.clone())?.into();
+                    let num2: Rc<Value> = cdr.car()?.into();
                     Value::cons(
                         func(num1, num2)?.into(),
-                        Value::cdr(cdr)?.into()
+                        cdr.cdr()?.into()
                     )
                 }
                 _ => RuntimeError::type_error("+ only works on numbers"),

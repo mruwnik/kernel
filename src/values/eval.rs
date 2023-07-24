@@ -8,7 +8,6 @@ pub fn eval(val: Rc<Value>, env: Rc<Value>) -> ValueResult {
     loop {
         match current.eval(env.clone())? {
             CallResultType::Value(v) => {
-                println!("{}", v.clone());
                 return v.ok()
             },
             CallResultType::Call(c) => {
@@ -90,7 +89,7 @@ mod tests {
     fn test_eval_env_lookup() {
         let val = Rc::new(Value::Symbol(Symbol("bla".to_string())));
         let env = Rc::new(Value::Env(Env::new(vec![])));
-        let _ = env.env_set(val.clone(), Value::make_const(Constant::Null));
+        let _ = env.define(val.clone(), Value::make_const(Constant::Null));
         let evaled: Rc<Value> = val.eval(env).expect("This should work").into();
         assert_eq!(evaled, Value::make_const(Constant::Null));
     }
@@ -251,7 +250,7 @@ mod tests {
     fn test_set_car() {
         let env = Value::ground_env();
         let target = Value::as_list(&Value::make_string("initial value"));
-        env.env_set(Value::make_symbol("target"), target.clone()).unwrap();
+        env.define(Value::make_symbol("target"), target.clone()).unwrap();
 
         let vals = Value::to_list(vec![
             Value::make_symbol("set-car!"),
@@ -269,7 +268,7 @@ mod tests {
     fn test_set_cdr() {
         let env = Value::ground_env();
         let target = Value::as_list(&Value::make_string("initial value"));
-        env.env_set(Value::make_symbol("target"), target.clone()).unwrap();
+        env.define(Value::make_symbol("target"), target.clone()).unwrap();
 
         let vals = Value::to_list(vec![
             Value::make_symbol("set-cdr!"),
@@ -301,7 +300,7 @@ mod tests {
     )]
     fn test_copy_es_immutable(vals: Rc<Value>) {
         let env = Value::ground_env();
-        env.env_set(Value::make_symbol("target"), vals.clone()).unwrap();
+        env.define(Value::make_symbol("target"), vals.clone()).unwrap();
 
         let expr = Value::cons(Value::make_symbol("copy-es-immutable"), Value::make_symbol("target").as_list()).unwrap();
         let res = eval(expr, env).expect("ok");
@@ -409,7 +408,7 @@ mod tests {
     #[test]
     fn test_make_environment() {
         let env = Value::ground_env();
-        env.env_set(Value::make_symbol("bla"), Value::make_string("ble")).unwrap();
+        env.define(Value::make_symbol("bla"), Value::make_string("ble")).unwrap();
 
         let expr = Value::cons(
             Value::make_symbol("make-environment"),
@@ -479,6 +478,50 @@ mod tests {
     }
 
     #[parameterized(
+        single = { Number::int(1).as_list(), "(1)" },
+        evaluated_returns = { Value::to_list(vec![
+            Number::int(1),
+            Value::to_list(vec![
+                Value::make_symbol("+"), Number::int(1), Number::int(2),
+            ]).unwrap(),
+            Number::int(2),
+        ]).unwrap(), "(1 3 2)" },
+        symbols = { Value::to_list(vec![
+            Value::make_symbol("bla"),
+            Value::make_symbol("bla"),
+        ]).unwrap(),
+                    "(\"bla\" \"bla\")" },
+        symbols_list = { Value::cons(
+            Value::to_list(vec![
+                Value::make_symbol("cons"),
+                Value::make_symbol("bla"),
+                Value::to_list(vec![
+                    Value::make_symbol("cons"),
+                    Value::make_symbol("bla"),
+                    Value::make_null(),
+                ]).unwrap()
+            ]).unwrap(),
+            Value::make_null(),
+        ).unwrap(), "((\"bla\" \"bla\"))" },
+        nested_list = { Value::cons(
+            Value::to_list(vec![
+                Value::make_symbol("list"),
+                Value::make_symbol("bla"),
+                Value::make_symbol("bla"),
+            ]).unwrap(),
+            Value::make_null(),
+        ).unwrap(), "((\"bla\" \"bla\"))" },
+    )]
+    fn test_list(vals: Rc<Value>, expected: &str) {
+        let env = Value::make_environment(Value::make_null()).unwrap();
+        env.define(Value::make_symbol("bla"), Value::make_string("bla")).unwrap();
+        let expr = Value::cons(Value::make_symbol("list"), vals.clone()).unwrap();
+
+        let res = eval(expr, env).expect("ok");
+        assert_eq!(res.to_string(), expected);
+    }
+
+    #[parameterized(
         basic_returns = { Value::make_null(), "()" },
         evaluated_returns = { Value::to_list(vec![
             Value::make_symbol("+"), Number::int(1), Number::int(2),
@@ -493,7 +536,7 @@ mod tests {
     )]
     fn test_eval(vals: Rc<Value>, expected: &str) {
         let env = Value::make_environment(Value::make_null()).unwrap();
-        env.env_set(Value::make_symbol("bla"), Value::make_string("bla")).unwrap();
+        env.define(Value::make_symbol("bla"), Value::make_string("bla")).unwrap();
         let expr = Value::to_list(vec![Value::make_symbol("eval"), vals.clone(), env.clone()]).unwrap();
 
         let res = eval(expr, Value::ground_env()).expect("ok");

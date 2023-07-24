@@ -26,8 +26,8 @@ impl Iterator for ValueIter {
                 let val = Rc::new(v.clone());
                 match v.deref() {
                     Value::Pair(_) => {
-                        self.node = Some(Value::cdr(val.clone()).unwrap().into());
-                        Some(Value::car(val.clone()).unwrap().into())
+                        self.node = Some(val.cdr().unwrap().into());
+                        Some(val.car().unwrap().into())
                     },
                     _ => {
                         self.node = None;
@@ -158,7 +158,7 @@ impl Value {
             Value::set_cdr(last.clone(), next.clone())?;
             last = next;
         }
-        Value::cdr(root)
+        root.cdr()
     }
 
     // primatives
@@ -215,16 +215,16 @@ impl Value {
         }.ok()
     }
 
-    pub fn car(pair: Rc<Value>) -> ValueResult {
-        if let Value::Pair(p) = pair.deref() {
+    pub fn car(&self) -> ValueResult {
+        if let Value::Pair(p) = self {
             p.borrow().car().ok()
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "car expects a pair"))
         }
     }
 
-    pub fn cdr(pair: Rc<Value>) -> ValueResult {
-        if let Value::Pair(p) = pair.deref() {
+    pub fn cdr(&self) -> ValueResult {
+        if let Value::Pair(p) = self {
             p.borrow().cdr().ok()
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "cdr expects a pair"))
@@ -745,8 +745,8 @@ mod tests {
         let mut bits: Vec<Rc<Value>> = Vec::new();
         let mut bit = val.clone();
         while Value::is_pair(bit.as_pair()).unwrap().is_true() {
-            bits.push(Value::car(bit.clone()).unwrap().into());
-            bit = Value::cdr(bit.clone()).unwrap().into();
+            bits.push(bit.car().unwrap().into());
+            bit = bit.cdr().unwrap().into();
         }
         bits.push(bit.clone());
 

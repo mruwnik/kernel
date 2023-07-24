@@ -111,8 +111,8 @@ fn is_val(items: Rc<Value>, checker: &dyn Fn(Rc<Value>) -> bool) -> ValueResult 
             // this will return true when called without args
             Value::Constant(Constant::Null) => true,
             Value::Pair(_) => {
-                let car: Rc<Value> = Value::car(items.clone())?.into();
-                let cdr: Rc<Value> = Value::cdr(items.clone())?.into();
+                let car: Rc<Value> = items.car()?.into();
+                let cdr: Rc<Value> = items.cdr()?.into();
                 checker(car) && is_val(cdr, checker)?.is_true()
             },
             _ => false,
