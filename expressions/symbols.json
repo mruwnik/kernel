@@ -1,0 +1,415 @@
+{
+  "description": "Symbol test expressions - Tests for Kernel symbol type predicate, symbol evaluation (environment lookup), and symbol identity",
+  "tests": [
+    {
+      "expr": "(symbol? (quote foo))",
+      "expected": "#t",
+      "note": "A quoted symbol is a symbol"
+    },
+    {
+      "expr": "(symbol? (quote x))",
+      "expected": "#t",
+      "note": "Single-letter symbol"
+    },
+    {
+      "expr": "(symbol? (quote $vau))",
+      "expected": "#t",
+      "note": "Symbol with $ prefix"
+    },
+    {
+      "expr": "(symbol? (quote list->vector))",
+      "expected": "#t",
+      "note": "Symbol with arrow notation"
+    },
+    {
+      "expr": "(symbol? (quote <=?))",
+      "expected": "#t",
+      "note": "Symbol with extended alphabetic chars"
+    },
+    {
+      "expr": "(symbol? (quote +))",
+      "expected": "#t",
+      "note": "Plus sign is a symbol"
+    },
+    {
+      "expr": "(symbol? (quote -))",
+      "expected": "#t",
+      "note": "Minus sign is a symbol"
+    },
+    {
+      "expr": "(symbol? 42)",
+      "expected": "#f",
+      "note": "Number is not a symbol"
+    },
+    {
+      "expr": "(symbol? 0)",
+      "expected": "#f",
+      "note": "Zero is not a symbol"
+    },
+    {
+      "expr": "(symbol? -5)",
+      "expected": "#f",
+      "note": "Negative number is not a symbol"
+    },
+    {
+      "expr": "(symbol? #t)",
+      "expected": "#f",
+      "note": "Boolean true is not a symbol"
+    },
+    {
+      "expr": "(symbol? #f)",
+      "expected": "#f",
+      "note": "Boolean false is not a symbol"
+    },
+    {
+      "expr": "(symbol? #inert)",
+      "expected": "#f",
+      "note": "Inert is not a symbol"
+    },
+    {
+      "expr": "(symbol? #ignore)",
+      "expected": "#f",
+      "note": "Ignore is not a symbol"
+    },
+    {
+      "expr": "(symbol? ())",
+      "expected": "#f",
+      "note": "Empty list (nil) is not a symbol"
+    },
+    {
+      "expr": "(symbol? (cons 1 2))",
+      "expected": "#f",
+      "note": "Pair is not a symbol"
+    },
+    {
+      "expr": "(symbol? (list 1 2 3))",
+      "expected": "#f",
+      "note": "List is not a symbol"
+    },
+    {
+      "expr": "(symbol? (quote (a b c)))",
+      "expected": "#f",
+      "note": "Quoted list is not a symbol"
+    },
+    {
+      "expr": "(symbol? ($lambda () #t))",
+      "expected": "#f",
+      "note": "Applicative is not a symbol"
+    },
+    {
+      "expr": "(symbol? ($vau () #ignore #t))",
+      "expected": "#f",
+      "note": "Operative is not a symbol"
+    },
+    {
+      "expr": "(symbol? (make-environment))",
+      "expected": "#f",
+      "note": "Environment is not a symbol"
+    },
+    {
+      "expr": "(symbol? \"hello\")",
+      "expected": "#f",
+      "note": "String is not a symbol"
+    },
+    {
+      "expr": "(symbol? (quote a) (quote b) (quote c))",
+      "expected": "#t",
+      "note": "All symbols returns true"
+    },
+    {
+      "expr": "(symbol? (quote a) 42)",
+      "expected": "#f",
+      "note": "Mixed types returns false"
+    },
+    {
+      "expr": "(symbol? 1 2 3)",
+      "expected": "#f",
+      "note": "All non-symbols returns false"
+    },
+    {
+      "expr": "(symbol? (quote x) (quote y) 42 (quote z))",
+      "expected": "#f",
+      "note": "One non-symbol among symbols returns false"
+    },
+    {
+      "expr": "(symbol?)",
+      "expected": "#t",
+      "note": "No arguments returns true (vacuous truth)"
+    },
+    {
+      "expr": "($define! test-sym 42) test-sym",
+      "expected": "42",
+      "note": "Symbol evaluates to bound value"
+    },
+    {
+      "expr": "($define! x 1) ($define! y 2) (+ x y)",
+      "expected": "3",
+      "note": "Multiple symbols evaluate in expression"
+    },
+    {
+      "expr": "($let ((a 10)) a)",
+      "expected": "10",
+      "note": "Symbol bound in local environment"
+    },
+    {
+      "expr": "($define! outer 100) ($let ((inner 5)) (+ outer inner))",
+      "expected": "105",
+      "note": "Symbols from nested environments"
+    },
+    {
+      "expr": "(($lambda (x) x) 99)",
+      "expected": "99",
+      "note": "Symbol bound as lambda parameter"
+    },
+    {
+      "expr": "($define! x 1) ($let ((x 2)) x)",
+      "expected": "2",
+      "note": "Local binding shadows outer"
+    },
+    {
+      "expr": "($define! x 1) ($let ((x 2)) x) x",
+      "expected": "1",
+      "note": "Outer binding restored after local scope"
+    },
+    {
+      "expr": "($define! x 1) ($let ((x 2)) ($let ((x 3)) x))",
+      "expected": "3",
+      "note": "Deeply nested shadowing"
+    },
+    {
+      "expr": "(eq? (quote foo) (quote foo))",
+      "expected": "#t",
+      "note": "Same symbol representation is eq?"
+    },
+    {
+      "expr": "(eq? (quote foo) (quote bar))",
+      "expected": "#f",
+      "note": "Different symbols are not eq?"
+    },
+    {
+      "expr": "(eq? (quote FOO) (quote foo))",
+      "expected": "#t",
+      "note": "Case-insensitive comparison (per spec 2.1)"
+    },
+    {
+      "expr": "(eq? (quote FoO) (quote fOo))",
+      "expected": "#t",
+      "note": "Mixed case symbols are eq?"
+    },
+    {
+      "expr": "(eq? (quote +) (quote +))",
+      "expected": "#t",
+      "note": "Operator symbols are eq? to themselves"
+    },
+    {
+      "expr": "(eq? (quote $lambda) (quote $LAMBDA))",
+      "expected": "#t",
+      "note": "Case-insensitive for $ prefixed symbols"
+    },
+    {
+      "expr": "(operative? $if)",
+      "expected": "#t",
+      "note": "Symbol $if evaluates to operative"
+    },
+    {
+      "expr": "(applicative? cons)",
+      "expected": "#t",
+      "note": "Symbol cons evaluates to applicative"
+    },
+    {
+      "expr": "(operative? (quote $if))",
+      "expected": "#f",
+      "note": "Quoted $if is a symbol, not operative"
+    },
+    {
+      "expr": "(symbol? (quote $if))",
+      "expected": "#t",
+      "note": "Quoted $if is a symbol"
+    },
+    {
+      "expr": "(combiner? cons)",
+      "expected": "#t",
+      "note": "cons evaluates to combiner"
+    },
+    {
+      "expr": "(combiner? (quote cons))",
+      "expected": "#f",
+      "note": "Quoted cons is just a symbol"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) foo)",
+      "expected": "foo",
+      "note": "$vau captures unevaluated symbol"
+    },
+    {
+      "expr": "(($vau (x) #ignore (symbol? x)) bar)",
+      "expected": "#t",
+      "note": "Captured operand is a symbol"
+    },
+    {
+      "expr": "(($vau args #ignore (car args)) baz)",
+      "expected": "baz",
+      "note": "Symbol captured via rest arg"
+    },
+    {
+      "expr": "($define! $quote ($vau (x) #ignore x)) ($quote my-symbol)",
+      "expected": "my-symbol",
+      "note": "User-defined quote operative"
+    },
+    {
+      "expr": "(car (quote (a b c)))",
+      "expected": "a",
+      "note": "car of quoted list is symbol"
+    },
+    {
+      "expr": "(symbol? (car (quote (a b c))))",
+      "expected": "#t",
+      "note": "car of quoted list is indeed a symbol"
+    },
+    {
+      "expr": "(cdr (quote (a b c)))",
+      "expected": "(b c)",
+      "note": "cdr of quoted list preserves symbols"
+    },
+    {
+      "expr": "(cons (quote x) (quote y))",
+      "expected": "(x . y)",
+      "note": "cons of symbols creates pair"
+    },
+    {
+      "expr": "(list (quote a) (quote b) (quote c))",
+      "expected": "(a b c)",
+      "note": "list of symbols"
+    },
+    {
+      "expr": "($define! x 42) (eval (quote x) (get-current-environment))",
+      "expected": "42",
+      "note": "eval looks up symbol in provided environment"
+    },
+    {
+      "expr": "($let ((x 10)) (eval (quote x) (get-current-environment)))",
+      "expected": "10",
+      "note": "eval uses current environment bindings"
+    },
+    {
+      "expr": "($define! my-env (make-environment)) (eval (quote ($define! y 99)) my-env) (eval (quote y) my-env)",
+      "expected": "99",
+      "note": "eval with custom environment"
+    },
+    {
+      "expr": "($define! x 1) ($binds? (get-current-environment) x)",
+      "expected": "#t",
+      "note": "Bound symbol returns true"
+    },
+    {
+      "expr": "($binds? (make-environment) nonexistent)",
+      "expected": "#f",
+      "note": "Unbound symbol returns false"
+    },
+    {
+      "expr": "($binds? (get-current-environment) cons)",
+      "expected": "#t",
+      "note": "Built-in binding exists"
+    },
+    {
+      "expr": "($binds? (get-current-environment) $if)",
+      "expected": "#t",
+      "note": "Built-in operative binding exists"
+    },
+    {
+      "expr": "(symbol? (quote !important))",
+      "expected": "#t",
+      "note": "Symbol with !"
+    },
+    {
+      "expr": "(symbol? (quote $special))",
+      "expected": "#t",
+      "note": "Symbol with $"
+    },
+    {
+      "expr": "(symbol? (quote %percent))",
+      "expected": "#t",
+      "note": "Symbol with %"
+    },
+    {
+      "expr": "(symbol? (quote &and))",
+      "expected": "#t",
+      "note": "Symbol with &"
+    },
+    {
+      "expr": "(symbol? (quote *star))",
+      "expected": "#t",
+      "note": "Symbol with *"
+    },
+    {
+      "expr": "(symbol? (quote a/b))",
+      "expected": "#t",
+      "note": "Symbol with /"
+    },
+    {
+      "expr": "(symbol? (quote :keyword))",
+      "expected": "#t",
+      "note": "Symbol with :"
+    },
+    {
+      "expr": "(symbol? (quote <less))",
+      "expected": "#t",
+      "note": "Symbol with <"
+    },
+    {
+      "expr": "(symbol? (quote =equal))",
+      "expected": "#t",
+      "note": "Symbol with ="
+    },
+    {
+      "expr": "(symbol? (quote >greater))",
+      "expected": "#t",
+      "note": "Symbol with >"
+    },
+    {
+      "expr": "(symbol? (quote ?question))",
+      "expected": "#t",
+      "note": "Symbol with ?"
+    },
+    {
+      "expr": "(symbol? (quote @at))",
+      "expected": "#t",
+      "note": "Symbol with @"
+    },
+    {
+      "expr": "(symbol? (quote ^caret))",
+      "expected": "#t",
+      "note": "Symbol with ^"
+    },
+    {
+      "expr": "(symbol? (quote _underscore))",
+      "expected": "#t",
+      "note": "Symbol with _"
+    },
+    {
+      "expr": "(symbol? (quote ~tilde))",
+      "expected": "#t",
+      "note": "Symbol with ~"
+    },
+    {
+      "expr": "(symbol? (quote a.b.c))",
+      "expected": "#t",
+      "note": "Symbol with dots"
+    },
+    {
+      "expr": "(equal? (quote foo) (quote foo))",
+      "expected": "#t",
+      "note": "Same symbols are equal?"
+    },
+    {
+      "expr": "(equal? (quote foo) (quote bar))",
+      "expected": "#f",
+      "note": "Different symbols not equal?"
+    },
+    {
+      "expr": "(equal? (quote FOO) (quote foo))",
+      "expected": "#t",
+      "note": "Case-insensitive with equal? too"
+    }
+  ]
+}

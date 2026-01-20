@@ -1,0 +1,470 @@
+{
+  "description": "Control flow test expressions - inert?, #inert, $if, $sequence, $cond, for-each",
+  "tests": [
+    {
+      "expr": "#inert",
+      "expected": "#inert",
+      "note": "The inert constant"
+    },
+    {
+      "expr": "(inert? #inert)",
+      "expected": "#t",
+      "note": "inert? returns true for #inert"
+    },
+    {
+      "expr": "(inert? #t)",
+      "expected": "#f",
+      "note": "inert? returns false for boolean"
+    },
+    {
+      "expr": "(inert? #f)",
+      "expected": "#f",
+      "note": "inert? returns false for #f"
+    },
+    {
+      "expr": "(inert? 42)",
+      "expected": "#f",
+      "note": "inert? returns false for number"
+    },
+    {
+      "expr": "(inert? ())",
+      "expected": "#f",
+      "note": "inert? returns false for nil"
+    },
+    {
+      "expr": "(inert? (cons 1 2))",
+      "expected": "#f",
+      "note": "inert? returns false for pair"
+    },
+    {
+      "expr": "(inert? (quote x))",
+      "expected": "#f",
+      "note": "inert? returns false for symbol"
+    },
+    {
+      "expr": "(inert? \"hello\")",
+      "expected": "#f",
+      "note": "inert? returns false for string"
+    },
+    {
+      "expr": "(inert? cons)",
+      "expected": "#f",
+      "note": "inert? returns false for applicative"
+    },
+    {
+      "expr": "(inert? $if)",
+      "expected": "#f",
+      "note": "inert? returns false for operative"
+    },
+    {
+      "expr": "(inert?)",
+      "expected": "#t",
+      "note": "inert? with no args returns #t (all of zero args are inert)"
+    },
+    {
+      "expr": "(inert? #inert #inert)",
+      "expected": "#t",
+      "note": "inert? with multiple inerts"
+    },
+    {
+      "expr": "(inert? #inert 42)",
+      "expected": "#f",
+      "note": "inert? returns false if any arg is not inert"
+    },
+    {
+      "expr": "(inert? #inert #inert #inert)",
+      "expected": "#t",
+      "note": "inert? with many inert args"
+    },
+    {
+      "expr": "($if #t 1 2)",
+      "expected": "1",
+      "note": "$if with true test returns consequent"
+    },
+    {
+      "expr": "($if #f 1 2)",
+      "expected": "2",
+      "note": "$if with false test returns alternative"
+    },
+    {
+      "expr": "($if #t (+ 1 2) (+ 3 4))",
+      "expected": "3",
+      "note": "$if evaluates consequent when true"
+    },
+    {
+      "expr": "($if #f (+ 1 2) (+ 3 4))",
+      "expected": "7",
+      "note": "$if evaluates alternative when false"
+    },
+    {
+      "expr": "($if (eq? 1 1) 10 20)",
+      "expected": "10",
+      "note": "Test expression that evaluates to true"
+    },
+    {
+      "expr": "($if (eq? 1 2) 10 20)",
+      "expected": "20",
+      "note": "Test expression that evaluates to false"
+    },
+    {
+      "expr": "($if (null? ()) yes no)",
+      "expected": "yes",
+      "note": "Using null? as test"
+    },
+    {
+      "expr": "($if (null? (cons 1 2)) yes no)",
+      "expected": "no",
+      "note": "Using null? on pair as test"
+    },
+    {
+      "expr": "($define! x 0) ($if #t ($define! x 1) ($define! x 2)) x",
+      "expected": "1",
+      "note": "Only consequent evaluated when true"
+    },
+    {
+      "expr": "($define! y 0) ($if #f ($define! y 1) ($define! y 2)) y",
+      "expected": "2",
+      "note": "Only alternative evaluated when false"
+    },
+    {
+      "expr": "($if #t ($if #t 1 2) 3)",
+      "expected": "1",
+      "note": "Nested $if, both true"
+    },
+    {
+      "expr": "($if #t ($if #f 1 2) 3)",
+      "expected": "2",
+      "note": "Nested $if, outer true inner false"
+    },
+    {
+      "expr": "($if #f 1 ($if #t 2 3))",
+      "expected": "2",
+      "note": "Nested $if in alternative"
+    },
+    {
+      "expr": "($if #f 1 ($if #f 2 3))",
+      "expected": "3",
+      "note": "Nested $if, both false paths"
+    },
+    {
+      "expr": "($if ($if #t #t #f) a b)",
+      "expected": "a",
+      "note": "Nested $if in test position"
+    },
+    {
+      "expr": "($if ($if #f #t #f) a b)",
+      "expected": "b",
+      "note": "Nested $if in test, inner returns #f"
+    },
+    {
+      "expr": "($define! fact ($lambda (n) ($if (=? n 0) 1 (* n (fact (- n 1)))))) (fact 5)",
+      "expected": "120",
+      "note": "Recursive factorial via $if (tail recursion test)"
+    },
+    {
+      "expr": "($if 42 1 2)",
+      "expected": "error",
+      "note": "$if requires boolean test - number fails"
+    },
+    {
+      "expr": "($if () 1 2)",
+      "expected": "error",
+      "note": "$if requires boolean test - nil fails"
+    },
+    {
+      "expr": "($if (cons 1 2) 1 2)",
+      "expected": "error",
+      "note": "$if requires boolean test - pair fails"
+    },
+    {
+      "expr": "($if \"true\" 1 2)",
+      "expected": "error",
+      "note": "$if requires boolean test - string fails"
+    },
+    {
+      "expr": "($sequence)",
+      "expected": "#inert",
+      "note": "Empty $sequence returns #inert"
+    },
+    {
+      "expr": "($sequence 42)",
+      "expected": "42",
+      "note": "$sequence with single expression returns it"
+    },
+    {
+      "expr": "($sequence 1 2 3)",
+      "expected": "3",
+      "note": "$sequence returns last value"
+    },
+    {
+      "expr": "($sequence (+ 1 2))",
+      "expected": "3",
+      "note": "$sequence evaluates single expression"
+    },
+    {
+      "expr": "($sequence (+ 1 1) (+ 2 2) (+ 3 3))",
+      "expected": "6",
+      "note": "$sequence evaluates all, returns last"
+    },
+    {
+      "expr": "($define! log ()) ($sequence ($define! log (cons 1 log)) ($define! log (cons 2 log)) ($define! log (cons 3 log)) log)",
+      "expected": "(3 2 1)",
+      "note": "$sequence evaluates left to right"
+    },
+    {
+      "expr": "($define! a 1) ($sequence ($define! a (+ a 1)) ($define! a (+ a 1)) a)",
+      "expected": "3",
+      "note": "$sequence effects visible to later expressions"
+    },
+    {
+      "expr": "($sequence ($sequence 1 2) ($sequence 3 4))",
+      "expected": "4",
+      "note": "Nested $sequence returns innermost last"
+    },
+    {
+      "expr": "($sequence 1 ($sequence 2 3) 4)",
+      "expected": "4",
+      "note": "Inner $sequence in middle"
+    },
+    {
+      "expr": "($sequence ($sequence ($sequence 1)))",
+      "expected": "1",
+      "note": "Deeply nested $sequence"
+    },
+    {
+      "expr": "($define! counter 0) ($sequence ($define! counter (+ counter 1)) ($define! counter (+ counter 1)) ($define! counter (+ counter 1))) counter",
+      "expected": "3",
+      "note": "Multiple mutations in sequence"
+    },
+    {
+      "expr": "($define! x 10) ($sequence ($define! y (+ x 5)) y)",
+      "expected": "15",
+      "note": "$sequence allows define then use"
+    },
+    {
+      "expr": "(($lambda () ($sequence 1 2 3)))",
+      "expected": "3",
+      "note": "$sequence in lambda body"
+    },
+    {
+      "expr": "($define! f ($lambda (n) ($sequence ($define! m (* n 2)) (+ m 1)))) (f 5)",
+      "expected": "11",
+      "note": "Lambda with sequence body using local binding"
+    },
+    {
+      "expr": "($cond)",
+      "expected": "#inert",
+      "note": "Empty $cond returns #inert"
+    },
+    {
+      "expr": "($cond (#t 42))",
+      "expected": "42",
+      "note": "Single true clause"
+    },
+    {
+      "expr": "($cond (#f 42))",
+      "expected": "#inert",
+      "note": "Single false clause returns #inert"
+    },
+    {
+      "expr": "($cond (#t 1) (#t 2) (#t 3))",
+      "expected": "1",
+      "note": "First true clause wins"
+    },
+    {
+      "expr": "($cond (#f 1) (#t 2) (#t 3))",
+      "expected": "2",
+      "note": "Skip false, take first true"
+    },
+    {
+      "expr": "($cond (#f 1) (#f 2) (#t 3))",
+      "expected": "3",
+      "note": "Skip multiple false clauses"
+    },
+    {
+      "expr": "($cond (#f 1) (#f 2) (#f 3))",
+      "expected": "#inert",
+      "note": "All false returns #inert"
+    },
+    {
+      "expr": "($cond ((eq? 1 1) yes))",
+      "expected": "yes",
+      "note": "Test expression evaluated"
+    },
+    {
+      "expr": "($cond ((eq? 1 2) no) ((eq? 2 2) yes))",
+      "expected": "yes",
+      "note": "Multiple test evaluations"
+    },
+    {
+      "expr": "($cond ((null? ()) empty) (#t not-empty))",
+      "expected": "empty",
+      "note": "null? as test"
+    },
+    {
+      "expr": "($cond (#t (+ 1 2)))",
+      "expected": "3",
+      "note": "Body expression evaluated"
+    },
+    {
+      "expr": "($cond (#t (+ 1 1) (+ 2 2) (+ 3 3)))",
+      "expected": "6",
+      "note": "Multiple body expressions (like $sequence)"
+    },
+    {
+      "expr": "($define! x 0) ($cond (#t ($define! x 1) ($define! x (+ x 1)) x))",
+      "expected": "2",
+      "note": "Body with multiple side effects"
+    },
+    {
+      "expr": "($define! touched #f) ($cond (#t first) (($define! touched #t) second)) touched",
+      "expected": "#f",
+      "note": "Tests after match not evaluated"
+    },
+    {
+      "expr": "($define! count 0) ($cond (($sequence ($define! count (+ count 1)) #f) a) (($sequence ($define! count (+ count 1)) #t) b)) count",
+      "expected": "2",
+      "note": "Tests evaluated until true found"
+    },
+    {
+      "expr": "($cond (#f first) (#f second) (#t else-value))",
+      "expected": "else-value",
+      "note": "#t as last clause acts like else"
+    },
+    {
+      "expr": "($define! n 5) ($cond ((=? n 0) zero) ((=? n 1) one) (#t other))",
+      "expected": "other",
+      "note": "Default clause pattern"
+    },
+    {
+      "expr": "($define! m 1) ($cond ((=? m 0) zero) ((=? m 1) one) (#t other))",
+      "expected": "one",
+      "note": "Matching before default"
+    },
+    {
+      "expr": "($cond (#t ($cond (#t inner))))",
+      "expected": "inner",
+      "note": "Nested $cond"
+    },
+    {
+      "expr": "($cond (#f outer) (#t ($cond (#f inner1) (#t inner2))))",
+      "expected": "inner2",
+      "note": "Nested $cond in body"
+    },
+    {
+      "expr": "($cond (($cond (#t #t)) yes) (#t no))",
+      "expected": "yes",
+      "note": "Nested $cond in test"
+    },
+    {
+      "expr": "($define! x 3) ($cond ((<? x 0) negative) ((=? x 0) zero) ((>? x 0) positive))",
+      "expected": "positive",
+      "note": "Numeric classification"
+    },
+    {
+      "expr": "($define! classify ($lambda (n) ($cond ((<? n 0) (quote neg)) ((=? n 0) (quote zero)) (#t (quote pos))))) (list (classify (- 0 5)) (classify 0) (classify 5))",
+      "expected": "(neg zero pos)",
+      "note": "Classification function"
+    },
+    {
+      "expr": "($cond (42 x))",
+      "expected": "error",
+      "note": "$cond test must be boolean"
+    },
+    {
+      "expr": "($cond (() x))",
+      "expected": "error",
+      "note": "$cond test nil is not boolean"
+    },
+    {
+      "expr": "($cond (#f a) (1 b))",
+      "expected": "error",
+      "note": "Later test must also be boolean"
+    },
+    {
+      "expr": "(for-each ($lambda (x) x) (list 1 2 3))",
+      "expected": "#inert",
+      "note": "for-each always returns #inert"
+    },
+    {
+      "expr": "(for-each ($lambda (x) (+ x 1)) ())",
+      "expected": "#inert",
+      "note": "for-each on empty list returns #inert"
+    },
+    {
+      "expr": "($define! sum 0) (for-each ($lambda (x) ($set! sum (+ sum x))) (list 1 2 3 4)) sum",
+      "expected": "10",
+      "note": "for-each executes side effects"
+    },
+    {
+      "expr": "($define! log ()) (for-each ($lambda (x) ($set! log (cons x log))) (list 1 2 3)) log",
+      "expected": "(3 2 1)",
+      "note": "for-each processes elements (order may vary per spec)"
+    },
+    {
+      "expr": "($define! count 0) (for-each ($lambda (x) ($set! count (+ count 1))) (list a b c d e)) count",
+      "expected": "5",
+      "note": "for-each counts via side effect"
+    },
+    {
+      "expr": "($define! result 0) (for-each ($lambda (a b) ($set! result (+ result (+ a b)))) (list 1 2 3) (list 10 20 30)) result",
+      "expected": "66",
+      "note": "for-each with two lists"
+    },
+    {
+      "expr": "($define! pairs ()) (for-each ($lambda (a b) ($set! pairs (cons (cons a b) pairs))) (list 1 2) (list 10 20)) pairs",
+      "expected": "((2 . 20) (1 . 10))",
+      "note": "for-each zips multiple lists"
+    },
+    {
+      "expr": "(map ($lambda (x) (* x 2)) (list 1 2 3))",
+      "expected": "(2 4 6)",
+      "note": "map returns list of results"
+    },
+    {
+      "expr": "(for-each ($lambda (x) (* x 2)) (list 1 2 3))",
+      "expected": "#inert",
+      "note": "for-each discards results, returns #inert"
+    },
+    {
+      "expr": "(for-each 42 (list 1 2 3))",
+      "expected": "error",
+      "note": "for-each requires applicative"
+    },
+    {
+      "expr": "(for-each ($lambda (x) x))",
+      "expected": "error",
+      "note": "for-each requires at least one list"
+    },
+    {
+      "expr": "($define! abs ($lambda (x) ($if (<? x 0) (- 0 x) x))) (abs (- 0 5))",
+      "expected": "5",
+      "note": "Absolute value using $if"
+    },
+    {
+      "expr": "($define! sign ($lambda (x) ($cond ((<? x 0) (- 0 1)) ((=? x 0) 0) (#t 1)))) (list (sign (- 0 3)) (sign 0) (sign 3))",
+      "expected": "(-1 0 1)",
+      "note": "Sign function using $cond"
+    },
+    {
+      "expr": "($define! do-n-times ($lambda (n f) ($if (=? n 0) #inert ($sequence (f) (do-n-times (- n 1) f))))) ($define! x 0) (do-n-times 5 ($lambda () ($set! x (+ x 1)))) x",
+      "expected": "5",
+      "note": "Loop using $if and $sequence"
+    },
+    {
+      "expr": "($define! sum-to ($lambda (n) ($if (=? n 0) 0 (+ n (sum-to (- n 1)))))) (sum-to 10)",
+      "expected": "55",
+      "note": "Recursive sum using $if"
+    },
+    {
+      "expr": "($define! dispatch ($lambda (op a b) ($cond ((eq? op (quote add)) (+ a b)) ((eq? op (quote sub)) (- a b)) ((eq? op (quote mul)) (* a b)) (#t (quote unknown))))) (list (dispatch (quote add) 3 4) (dispatch (quote mul) 3 4))",
+      "expected": "(7 12)",
+      "note": "Simple dispatch using $cond"
+    },
+    {
+      "expr": "($define! fizzbuzz ($lambda (n) ($cond ((=? (mod n 15) 0) (quote fizzbuzz)) ((=? (mod n 3) 0) (quote fizz)) ((=? (mod n 5) 0) (quote buzz)) (#t n)))) (list (fizzbuzz 3) (fizzbuzz 5) (fizzbuzz 15) (fizzbuzz 7))",
+      "expected": "(fizz buzz fizzbuzz 7)",
+      "note": "FizzBuzz using $cond"
+    }
+  ]
+}

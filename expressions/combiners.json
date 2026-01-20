@@ -1,0 +1,825 @@
+{
+  "description": "Combiner test expressions - tests for operative?, applicative?, combiner?, $vau, $lambda, wrap, unwrap, and apply",
+  "tests": [
+    {
+      "expr": "(operative? $if)",
+      "expected": "#t",
+      "note": "Primitive operative"
+    },
+    {
+      "expr": "(operative? $vau)",
+      "expected": "#t",
+      "note": "$vau is an operative"
+    },
+    {
+      "expr": "(operative? $define!)",
+      "expected": "#t",
+      "note": "$define! is an operative"
+    },
+    {
+      "expr": "(operative? $sequence)",
+      "expected": "#t",
+      "note": "$sequence is an operative"
+    },
+    {
+      "expr": "(operative? $lambda)",
+      "expected": "#t",
+      "note": "$lambda is an operative"
+    },
+    {
+      "expr": "(operative? ($vau () #ignore #t))",
+      "expected": "#t",
+      "note": "Compound operative"
+    },
+    {
+      "expr": "(operative? ($vau (x) #ignore x))",
+      "expected": "#t",
+      "note": "Compound operative with param"
+    },
+    {
+      "expr": "(operative? ($vau args e args))",
+      "expected": "#t",
+      "note": "Compound operative with rest and env"
+    },
+    {
+      "expr": "(operative? cons)",
+      "expected": "#f",
+      "note": "cons is applicative, not operative"
+    },
+    {
+      "expr": "(operative? list)",
+      "expected": "#f",
+      "note": "list is applicative"
+    },
+    {
+      "expr": "(operative? +)",
+      "expected": "#f",
+      "note": "+ is applicative"
+    },
+    {
+      "expr": "(operative? (wrap ($vau () #ignore #t)))",
+      "expected": "#f",
+      "note": "Wrapped operative is applicative"
+    },
+    {
+      "expr": "(operative? ($lambda () #t))",
+      "expected": "#f",
+      "note": "$lambda returns applicative"
+    },
+    {
+      "expr": "(operative? 42)",
+      "expected": "#f",
+      "note": "Numbers are not operatives"
+    },
+    {
+      "expr": "(operative? #t)",
+      "expected": "#f",
+      "note": "Booleans are not operatives"
+    },
+    {
+      "expr": "(operative? ())",
+      "expected": "#f",
+      "note": "Nil is not operative"
+    },
+    {
+      "expr": "(operative? (cons 1 2))",
+      "expected": "#f",
+      "note": "Pairs are not operatives"
+    },
+    {
+      "expr": "(operative? #ignore)",
+      "expected": "#f",
+      "note": "#ignore is not operative"
+    },
+    {
+      "expr": "(operative? #inert)",
+      "expected": "#f",
+      "note": "#inert is not operative"
+    },
+    {
+      "expr": "(operative?)",
+      "expected": "#t",
+      "note": "Zero args returns true (all vacuously satisfy)"
+    },
+    {
+      "expr": "(operative? $if $vau)",
+      "expected": "#t",
+      "note": "Multiple operatives"
+    },
+    {
+      "expr": "(operative? $if cons)",
+      "expected": "#f",
+      "note": "Mixed: one is not operative"
+    },
+    {
+      "expr": "(operative? (unwrap cons))",
+      "expected": "#t",
+      "note": "Unwrapped applicative is operative"
+    },
+    {
+      "expr": "(applicative? cons)",
+      "expected": "#t",
+      "note": "Primitive applicative"
+    },
+    {
+      "expr": "(applicative? list)",
+      "expected": "#t",
+      "note": "list is applicative"
+    },
+    {
+      "expr": "(applicative? +)",
+      "expected": "#t",
+      "note": "+ is applicative"
+    },
+    {
+      "expr": "(applicative? car)",
+      "expected": "#t",
+      "note": "car is applicative"
+    },
+    {
+      "expr": "(applicative? cdr)",
+      "expected": "#t",
+      "note": "cdr is applicative"
+    },
+    {
+      "expr": "(applicative? eval)",
+      "expected": "#t",
+      "note": "eval is applicative"
+    },
+    {
+      "expr": "(applicative? apply)",
+      "expected": "#t",
+      "note": "apply is applicative"
+    },
+    {
+      "expr": "(applicative? wrap)",
+      "expected": "#t",
+      "note": "wrap is applicative"
+    },
+    {
+      "expr": "(applicative? unwrap)",
+      "expected": "#t",
+      "note": "unwrap is applicative"
+    },
+    {
+      "expr": "(applicative? ($lambda () #t))",
+      "expected": "#t",
+      "note": "$lambda returns applicative"
+    },
+    {
+      "expr": "(applicative? ($lambda (x) x))",
+      "expected": "#t",
+      "note": "$lambda with param"
+    },
+    {
+      "expr": "(applicative? ($lambda args args))",
+      "expected": "#t",
+      "note": "$lambda with rest param"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "Wrapped operative is applicative"
+    },
+    {
+      "expr": "(applicative? (wrap $if))",
+      "expected": "#t",
+      "note": "Wrapped primitive operative"
+    },
+    {
+      "expr": "(applicative? $if)",
+      "expected": "#f",
+      "note": "$if is operative, not applicative"
+    },
+    {
+      "expr": "(applicative? $vau)",
+      "expected": "#f",
+      "note": "$vau is operative"
+    },
+    {
+      "expr": "(applicative? $define!)",
+      "expected": "#f",
+      "note": "$define! is operative"
+    },
+    {
+      "expr": "(applicative? ($vau () #ignore #t))",
+      "expected": "#f",
+      "note": "Compound operative is not applicative"
+    },
+    {
+      "expr": "(applicative? 42)",
+      "expected": "#f",
+      "note": "Numbers are not applicatives"
+    },
+    {
+      "expr": "(applicative? #t)",
+      "expected": "#f",
+      "note": "Booleans are not applicatives"
+    },
+    {
+      "expr": "(applicative? ())",
+      "expected": "#f",
+      "note": "Nil is not applicative"
+    },
+    {
+      "expr": "(applicative? (cons 1 2))",
+      "expected": "#f",
+      "note": "Pairs are not applicatives"
+    },
+    {
+      "expr": "(applicative?)",
+      "expected": "#t",
+      "note": "Zero args returns true"
+    },
+    {
+      "expr": "(applicative? cons list +)",
+      "expected": "#t",
+      "note": "Multiple applicatives"
+    },
+    {
+      "expr": "(applicative? cons $if)",
+      "expected": "#f",
+      "note": "Mixed: one is operative"
+    },
+    {
+      "expr": "(applicative? (unwrap cons))",
+      "expected": "#f",
+      "note": "Unwrapped applicative is operative"
+    },
+    {
+      "expr": "(combiner? $if)",
+      "expected": "#t",
+      "note": "Operatives are combiners"
+    },
+    {
+      "expr": "(combiner? $vau)",
+      "expected": "#t",
+      "note": "$vau is a combiner"
+    },
+    {
+      "expr": "(combiner? cons)",
+      "expected": "#t",
+      "note": "Applicatives are combiners"
+    },
+    {
+      "expr": "(combiner? list)",
+      "expected": "#t",
+      "note": "list is a combiner"
+    },
+    {
+      "expr": "(combiner? ($vau () #ignore #t))",
+      "expected": "#t",
+      "note": "Compound operative is combiner"
+    },
+    {
+      "expr": "(combiner? ($lambda () #t))",
+      "expected": "#t",
+      "note": "Lambda result is combiner"
+    },
+    {
+      "expr": "(combiner? (wrap ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "Wrapped operative is combiner"
+    },
+    {
+      "expr": "(combiner? (unwrap cons))",
+      "expected": "#t",
+      "note": "Unwrapped applicative is combiner"
+    },
+    {
+      "expr": "(combiner? 42)",
+      "expected": "#f",
+      "note": "Numbers are not combiners"
+    },
+    {
+      "expr": "(combiner? #t)",
+      "expected": "#f",
+      "note": "Booleans are not combiners"
+    },
+    {
+      "expr": "(combiner? ())",
+      "expected": "#f",
+      "note": "Nil is not a combiner"
+    },
+    {
+      "expr": "(combiner? (cons 1 2))",
+      "expected": "#f",
+      "note": "Pairs are not combiners"
+    },
+    {
+      "expr": "(combiner? #ignore)",
+      "expected": "#f",
+      "note": "#ignore is not a combiner"
+    },
+    {
+      "expr": "(combiner? #inert)",
+      "expected": "#f",
+      "note": "#inert is not a combiner"
+    },
+    {
+      "expr": "(combiner?)",
+      "expected": "#t",
+      "note": "Zero args returns true"
+    },
+    {
+      "expr": "(combiner? $if cons)",
+      "expected": "#t",
+      "note": "Both operative and applicative are combiners"
+    },
+    {
+      "expr": "(combiner? cons 42)",
+      "expected": "#f",
+      "note": "Mixed: 42 is not a combiner"
+    },
+    {
+      "expr": "(($vau () #ignore #inert))",
+      "expected": "#inert",
+      "note": "No params, returns inert"
+    },
+    {
+      "expr": "(($vau () #ignore 42))",
+      "expected": "42",
+      "note": "No params, returns constant"
+    },
+    {
+      "expr": "(($vau () #ignore (+ 1 2)))",
+      "expected": "3",
+      "note": "Body is evaluated"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) 42)",
+      "expected": "42",
+      "note": "Single param binding"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Operand NOT evaluated (key $vau property)"
+    },
+    {
+      "expr": "(($vau (a b) #ignore a) 1 2)",
+      "expected": "1",
+      "note": "First of two params"
+    },
+    {
+      "expr": "(($vau (a b) #ignore b) 1 2)",
+      "expected": "2",
+      "note": "Second of two params"
+    },
+    {
+      "expr": "(($vau (a b c) #ignore (list a b c)) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Three params"
+    },
+    {
+      "expr": "(($vau args #ignore args) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Symbol captures all as list"
+    },
+    {
+      "expr": "(($vau args #ignore args))",
+      "expected": "()",
+      "note": "Symbol captures empty list"
+    },
+    {
+      "expr": "(($vau (a . rest) #ignore rest) 1 2 3)",
+      "expected": "(2 3)",
+      "note": "Dotted: rest of list"
+    },
+    {
+      "expr": "(($vau (a . rest) #ignore a) 1 2 3)",
+      "expected": "1",
+      "note": "Dotted: first element"
+    },
+    {
+      "expr": "(($vau (a . rest) #ignore rest) 1)",
+      "expected": "()",
+      "note": "Dotted: empty rest"
+    },
+    {
+      "expr": "(($vau (a b . rest) #ignore rest) 1 2 3 4)",
+      "expected": "(3 4)",
+      "note": "Two fixed, rest"
+    },
+    {
+      "expr": "(($vau (a b . rest) #ignore (list a b)) 1 2 3 4)",
+      "expected": "(1 2)",
+      "note": "Two fixed params"
+    },
+    {
+      "expr": "(($vau (#ignore) #ignore 42) 1)",
+      "expected": "42",
+      "note": "#ignore in formals discards value"
+    },
+    {
+      "expr": "(($vau (#ignore b) #ignore b) 1 2)",
+      "expected": "2",
+      "note": "#ignore first, bind second"
+    },
+    {
+      "expr": "(($vau (a #ignore) #ignore a) 1 2)",
+      "expected": "1",
+      "note": "Bind first, #ignore second"
+    },
+    {
+      "expr": "(($vau (a #ignore c) #ignore (list a c)) 1 2 3)",
+      "expected": "(1 3)",
+      "note": "#ignore middle"
+    },
+    {
+      "expr": "(($vau (#ignore . rest) #ignore rest) 1 2 3)",
+      "expected": "(2 3)",
+      "note": "#ignore with dotted rest"
+    },
+    {
+      "expr": "(($vau (()) #ignore #t) ())",
+      "expected": "#t",
+      "note": "() matches ()"
+    },
+    {
+      "expr": "(($vau ((a)) #ignore a) (42))",
+      "expected": "42",
+      "note": "Nested single element"
+    },
+    {
+      "expr": "(($vau ((a . b)) #ignore a) (1 . 2))",
+      "expected": "1",
+      "note": "Destructure pair car"
+    },
+    {
+      "expr": "(($vau ((a . b)) #ignore b) (1 . 2))",
+      "expected": "2",
+      "note": "Destructure pair cdr"
+    },
+    {
+      "expr": "(($vau ((a b c)) #ignore b) (1 2 3))",
+      "expected": "2",
+      "note": "Destructure list middle"
+    },
+    {
+      "expr": "(($vau ((a . b)) #ignore b) (1 2 3))",
+      "expected": "(2 3)",
+      "note": "Destructure list cdr"
+    },
+    {
+      "expr": "(($vau (((a))) #ignore a) ((42)))",
+      "expected": "42",
+      "note": "Deep nesting"
+    },
+    {
+      "expr": "(($vau ((a b) c) #ignore (list a b c)) (1 2) 3)",
+      "expected": "(1 2 3)",
+      "note": "Mixed structure"
+    },
+    {
+      "expr": "(($vau ((a b) (c d)) #ignore (list a b c d)) (1 2) (3 4))",
+      "expected": "(1 2 3 4)",
+      "note": "Two nested lists"
+    },
+    {
+      "expr": "(($vau ((#ignore b)) #ignore b) (1 2))",
+      "expected": "2",
+      "note": "Nested #ignore"
+    },
+    {
+      "expr": "(($vau () e (env? e)))",
+      "expected": "#t",
+      "note": "eformal bound to dynamic env"
+    },
+    {
+      "expr": "($let ((x 42)) (($vau () e (eval (quote x) e))))",
+      "expected": "42",
+      "note": "Eval in dynamic env"
+    },
+    {
+      "expr": "($let ((y 10)) (($vau (expr) e (eval expr e)) (+ y 5)))",
+      "expected": "15",
+      "note": "Eval operand in dynamic env"
+    },
+    {
+      "expr": "($let ((x 100)) ($let ((f ($vau () #ignore x))) (f)))",
+      "expected": "100",
+      "note": "Static env captured"
+    },
+    {
+      "expr": "($let ((x 1)) ($let ((f ($vau () #ignore x))) ($let ((x 2)) (f))))",
+      "expected": "1",
+      "note": "Static env, not dynamic"
+    },
+    {
+      "expr": "($let ((x 1) (y 2)) (($vau (x) #ignore (+ x y)) 10))",
+      "expected": "12",
+      "note": "Local shadows, parent visible"
+    },
+    {
+      "expr": "(($vau () #ignore 1 2 3))",
+      "expected": "3",
+      "note": "Multiple body exprs, returns last"
+    },
+    {
+      "expr": "(($vau () #ignore (+ 1 1) (+ 2 2) (+ 3 3)))",
+      "expected": "6",
+      "note": "All evaluated, last returned"
+    },
+    {
+      "expr": "(($lambda () 42))",
+      "expected": "42",
+      "note": "No args"
+    },
+    {
+      "expr": "(($lambda (x) x) 42)",
+      "expected": "42",
+      "note": "Identity with evaluated arg"
+    },
+    {
+      "expr": "(($lambda (x) x) (+ 1 2))",
+      "expected": "3",
+      "note": "Argument IS evaluated (key $lambda property)"
+    },
+    {
+      "expr": "(($lambda (a b) (+ a b)) 1 2)",
+      "expected": "3",
+      "note": "Two args"
+    },
+    {
+      "expr": "(($lambda (a b c) (list a b c)) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Three args"
+    },
+    {
+      "expr": "(($lambda args args) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Symbol captures all evaluated args"
+    },
+    {
+      "expr": "(($lambda args args))",
+      "expected": "()",
+      "note": "Symbol captures empty"
+    },
+    {
+      "expr": "(($lambda (a . rest) rest) 1 2 3)",
+      "expected": "(2 3)",
+      "note": "Dotted rest"
+    },
+    {
+      "expr": "(($lambda (a . rest) a) 1 2 3)",
+      "expected": "1",
+      "note": "Dotted first"
+    },
+    {
+      "expr": "(($lambda (a b . rest) (list a b rest)) 1 2 3 4 5)",
+      "expected": "(1 2 (3 4 5))",
+      "note": "Two fixed, rest"
+    },
+    {
+      "expr": "(($lambda ((a b)) (+ a b)) (list 1 2))",
+      "expected": "3",
+      "note": "Destructure list arg"
+    },
+    {
+      "expr": "(($lambda ((a . b)) a) (cons 1 2))",
+      "expected": "1",
+      "note": "Destructure pair car"
+    },
+    {
+      "expr": "(($lambda ((a . b)) b) (cons 1 2))",
+      "expected": "2",
+      "note": "Destructure pair cdr"
+    },
+    {
+      "expr": "(($lambda (((a))) a) (list (list 42)))",
+      "expected": "42",
+      "note": "Deep destructure"
+    },
+    {
+      "expr": "(($lambda () 1 2 3))",
+      "expected": "3",
+      "note": "Multiple bodies, returns last"
+    },
+    {
+      "expr": "(($lambda (x) x (+ x 1) (+ x 2)) 10)",
+      "expected": "12",
+      "note": "Multiple bodies with param"
+    },
+    {
+      "expr": "(eq? (applicative? ($lambda (x) x)) (applicative? (wrap ($vau (x) #ignore x))))",
+      "expected": "#t",
+      "note": "Both are applicatives"
+    },
+    {
+      "expr": "(($lambda (x) x) 5)",
+      "expected": "5",
+      "note": "$lambda version"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) 5)",
+      "expected": "5",
+      "note": "Equivalent wrap/$vau version"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "wrap returns applicative"
+    },
+    {
+      "expr": "(operative? (wrap ($vau () #ignore #t)))",
+      "expected": "#f",
+      "note": "wrap result is not operative"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) (+ 1 2))",
+      "expected": "3",
+      "note": "Wrapped operative evaluates args"
+    },
+    {
+      "expr": "(applicative? (wrap $if))",
+      "expected": "#t",
+      "note": "Can wrap primitive operative"
+    },
+    {
+      "expr": "(applicative? (wrap cons))",
+      "expected": "#t",
+      "note": "Can wrap applicative (double wrap)"
+    },
+    {
+      "expr": "(combiner? (wrap ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "Wrapped result is combiner"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (cons a b))) (+ 1 1) (+ 2 2))",
+      "expected": "(2 . 4)",
+      "note": "Both args evaluated"
+    },
+    {
+      "expr": "((wrap ($vau args #ignore args)) (+ 1 0) (+ 2 0) (+ 3 0))",
+      "expected": "(1 2 3)",
+      "note": "Rest args evaluated"
+    },
+    {
+      "expr": "(operative? (unwrap cons))",
+      "expected": "#t",
+      "note": "unwrap returns operative"
+    },
+    {
+      "expr": "(applicative? (unwrap cons))",
+      "expected": "#f",
+      "note": "unwrap result is not applicative"
+    },
+    {
+      "expr": "(combiner? (unwrap cons))",
+      "expected": "#t",
+      "note": "unwrap result is still combiner"
+    },
+    {
+      "expr": "((unwrap list) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Calling unwrapped - operands not evaluated"
+    },
+    {
+      "expr": "((unwrap cons) 1 2)",
+      "expected": "(1 . 2)",
+      "note": "Unwrapped cons"
+    },
+    {
+      "expr": "(eq? (unwrap (wrap ($vau () #ignore #t))) ($vau () #ignore #t))",
+      "expected": "#f",
+      "note": "Not eq? (new operative each time)"
+    },
+    {
+      "expr": "(($lambda (f) (eq? f (unwrap (wrap f)))) ($vau (x) #ignore x))",
+      "expected": "#t",
+      "note": "Round-trip preserves identity"
+    },
+    {
+      "expr": "((wrap (unwrap list)) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "wrap(unwrap(app)) behaves same"
+    },
+    {
+      "expr": "($let ((f ($vau (x) #ignore x))) (eq? f (unwrap (wrap f))))",
+      "expected": "#t",
+      "note": "unwrap(wrap(op)) returns same op"
+    },
+    {
+      "expr": "(applicative? (unwrap (wrap (wrap ($vau () #ignore #t)))))",
+      "expected": "#t",
+      "note": "Double-wrap, single unwrap = applicative"
+    },
+    {
+      "expr": "(apply + (list 1 2 3))",
+      "expected": "6",
+      "note": "Basic apply with list"
+    },
+    {
+      "expr": "(apply cons (list 1 2))",
+      "expected": "(1 . 2)",
+      "note": "Apply cons"
+    },
+    {
+      "expr": "(apply list (list 1 2 3))",
+      "expected": "(1 2 3)",
+      "note": "Apply list"
+    },
+    {
+      "expr": "(apply + ())",
+      "expected": "0",
+      "note": "Apply with empty list"
+    },
+    {
+      "expr": "(apply * ())",
+      "expected": "1",
+      "note": "Apply * with empty list"
+    },
+    {
+      "expr": "(apply ($lambda (a b) (+ a b)) (list 3 4))",
+      "expected": "7",
+      "note": "Apply lambda"
+    },
+    {
+      "expr": "(apply ($lambda args args) (list 1 2 3))",
+      "expected": "(1 2 3)",
+      "note": "Apply lambda with rest"
+    },
+    {
+      "expr": "(apply ($lambda () 42) ())",
+      "expected": "42",
+      "note": "Apply zero-arg lambda"
+    },
+    {
+      "expr": "(apply ($lambda x x) 42)",
+      "expected": "42",
+      "note": "Operand tree can be non-list"
+    },
+    {
+      "expr": "(apply ($lambda x x) (cons 1 2))",
+      "expected": "(1 . 2)",
+      "note": "Operand tree can be improper list"
+    },
+    {
+      "expr": "(apply ($lambda () 42) () (make-environment))",
+      "expected": "42",
+      "note": "With explicit empty env"
+    },
+    {
+      "expr": "($let ((x 100)) (apply ($lambda () x) () (get-current-environment)))",
+      "expected": "100",
+      "note": "Lambda uses static env regardless"
+    },
+    {
+      "expr": "($let ((e (make-environment))) (eq? (apply list (list 1 2) e) (eval (cons (unwrap list) (list 1 2)) e)))",
+      "expected": "#t",
+      "note": "Equivalence check"
+    },
+    {
+      "expr": "(apply ($lambda () 42) ())",
+      "expected": "42",
+      "note": "Default env is empty when omitted"
+    },
+    {
+      "expr": "(apply apply (list + (list 1 2 3)))",
+      "expected": "6",
+      "note": "Nested apply"
+    },
+    {
+      "expr": "(apply apply (list list (list 1 2 3)))",
+      "expected": "(1 2 3)",
+      "note": "Nested apply with list"
+    },
+    {
+      "expr": "(($vau (f) #ignore (applicative? f)) cons)",
+      "expected": "#t",
+      "note": "Pass applicative to operative"
+    },
+    {
+      "expr": "(($vau (f) #ignore (operative? f)) $if)",
+      "expected": "#t",
+      "note": "Pass operative to operative"
+    },
+    {
+      "expr": "(apply ($lambda (f) (f 1 2)) (list +))",
+      "expected": "3",
+      "note": "Pass combiner as arg"
+    },
+    {
+      "expr": "((($lambda (f) ($lambda (x) (f x))) ($lambda (n) (+ n 1))) 5)",
+      "expected": "6",
+      "note": "Higher-order function"
+    },
+    {
+      "expr": "(map applicative? (list cons $if ($lambda () #t) ($vau () #ignore #t)))",
+      "expected": "(#t #f #t #f)",
+      "note": "Map predicate over combiners"
+    },
+    {
+      "expr": "(map operative? (list cons $if ($lambda () #t) ($vau () #ignore #t)))",
+      "expected": "(#f #t #f #t)",
+      "note": "Map operative? over combiners"
+    },
+    {
+      "expr": "(map combiner? (list cons $if ($lambda () #t) 42 ()))",
+      "expected": "(#t #t #t #f #f)",
+      "note": "Map combiner? over mixed values"
+    }
+  ]
+}

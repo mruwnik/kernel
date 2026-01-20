@@ -1,0 +1,535 @@
+{
+  "description": "Complex script test expressions combining multiple features",
+  "tests": [
+    {
+      "expr": "($letrec ((fact ($lambda (n) ($if (=? n 0) 1 (* n (fact (- n 1))))))) (fact 5))",
+      "expected": "120",
+      "note": "factorial-recursive"
+    },
+    {
+      "expr": "($letrec ((fact ($lambda (n) ($if (=? n 0) 1 (* n (fact (- n 1))))))) (fact 0))",
+      "expected": "1",
+      "note": "factorial-zero"
+    },
+    {
+      "expr": "($letrec ((fact ($lambda (n acc) ($if (=? n 0) acc (fact (- n 1) (* n acc)))))) (fact 6 1))",
+      "expected": "720",
+      "note": "factorial-tail-recursive"
+    },
+    {
+      "expr": "($letrec ((fact ($lambda (n) ($if (=? n 0) 1 (* n (fact (- n 1))))))) (fact 10))",
+      "expected": "3628800",
+      "note": "factorial-10"
+    },
+    {
+      "expr": "($letrec ((fib ($lambda (n) ($cond ((=? n 0) 0) ((=? n 1) 1) (#t (+ (fib (- n 1)) (fib (- n 2)))))))) (fib 10))",
+      "expected": "55",
+      "note": "fibonacci-recursive"
+    },
+    {
+      "expr": "($letrec ((fib ($lambda (n) ($cond ((=? n 0) 0) ((=? n 1) 1) (#t (+ (fib (- n 1)) (fib (- n 2)))))))) (fib 0))",
+      "expected": "0",
+      "note": "fibonacci-zero"
+    },
+    {
+      "expr": "($letrec ((fib ($lambda (n) ($cond ((=? n 0) 0) ((=? n 1) 1) (#t (+ (fib (- n 1)) (fib (- n 2)))))))) (fib 1))",
+      "expected": "1",
+      "note": "fibonacci-one"
+    },
+    {
+      "expr": "($letrec ((fib ($lambda (n a b) ($if (=? n 0) a (fib (- n 1) b (+ a b)))))) (fib 15 0 1))",
+      "expected": "610",
+      "note": "fibonacci-tail-recursive"
+    },
+    {
+      "expr": "($letrec ((fib ($lambda (n) ($cond ((=? n 0) 0) ((=? n 1) 1) (#t (+ (fib (- n 1)) (fib (- n 2)))))))) (map fib (list 0 1 2 3 4 5 6 7 8)))",
+      "expected": "(0 1 1 2 3 5 8 13 21)",
+      "note": "fibonacci-sequence"
+    },
+    {
+      "expr": "($letrec ((len ($lambda (lst) ($if (null? lst) 0 (+ 1 (len (cdr lst))))))) (len (list 1 2 3 4 5)))",
+      "expected": "5",
+      "note": "list-length-recursive"
+    },
+    {
+      "expr": "($letrec ((len ($lambda (lst) ($if (null? lst) 0 (+ 1 (len (cdr lst))))))) (len ()))",
+      "expected": "0",
+      "note": "list-length-empty"
+    },
+    {
+      "expr": "($letrec ((len ($lambda (lst acc) ($if (null? lst) acc (len (cdr lst) (+ acc 1)))))) (len (list 1 2 3 4 5 6 7 8 9 10) 0))",
+      "expected": "10",
+      "note": "list-length-tail-recursive"
+    },
+    {
+      "expr": "($letrec ((rev ($lambda (lst acc) ($if (null? lst) acc (rev (cdr lst) (cons (car lst) acc)))))) (rev (list 1 2 3 4 5) ()))",
+      "expected": "(5 4 3 2 1)",
+      "note": "list-reverse-recursive"
+    },
+    {
+      "expr": "($letrec ((rev ($lambda (lst acc) ($if (null? lst) acc (rev (cdr lst) (cons (car lst) acc)))))) (rev () ()))",
+      "expected": "()",
+      "note": "list-reverse-empty"
+    },
+    {
+      "expr": "($letrec ((rev ($lambda (lst acc) ($if (null? lst) acc (rev (cdr lst) (cons (car lst) acc)))))) (rev (list 42) ()))",
+      "expected": "(42)",
+      "note": "list-reverse-single"
+    },
+    {
+      "expr": "($letrec ((rev ($lambda (lst acc) ($if (null? lst) acc (rev (cdr lst) (cons (car lst) acc)))))) (rev (rev (list 1 2 3) ()) ()))",
+      "expected": "(1 2 3)",
+      "note": "list-reverse-preserves-elements"
+    },
+    {
+      "expr": "($letrec ((sum ($lambda (lst) ($if (null? lst) 0 (+ (car lst) (sum (cdr lst))))))) (sum (list 1 2 3 4 5)))",
+      "expected": "15",
+      "note": "list-sum-recursive"
+    },
+    {
+      "expr": "($letrec ((sum ($lambda (lst) ($if (null? lst) 0 (+ (car lst) (sum (cdr lst))))))) (sum ()))",
+      "expected": "0",
+      "note": "list-sum-empty"
+    },
+    {
+      "expr": "($letrec ((sum ($lambda (lst) ($if (null? lst) 0 (+ (car lst) (sum (cdr lst))))))) (sum (list 100)))",
+      "expected": "100",
+      "note": "list-sum-single"
+    },
+    {
+      "expr": "($letrec ((sum ($lambda (lst) ($if (null? lst) 0 (+ (car lst) (sum (cdr lst))))))) (sum (list 1 -1 2 -2 3 -3)))",
+      "expected": "0",
+      "note": "list-sum-negative"
+    },
+    {
+      "expr": "($letrec ((my-even? ($lambda (n) ($if (=? n 0) #t (my-odd? (- n 1))))) (my-odd? ($lambda (n) ($if (=? n 0) #f (my-even? (- n 1)))))) (list (my-even? 0) (my-even? 1) (my-even? 4) (my-odd? 0) (my-odd? 1) (my-odd? 5)))",
+      "expected": "(#t #f #t #f #t #t)",
+      "note": "mutual-recursion-even-odd"
+    },
+    {
+      "expr": "($letrec ((my-even? ($lambda (n) ($if (=? n 0) #t (my-odd? (- n 1))))) (my-odd? ($lambda (n) ($if (=? n 0) #f (my-even? (- n 1)))))) (my-even? 100))",
+      "expected": "#t",
+      "note": "mutual-recursion-even-large"
+    },
+    {
+      "expr": "($letrec ((my-even? ($lambda (n) ($if (=? n 0) #t (my-odd? (- n 1))))) (my-odd? ($lambda (n) ($if (=? n 0) #f (my-even? (- n 1)))))) (my-odd? 99))",
+      "expected": "#t",
+      "note": "mutual-recursion-odd-large"
+    },
+    {
+      "expr": "($letrec ((ping ($lambda (n) ($if (=? n 0) (quote ping) (pong (- n 1))))) (pong ($lambda (n) ($if (=? n 0) (quote pong) (ping (- n 1)))))) (list (ping 0) (ping 1) (ping 2) (ping 3) (ping 4)))",
+      "expected": "(ping pong ping pong ping)",
+      "note": "mutual-recursion-ping-pong"
+    },
+    {
+      "expr": "($let ((make-counter ($lambda (start) ($let ((count start)) ($lambda () ($sequence ($set! count (+ count 1)) count)))))) ($let ((c (make-counter 0))) (list (c) (c) (c))))",
+      "expected": "(1 2 3)",
+      "note": "counter-factory-basic"
+    },
+    {
+      "expr": "($let ((make-counter ($lambda (start) ($let ((count start)) ($lambda () ($sequence ($set! count (+ count 1)) count)))))) ($let ((c1 (make-counter 0)) (c2 (make-counter 100))) (list (c1) (c1) (c2) (c1) (c2))))",
+      "expected": "(1 2 101 3 102)",
+      "note": "counter-factory-independent"
+    },
+    {
+      "expr": "($let ((make-counter ($lambda (start) ($let ((count start)) ($lambda () ($sequence ($set! count (+ count 1)) count)))))) ($let ((c (make-counter -5))) (list (c) (c) (c) (c) (c) (c))))",
+      "expected": "(-4 -3 -2 -1 0 1)",
+      "note": "counter-factory-negative-start"
+    },
+    {
+      "expr": "($let ((make-accumulator ($lambda (init) ($let ((total init)) ($lambda (n) ($sequence ($set! total (+ total n)) total)))))) ($let ((acc (make-accumulator 0))) (list (acc 5) (acc 10) (acc 3))))",
+      "expected": "(5 15 18)",
+      "note": "accumulator-basic"
+    },
+    {
+      "expr": "($let ((make-accumulator ($lambda (init) ($let ((total init)) ($lambda (n) ($sequence ($set! total (+ total n)) total)))))) ($let ((acc (make-accumulator 100))) (list (acc -20) (acc -30) (acc 50))))",
+      "expected": "(80 50 100)",
+      "note": "accumulator-with-negatives"
+    },
+    {
+      "expr": "($let ((make-accumulator ($lambda (init) ($let ((total init)) ($lambda (n) ($sequence ($set! total (+ total n)) total)))))) ($let ((a1 (make-accumulator 0)) (a2 (make-accumulator 1000))) (list (a1 1) (a2 1) (a1 2) (a2 2) (a1 3) (a2 3))))",
+      "expected": "(1 1001 3 1003 6 1006)",
+      "note": "accumulator-independent"
+    },
+    {
+      "expr": "($let ((make-cached ($lambda (compute) ($let ((cached #f) (value #f)) ($lambda () ($if cached value ($sequence ($set! cached #t) ($set! value (compute)) value))))))) ($let ((expensive (make-cached ($lambda () (* 6 7))))) (list (expensive) (expensive) (expensive))))",
+      "expected": "(42 42 42)",
+      "note": "closure-cached-value"
+    },
+    {
+      "expr": "($letrec ((tree-sum ($lambda (tree) ($cond ((null? tree) 0) ((number? tree) tree) ((pair? tree) (+ (tree-sum (car tree)) (tree-sum (cdr tree)))) (#t 0))))) (tree-sum (list (list 1 2) (list 3 (list 4 5)) 6)))",
+      "expected": "21",
+      "note": "tree-sum-leaves"
+    },
+    {
+      "expr": "($letrec ((count-leaves ($lambda (tree) ($cond ((null? tree) 0) ((not? (pair? tree)) 1) (#t (+ (count-leaves (car tree)) (count-leaves (cdr tree)))))))) (count-leaves (list (list 1 2) (list 3 (list 4 5)) 6)))",
+      "expected": "6",
+      "note": "tree-count-leaves"
+    },
+    {
+      "expr": "($letrec ((tree-depth ($lambda (tree) ($cond ((null? tree) 0) ((not? (pair? tree)) 0) (#t (+ 1 (max (tree-depth (car tree)) (tree-depth (cdr tree))))))))) (tree-depth (list (list (list 1)))))",
+      "expected": "3",
+      "note": "tree-depth"
+    },
+    {
+      "expr": "($letrec ((flatten ($lambda (tree) ($cond ((null? tree) ()) ((not? (pair? tree)) (list tree)) (#t (append (flatten (car tree)) (flatten (cdr tree)))))))) (flatten (list (list 1 2) (list 3 (list 4 5)) 6)))",
+      "expected": "(1 2 3 4 5 6)",
+      "note": "tree-flatten"
+    },
+    {
+      "expr": "($letrec ((tree-map ($lambda (f tree) ($cond ((null? tree) ()) ((number? tree) (f tree)) ((pair? tree) (cons (tree-map f (car tree)) (tree-map f (cdr tree)))) (#t tree))))) (tree-map ($lambda (x) (* x 2)) (list (list 1 2) (list 3 4))))",
+      "expected": "((2 4) (6 8))",
+      "note": "tree-map-leaves"
+    },
+    {
+      "expr": "($let ((alist (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3)))) ($let ((lookup ($lambda (key al) ($let ((pair (assoc key al))) ($if pair (cadr pair) #f))))) (list (lookup (quote a) alist) (lookup (quote b) alist) (lookup (quote c) alist) (lookup (quote d) alist))))",
+      "expected": "(1 2 3 #f)",
+      "note": "alist-lookup"
+    },
+    {
+      "expr": "($letrec ((alist-set ($lambda (key val al) ($cond ((null? al) (list (list key val))) ((equal? (caar al) key) (cons (list key val) (cdr al))) (#t (cons (car al) (alist-set key val (cdr al)))))))) (alist-set (quote b) 42 (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3))))",
+      "expected": "((a 1) (b 42) (c 3))",
+      "note": "alist-update"
+    },
+    {
+      "expr": "($letrec ((alist-set ($lambda (key val al) ($cond ((null? al) (list (list key val))) ((equal? (caar al) key) (cons (list key val) (cdr al))) (#t (cons (car al) (alist-set key val (cdr al)))))))) (alist-set (quote d) 4 (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3))))",
+      "expected": "((a 1) (b 2) (c 3) (d 4))",
+      "note": "alist-add-new"
+    },
+    {
+      "expr": "($letrec ((alist-remove ($lambda (key al) ($cond ((null? al) ()) ((equal? (caar al) key) (cdr al)) (#t (cons (car al) (alist-remove key (cdr al)))))))) (alist-remove (quote b) (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3))))",
+      "expected": "((a 1) (c 3))",
+      "note": "alist-remove"
+    },
+    {
+      "expr": "($let ((alist (list (list (quote x) 10) (list (quote y) 20) (list (quote z) 30)))) (map car alist))",
+      "expected": "(x y z)",
+      "note": "alist-keys"
+    },
+    {
+      "expr": "($let ((alist (list (list (quote x) 10) (list (quote y) 20) (list (quote z) 30)))) (map cadr alist))",
+      "expected": "(10 20 30)",
+      "note": "alist-values"
+    },
+    {
+      "expr": "($letrec ((flatten ($lambda (lst) ($cond ((null? lst) ()) ((not? (pair? lst)) (list lst)) (#t (append (flatten (car lst)) (flatten (cdr lst)))))))) (flatten (list 1 (list 2 3) (list 4 (list 5 6)) 7)))",
+      "expected": "(1 2 3 4 5 6 7)",
+      "note": "flatten-nested-lists"
+    },
+    {
+      "expr": "($letrec ((flatten ($lambda (lst) ($cond ((null? lst) ()) ((not? (pair? lst)) (list lst)) (#t (append (flatten (car lst)) (flatten (cdr lst)))))))) (flatten (list (list (list (list 1))) 2)))",
+      "expected": "(1 2)",
+      "note": "flatten-deep-nesting"
+    },
+    {
+      "expr": "($letrec ((flatten ($lambda (lst) ($cond ((null? lst) ()) ((not? (pair? lst)) (list lst)) (#t (append (flatten (car lst)) (flatten (cdr lst)))))))) (flatten (list 1 2 3 4 5)))",
+      "expected": "(1 2 3 4 5)",
+      "note": "flatten-already-flat"
+    },
+    {
+      "expr": "($letrec ((flatten ($lambda (lst) ($cond ((null? lst) ()) ((not? (pair? lst)) (list lst)) (#t (append (flatten (car lst)) (flatten (cdr lst)))))))) (flatten ()))",
+      "expected": "()",
+      "note": "flatten-empty"
+    },
+    {
+      "expr": "($letrec ((flatten1 ($lambda (lst) ($if (null? lst) () (append (car lst) (flatten1 (cdr lst))))))) (flatten1 (list (list 1 2) (list 3 4) (list 5 6))))",
+      "expected": "(1 2 3 4 5 6)",
+      "note": "flatten-one-level"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ($let ((add1 ($lambda (x) (+ x 1))) (double ($lambda (x) (* x 2)))) ((compose add1 double) 5)))",
+      "expected": "11",
+      "note": "compose-two-functions"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ($let ((add1 ($lambda (x) (+ x 1))) (double ($lambda (x) (* x 2)))) (list ((compose add1 double) 5) ((compose double add1) 5))))",
+      "expected": "(11 12)",
+      "note": "compose-order-matters"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ($let ((id ($lambda (x) x)) (square ($lambda (x) (* x x)))) ((compose id square) 7)))",
+      "expected": "49",
+      "note": "compose-identity"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ($let ((add1 ($lambda (x) (+ x 1))) (double ($lambda (x) (* x 2))) (square ($lambda (x) (* x x)))) ((compose add1 (compose double square)) 3)))",
+      "expected": "19",
+      "note": "compose-chain"
+    },
+    {
+      "expr": "($letrec ((compose-all ($lambda (fns) ($if (null? (cdr fns)) (car fns) ($let ((f (car fns)) (rest (compose-all (cdr fns)))) ($lambda (x) (f (rest x)))))))) ($let ((add1 ($lambda (x) (+ x 1))) (double ($lambda (x) (* x 2))) (square ($lambda (x) (* x x)))) ((compose-all (list add1 double square)) 2)))",
+      "expected": "9",
+      "note": "compose-many"
+    },
+    {
+      "expr": "($let ((partial ($lambda (f . args) ($lambda rest (apply f (append args rest)))))) ($let ((add3 (partial + 1 2))) (add3 4 5)))",
+      "expected": "12",
+      "note": "partial-application"
+    },
+    {
+      "expr": "($let ((curry2 ($lambda (f) ($lambda (a) ($lambda (b) (f a b)))))) ($let ((curried-sub (curry2 ($lambda (x y) (- x y))))) (((curried-sub) 10) 3)))",
+      "expected": "7",
+      "note": "curry-two-arg"
+    },
+    {
+      "expr": "($let ((partial ($lambda (f . args) ($lambda rest (apply f (append args rest)))))) ($let ((prepend-1 (partial cons 1))) (prepend-1 (list 2 3))))",
+      "expected": "(1 2 3)",
+      "note": "partial-cons"
+    },
+    {
+      "expr": "($let ((partial ($lambda (f . args) ($lambda rest (apply f (append args rest)))))) ($let ((filter-evens (partial filter even?))) (filter-evens (list 1 2 3 4 5 6))))",
+      "expected": "(2 4 6)",
+      "note": "partial-filter"
+    },
+    {
+      "expr": "($letrec ((fold-left ($lambda (f init lst) ($if (null? lst) init (fold-left f (f init (car lst)) (cdr lst)))))) (fold-left + 0 (list 1 2 3 4 5)))",
+      "expected": "15",
+      "note": "fold-left-sum"
+    },
+    {
+      "expr": "($letrec ((fold-left ($lambda (f init lst) ($if (null? lst) init (fold-left f (f init (car lst)) (cdr lst)))))) (fold-left ($lambda (acc x) (cons x acc)) () (list 1 2 3)))",
+      "expected": "(3 2 1)",
+      "note": "fold-left-reverse"
+    },
+    {
+      "expr": "($letrec ((fold-right ($lambda (f init lst) ($if (null? lst) init (f (car lst) (fold-right f init (cdr lst))))))) (fold-right + 0 (list 1 2 3 4 5)))",
+      "expected": "15",
+      "note": "fold-right-sum"
+    },
+    {
+      "expr": "($letrec ((fold-right ($lambda (f init lst) ($if (null? lst) init (f (car lst) (fold-right f init (cdr lst))))))) (fold-right cons () (list 1 2 3)))",
+      "expected": "(1 2 3)",
+      "note": "fold-right-copy"
+    },
+    {
+      "expr": "($letrec ((fold-right ($lambda (f init lst) ($if (null? lst) init (f (car lst) (fold-right f init (cdr lst))))))) (fold-right append () (list (list 1 2) (list 3 4) (list 5 6))))",
+      "expected": "(1 2 3 4 5 6)",
+      "note": "fold-right-append"
+    },
+    {
+      "expr": "($letrec ((fold-left ($lambda (f init lst) ($if (null? lst) init (fold-left f (f init (car lst)) (cdr lst)))))) (fold-left ($lambda (al pair) (cons pair al)) () (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3))))",
+      "expected": "((c 3) (b 2) (a 1))",
+      "note": "fold-build-alist"
+    },
+    {
+      "expr": "($let ((grade ($lambda (score) ($cond ((>=? score 90) (quote A)) ((>=? score 80) (quote B)) ((>=? score 70) (quote C)) ((>=? score 60) (quote D)) (#t (quote F)))))) (map grade (list 95 85 75 65 55)))",
+      "expected": "(A B C D F)",
+      "note": "multi-branch-grade"
+    },
+    {
+      "expr": "($let ((fizzbuzz ($lambda (n) ($cond ((=? (mod n 15) 0) (quote fizzbuzz)) ((=? (mod n 3) 0) (quote fizz)) ((=? (mod n 5) 0) (quote buzz)) (#t n))))) (map fizzbuzz (list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)))",
+      "expected": "(1 2 fizz 4 buzz fizz 7 8 fizz buzz 11 fizz 13 14 fizzbuzz)",
+      "note": "multi-branch-fizzbuzz"
+    },
+    {
+      "expr": "($let ((sign ($lambda (n) ($cond ((<? n 0) -1) ((=? n 0) 0) (#t 1))))) (map sign (list -5 -1 0 1 5)))",
+      "expected": "(-1 -1 0 1 1)",
+      "note": "multi-branch-sign"
+    },
+    {
+      "expr": "($let ((classify ($lambda (x) ($cond ((null? x) (quote nil)) ((number? x) (quote number)) ((boolean? x) (quote boolean)) ((pair? x) (quote pair)) ((symbol? x) (quote symbol)) (#t (quote other)))))) (map classify (list () 42 #t (cons 1 2) (quote hello))))",
+      "expected": "(nil number boolean pair symbol)",
+      "note": "multi-branch-classify"
+    },
+    {
+      "expr": "($letrec ((find-first ($lambda (pred lst) ($cond ((null? lst) #f) ((pred (car lst)) (car lst)) (#t (find-first pred (cdr lst))))))) (find-first even? (list 1 3 5 6 7 8)))",
+      "expected": "6",
+      "note": "early-return-find"
+    },
+    {
+      "expr": "($letrec ((find-first ($lambda (pred lst) ($cond ((null? lst) #f) ((pred (car lst)) (car lst)) (#t (find-first pred (cdr lst))))))) (find-first even? (list 1 3 5 7 9)))",
+      "expected": "#f",
+      "note": "early-return-find-not-found"
+    },
+    {
+      "expr": "($letrec ((any? ($lambda (pred lst) ($cond ((null? lst) #f) ((pred (car lst)) #t) (#t (any? pred (cdr lst))))))) (list (any? even? (list 1 3 5 6)) (any? even? (list 1 3 5 7))))",
+      "expected": "(#t #f)",
+      "note": "early-return-any"
+    },
+    {
+      "expr": "($letrec ((all? ($lambda (pred lst) ($cond ((null? lst) #t) ((not? (pred (car lst))) #f) (#t (all? pred (cdr lst))))))) (list (all? positive? (list 1 2 3)) (all? positive? (list 1 -2 3))))",
+      "expected": "(#t #f)",
+      "note": "early-return-all"
+    },
+    {
+      "expr": "($let ((sandbox (make-environment))) ($let ((result (eval (list $define! (quote x) 42) sandbox))) (eval (quote x) sandbox)))",
+      "expected": "42",
+      "note": "sandbox-isolated-binding"
+    },
+    {
+      "expr": "($let ((sandbox (make-environment))) (eval (list $define! (quote sandbox-only) 999) sandbox) ($binds? (get-current-environment) sandbox-only))",
+      "expected": "#f",
+      "note": "sandbox-does-not-pollute-outer"
+    },
+    {
+      "expr": "($let ((sandbox (make-environment))) (eval (list + 1 2 3 4 5) sandbox))",
+      "expected": "15",
+      "note": "sandbox-compute-expression"
+    },
+    {
+      "expr": "($let ((sandbox (make-environment (get-current-environment)))) ($let ((setup (eval (list $define! (quote multiplier) 10) sandbox))) (eval (list * (quote multiplier) 5) sandbox)))",
+      "expected": "50",
+      "note": "sandbox-with-preloaded-binding"
+    },
+    {
+      "expr": "($define! base-x 100) ($let ((extended (make-environment (get-current-environment)))) (eval (list $define! (quote base-x) 200) extended) (list (eval (quote base-x) extended) base-x))",
+      "expected": "(200 100)",
+      "note": "extend-environment-shadow"
+    },
+    {
+      "expr": "($define! inherited-val 42) ($let ((child (make-environment (get-current-environment)))) (eval (quote inherited-val) child))",
+      "expected": "42",
+      "note": "extend-environment-inherit"
+    },
+    {
+      "expr": "($let ((get-x ($vau () e (eval (quote x) e)))) ($let ((x 99)) (get-x)))",
+      "expected": "99",
+      "note": "vau-captures-dynamic-env"
+    },
+    {
+      "expr": "($let ((eval-it ($vau (expr) e (eval expr e)))) ($let ((y 7)) (eval-it (+ y 3))))",
+      "expected": "10",
+      "note": "vau-eval-operand-in-caller-env"
+    },
+    {
+      "expr": "($letrec ((qsort ($lambda (lst) ($if (null? lst) () ($let ((pivot (car lst)) (rest (cdr lst))) (append (qsort (filter ($lambda (x) (<? x pivot)) rest)) (cons pivot (qsort (filter ($lambda (x) (>=? x pivot)) rest))))))))) (qsort (list 3 1 4 1 5 9 2 6 5 3 5)))",
+      "expected": "(1 1 2 3 3 4 5 5 5 6 9)",
+      "note": "quicksort-basic"
+    },
+    {
+      "expr": "($letrec ((qsort ($lambda (lst) ($if (null? lst) () ($let ((pivot (car lst)) (rest (cdr lst))) (append (qsort (filter ($lambda (x) (<? x pivot)) rest)) (cons pivot (qsort (filter ($lambda (x) (>=? x pivot)) rest))))))))) (qsort ()))",
+      "expected": "()",
+      "note": "quicksort-empty"
+    },
+    {
+      "expr": "($letrec ((qsort ($lambda (lst) ($if (null? lst) () ($let ((pivot (car lst)) (rest (cdr lst))) (append (qsort (filter ($lambda (x) (<? x pivot)) rest)) (cons pivot (qsort (filter ($lambda (x) (>=? x pivot)) rest))))))))) (qsort (list 42)))",
+      "expected": "(42)",
+      "note": "quicksort-single"
+    },
+    {
+      "expr": "($letrec ((qsort ($lambda (lst) ($if (null? lst) () ($let ((pivot (car lst)) (rest (cdr lst))) (append (qsort (filter ($lambda (x) (<? x pivot)) rest)) (cons pivot (qsort (filter ($lambda (x) (>=? x pivot)) rest))))))))) (qsort (list 1 2 3 4 5)))",
+      "expected": "(1 2 3 4 5)",
+      "note": "quicksort-already-sorted"
+    },
+    {
+      "expr": "($letrec ((qsort ($lambda (lst) ($if (null? lst) () ($let ((pivot (car lst)) (rest (cdr lst))) (append (qsort (filter ($lambda (x) (<? x pivot)) rest)) (cons pivot (qsort (filter ($lambda (x) (>=? x pivot)) rest))))))))) (qsort (list 5 4 3 2 1)))",
+      "expected": "(1 2 3 4 5)",
+      "note": "quicksort-reverse-sorted"
+    },
+    {
+      "expr": "($letrec ((merge ($lambda (l1 l2) ($cond ((null? l1) l2) ((null? l2) l1) ((<=? (car l1) (car l2)) (cons (car l1) (merge (cdr l1) l2))) (#t (cons (car l2) (merge l1 (cdr l2))))))) (split ($lambda (lst) ($letrec ((split-aux ($lambda (slow fast) ($if (or? (null? fast) (null? (cdr fast))) (list slow ()) (split-aux (cdr slow) (cdr (cdr fast))))))) ($if (null? lst) (list () ()) ($let ((mid (split-aux lst lst))) (list (take (length (car mid)) lst) (drop (length (car mid)) lst))))))) (take ($lambda (n lst) ($if (or? (=? n 0) (null? lst)) () (cons (car lst) (take (- n 1) (cdr lst)))))) (drop ($lambda (n lst) ($if (or? (=? n 0) (null? lst)) lst (drop (- n 1) (cdr lst))))) (msort ($lambda (lst) ($if (or? (null? lst) (null? (cdr lst))) lst ($let ((half (div (length lst) 2))) (merge (msort (take half lst)) (msort (drop half lst)))))))) (msort (list 5 2 8 1 9 3 7 4 6)))",
+      "expected": "(1 2 3 4 5 6 7 8 9)",
+      "note": "mergesort-basic"
+    },
+    {
+      "expr": "($letrec ((bsearch ($lambda (lst target) ($letrec ((search ($lambda (lo hi) ($if (>? lo hi) -1 ($let ((mid (div (+ lo hi) 2)) (midval (list-ref lst (div (+ lo hi) 2)))) ($cond ((=? midval target) mid) ((<? midval target) (search (+ mid 1) hi)) (#t (search lo (- mid 1))))))))) (search 0 (- (length lst) 1)))))) (bsearch (list 1 3 5 7 9 11 13 15 17 19) 7))",
+      "expected": "3",
+      "note": "binary-search-found"
+    },
+    {
+      "expr": "($letrec ((bsearch ($lambda (lst target) ($letrec ((search ($lambda (lo hi) ($if (>? lo hi) -1 ($let ((mid (div (+ lo hi) 2)) (midval (list-ref lst (div (+ lo hi) 2)))) ($cond ((=? midval target) mid) ((<? midval target) (search (+ mid 1) hi)) (#t (search lo (- mid 1))))))))) (search 0 (- (length lst) 1)))))) (bsearch (list 1 3 5 7 9 11 13 15 17 19) 8))",
+      "expected": "-1",
+      "note": "binary-search-not-found"
+    },
+    {
+      "expr": "($letrec ((bsearch ($lambda (lst target) ($letrec ((search ($lambda (lo hi) ($if (>? lo hi) -1 ($let ((mid (div (+ lo hi) 2)) (midval (list-ref lst (div (+ lo hi) 2)))) ($cond ((=? midval target) mid) ((<? midval target) (search (+ mid 1) hi)) (#t (search lo (- mid 1))))))))) (search 0 (- (length lst) 1)))))) (bsearch (list 1 3 5 7 9) 1))",
+      "expected": "0",
+      "note": "binary-search-first"
+    },
+    {
+      "expr": "($letrec ((bsearch ($lambda (lst target) ($letrec ((search ($lambda (lo hi) ($if (>? lo hi) -1 ($let ((mid (div (+ lo hi) 2)) (midval (list-ref lst (div (+ lo hi) 2)))) ($cond ((=? midval target) mid) ((<? midval target) (search (+ mid 1) hi)) (#t (search lo (- mid 1))))))))) (search 0 (- (length lst) 1)))))) (bsearch (list 1 3 5 7 9) 9))",
+      "expected": "4",
+      "note": "binary-search-last"
+    },
+    {
+      "expr": "($letrec ((my-gcd ($lambda (a b) ($if (=? b 0) a (my-gcd b (mod a b)))))) (my-gcd 48 18))",
+      "expected": "6",
+      "note": "gcd-euclidean"
+    },
+    {
+      "expr": "($letrec ((my-gcd ($lambda (a b) ($if (=? b 0) a (my-gcd b (mod a b)))))) (my-gcd 17 13))",
+      "expected": "1",
+      "note": "gcd-euclidean-coprime"
+    },
+    {
+      "expr": "($letrec ((my-gcd ($lambda (a b) ($if (=? b 0) a (my-gcd b (mod a b)))))) (my-gcd 100 25))",
+      "expected": "25",
+      "note": "gcd-euclidean-one-divides"
+    },
+    {
+      "expr": "($letrec ((is-prime? ($lambda (n) ($cond ((<? n 2) #f) ((=? n 2) #t) ((even? n) #f) (#t ($letrec ((check ($lambda (i) ($cond ((>? (* i i) n) #t) ((=? (mod n i) 0) #f) (#t (check (+ i 2))))))) (check 3))))))) (filter is-prime? (list 1 2 3 4 5 6 7 8 9 10 11 12 13)))",
+      "expected": "(2 3 5 7 11 13)",
+      "note": "is-prime-basic"
+    },
+    {
+      "expr": "($letrec ((is-prime? ($lambda (n) ($cond ((<? n 2) #f) ((=? n 2) #t) ((even? n) #f) (#t ($letrec ((check ($lambda (i) ($cond ((>? (* i i) n) #t) ((=? (mod n i) 0) #f) (#t (check (+ i 2))))))) (check 3))))))) (map is-prime? (list 2 3 5 7 11 13 17 19 23 29)))",
+      "expected": "(#t #t #t #t #t #t #t #t #t #t)",
+      "note": "is-prime-first-primes"
+    },
+    {
+      "expr": "($letrec ((is-prime? ($lambda (n) ($cond ((<? n 2) #f) ((=? n 2) #t) ((even? n) #f) (#t ($letrec ((check ($lambda (i) ($cond ((>? (* i i) n) #t) ((=? (mod n i) 0) #f) (#t (check (+ i 2))))))) (check 3))))))) (map is-prime? (list 4 6 8 9 10 12 14 15 16 18)))",
+      "expected": "(#f #f #f #f #f #f #f #f #f #f)",
+      "note": "is-prime-composites"
+    },
+    {
+      "expr": "($letrec ((next-state ($lambda (state) ($cond ((eq? state (quote red)) (quote green)) ((eq? state (quote green)) (quote yellow)) ((eq? state (quote yellow)) (quote red)) (#t (quote unknown))))) (run ($lambda (state n) ($if (=? n 0) () (cons state (run (next-state state) (- n 1))))))) (run (quote red) 7))",
+      "expected": "(red green yellow red green yellow red)",
+      "note": "state-machine-traffic-light"
+    },
+    {
+      "expr": "($letrec ((run ($lambda (state n) ($if (=? n 0) () (cons state (run (mod (+ state 1) 4) (- n 1))))))) (run 0 10))",
+      "expected": "(0 1 2 3 0 1 2 3 0 1)",
+      "note": "state-machine-counter-mod"
+    },
+    {
+      "expr": "($letrec ((fact-cps ($lambda (n k) ($if (=? n 0) (k 1) (fact-cps (- n 1) ($lambda (result) (k (* n result)))))))) (fact-cps 5 ($lambda (x) x)))",
+      "expected": "120",
+      "note": "cps-factorial"
+    },
+    {
+      "expr": "($letrec ((sum-cps ($lambda (lst k) ($if (null? lst) (k 0) (sum-cps (cdr lst) ($lambda (rest-sum) (k (+ (car lst) rest-sum)))))))) (sum-cps (list 1 2 3 4 5) ($lambda (x) x)))",
+      "expected": "15",
+      "note": "cps-sum-list"
+    },
+    {
+      "expr": "($letrec ((map-cps ($lambda (f lst k) ($if (null? lst) (k ()) (map-cps f (cdr lst) ($lambda (rest) (k (cons (f (car lst)) rest)))))))) (map-cps ($lambda (x) (* x x)) (list 1 2 3 4 5) ($lambda (x) x)))",
+      "expected": "(1 4 9 16 25)",
+      "note": "cps-map"
+    },
+    {
+      "expr": "($letrec ((make-thunk ($lambda (f) (list (quote thunk) f))) (thunk? ($lambda (x) (and? (pair? x) (eq? (car x) (quote thunk))))) (run-thunk ($lambda (t) ((cadr t)))) (trampoline ($lambda (t) ($if (thunk? t) (trampoline (run-thunk t)) t))) (even-t ($lambda (n) ($if (=? n 0) #t (make-thunk ($lambda () (odd-t (- n 1))))))) (odd-t ($lambda (n) ($if (=? n 0) #f (make-thunk ($lambda () (even-t (- n 1)))))))) (list (trampoline (even-t 10)) (trampoline (odd-t 10)) (trampoline (even-t 11)) (trampoline (odd-t 11))))",
+      "expected": "(#t #f #f #t)",
+      "note": "trampoline-even-odd"
+    },
+    {
+      "expr": "($let ((nums (list 2 4 6 8 10))) ($let ((sum (reduce + 0 nums)) (len (length nums)) (mean (div (reduce + 0 nums) (length nums)))) (list sum len mean)))",
+      "expected": "(30 5 6)",
+      "note": "integration-statistical-operations"
+    },
+    {
+      "expr": "($let ((pipeline ($lambda (x . fns) (reduce ($lambda (acc f) (f acc)) x fns)))) (pipeline 5 ($lambda (x) (+ x 1)) ($lambda (x) (* x 2)) ($lambda (x) (- x 3))))",
+      "expected": "9",
+      "note": "integration-transform-pipeline"
+    },
+    {
+      "expr": "($let ((range ($lambda (start end) ($letrec ((loop ($lambda (i acc) ($if (<? i start) acc (loop (- i 1) (cons i acc)))))) (loop (- end 1) ()))))) (map ($lambda (x) (* x x)) (filter even? (range 1 11))))",
+      "expected": "(4 16 36 64 100)",
+      "note": "integration-list-comprehension-style"
+    },
+    {
+      "expr": "($let ((data (list (list (quote name) (quote alice) (quote age) 30) (list (quote name) (quote bob) (quote age) 25) (list (quote name) (quote carol) (quote age) 35)))) ($let ((get-field ($lambda (field record) ($letrec ((find ($lambda (lst) ($cond ((null? lst) #f) ((eq? (car lst) field) (cadr lst)) (#t (find (cdr (cdr lst)))))))) (find record))))) (filter ($lambda (x) (>? x 27)) (map ($lambda (r) (get-field (quote age) r)) data))))",
+      "expected": "(30 35)",
+      "note": "integration-nested-data-transform"
+    },
+    {
+      "expr": "($letrec ((build-squares ($lambda (n acc) ($if (=? n 0) acc (build-squares (- n 1) (cons (* n n) acc)))))) (build-squares 10 ()))",
+      "expected": "(1 4 9 16 25 36 49 64 81 100)",
+      "note": "integration-recursive-with-accumulator"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ($let ((double ($lambda (x) (* x 2))) (square ($lambda (x) (* x x)))) (map (compose double square) (filter odd? (list 1 2 3 4 5)))))",
+      "expected": "(2 18 50)",
+      "note": "integration-higher-order-compose-map-filter"
+    }
+  ]
+}

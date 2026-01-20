@@ -1,0 +1,995 @@
+{
+  "description": "Boolean and equivalence test expressions for Kernel language",
+  "tests": [
+    {
+      "expr": "(boolean? #t)",
+      "expected": "#t",
+      "note": "true is a boolean"
+    },
+    {
+      "expr": "(boolean? #f)",
+      "expected": "#t",
+      "note": "false is a boolean"
+    },
+    {
+      "expr": "(boolean?)",
+      "expected": "#t",
+      "note": "zero arguments returns true (vacuous truth)"
+    },
+    {
+      "expr": "(boolean? #t #f)",
+      "expected": "#t",
+      "note": "multiple booleans all boolean"
+    },
+    {
+      "expr": "(boolean? #t #t #t)",
+      "expected": "#t",
+      "note": "multiple true values"
+    },
+    {
+      "expr": "(boolean? #f #f #f)",
+      "expected": "#t",
+      "note": "multiple false values"
+    },
+    {
+      "expr": "(boolean? 0)",
+      "expected": "#f",
+      "note": "number is not a boolean"
+    },
+    {
+      "expr": "(boolean? 1)",
+      "expected": "#f",
+      "note": "number 1 is not a boolean"
+    },
+    {
+      "expr": "(boolean? ())",
+      "expected": "#f",
+      "note": "nil is not a boolean"
+    },
+    {
+      "expr": "(boolean? (cons 1 2))",
+      "expected": "#f",
+      "note": "pair is not a boolean"
+    },
+    {
+      "expr": "(boolean? (list 1 2 3))",
+      "expected": "#f",
+      "note": "list is not a boolean"
+    },
+    {
+      "expr": "(boolean? #inert)",
+      "expected": "#f",
+      "note": "inert is not a boolean"
+    },
+    {
+      "expr": "(boolean? $if)",
+      "expected": "#f",
+      "note": "operative is not a boolean"
+    },
+    {
+      "expr": "(boolean? cons)",
+      "expected": "#f",
+      "note": "applicative is not a boolean"
+    },
+    {
+      "expr": "(boolean? (make-environment))",
+      "expected": "#f",
+      "note": "environment is not a boolean"
+    },
+    {
+      "expr": "(boolean? \"hello\")",
+      "expected": "#f",
+      "note": "string is not a boolean"
+    },
+    {
+      "expr": "(boolean? #t 42)",
+      "expected": "#f",
+      "note": "mixed args: one non-boolean fails"
+    },
+    {
+      "expr": "(boolean? 42 #t)",
+      "expected": "#f",
+      "note": "mixed args: non-boolean first fails"
+    },
+    {
+      "expr": "(boolean? #t #f 42 #t)",
+      "expected": "#f",
+      "note": "mixed args: non-boolean in middle fails"
+    },
+    {
+      "expr": "(eq? #t #t)",
+      "expected": "#t",
+      "note": "true is eq to itself"
+    },
+    {
+      "expr": "(eq? #f #f)",
+      "expected": "#t",
+      "note": "false is eq to itself"
+    },
+    {
+      "expr": "(eq? #t #f)",
+      "expected": "#f",
+      "note": "true is not eq to false"
+    },
+    {
+      "expr": "(eq? #f #t)",
+      "expected": "#f",
+      "note": "false is not eq to true"
+    },
+    {
+      "expr": "(eq? () ())",
+      "expected": "#t",
+      "note": "nil is eq to nil"
+    },
+    {
+      "expr": "(eq? #inert #inert)",
+      "expected": "#t",
+      "note": "inert is eq to itself"
+    },
+    {
+      "expr": "(eq? 0 0)",
+      "expected": "#t",
+      "note": "same number is eq"
+    },
+    {
+      "expr": "(eq? 42 42)",
+      "expected": "#t",
+      "note": "same integer is eq"
+    },
+    {
+      "expr": "(eq? 1 2)",
+      "expected": "#f",
+      "note": "different numbers are not eq"
+    },
+    {
+      "expr": "($let ((x (cons 1 2))) (eq? x x))",
+      "expected": "#t",
+      "note": "same pair object is eq to itself"
+    },
+    {
+      "expr": "(eq? (cons 1 2) (cons 1 2))",
+      "expected": "#f",
+      "note": "different pairs with same content are not eq"
+    },
+    {
+      "expr": "($let ((x (list 1 2 3))) (eq? x x))",
+      "expected": "#t",
+      "note": "same list object is eq to itself"
+    },
+    {
+      "expr": "(eq? (list 1 2 3) (list 1 2 3))",
+      "expected": "#f",
+      "note": "different lists with same content are not eq"
+    },
+    {
+      "expr": "(eq? $if $if)",
+      "expected": "#t",
+      "note": "same operative is eq to itself"
+    },
+    {
+      "expr": "(eq? cons cons)",
+      "expected": "#t",
+      "note": "same applicative is eq to itself"
+    },
+    {
+      "expr": "(eq? cons list)",
+      "expected": "#f",
+      "note": "different applicatives are not eq"
+    },
+    {
+      "expr": "($let ((f ($lambda () #t))) (eq? f f))",
+      "expected": "#t",
+      "note": "same lambda is eq to itself"
+    },
+    {
+      "expr": "(eq? ($lambda () #t) ($lambda () #t))",
+      "expected": "#f",
+      "note": "different lambdas are not eq even with same body"
+    },
+    {
+      "expr": "($let ((e (make-environment))) (eq? e e))",
+      "expected": "#t",
+      "note": "same environment is eq to itself"
+    },
+    {
+      "expr": "(eq? (make-environment) (make-environment))",
+      "expected": "#f",
+      "note": "different empty environments are not eq"
+    },
+    {
+      "expr": "(eq? \"hello\" \"hello\")",
+      "expected": "#t",
+      "note": "identical string literals are eq (interned)"
+    },
+    {
+      "expr": "(eq? 'foo 'foo)",
+      "expected": "#t",
+      "note": "same symbols are eq"
+    },
+    {
+      "expr": "(eq? 'foo 'bar)",
+      "expected": "#f",
+      "note": "different symbols are not eq"
+    },
+    {
+      "expr": "(equal? #t #t)",
+      "expected": "#t",
+      "note": "true is equal to itself"
+    },
+    {
+      "expr": "(equal? #f #f)",
+      "expected": "#t",
+      "note": "false is equal to itself"
+    },
+    {
+      "expr": "(equal? #t #f)",
+      "expected": "#f",
+      "note": "true is not equal to false"
+    },
+    {
+      "expr": "(equal? #f #t)",
+      "expected": "#f",
+      "note": "false is not equal to true"
+    },
+    {
+      "expr": "(equal? () ())",
+      "expected": "#t",
+      "note": "nil is equal to nil"
+    },
+    {
+      "expr": "(equal? #inert #inert)",
+      "expected": "#t",
+      "note": "inert is equal to itself"
+    },
+    {
+      "expr": "(equal? 0 0)",
+      "expected": "#t",
+      "note": "same number is equal"
+    },
+    {
+      "expr": "(equal? 42 42)",
+      "expected": "#t",
+      "note": "same integer is equal"
+    },
+    {
+      "expr": "(equal? 1 2)",
+      "expected": "#f",
+      "note": "different numbers are not equal"
+    },
+    {
+      "expr": "(equal? (cons 1 2) (cons 1 2))",
+      "expected": "#t",
+      "note": "pairs with same content are equal"
+    },
+    {
+      "expr": "(equal? (cons 1 2) (cons 1 3))",
+      "expected": "#f",
+      "note": "pairs with different cdr are not equal"
+    },
+    {
+      "expr": "(equal? (cons 1 2) (cons 2 2))",
+      "expected": "#f",
+      "note": "pairs with different car are not equal"
+    },
+    {
+      "expr": "(equal? (list 1 2 3) (list 1 2 3))",
+      "expected": "#t",
+      "note": "lists with same content are equal"
+    },
+    {
+      "expr": "(equal? (list 1 2 3) (list 1 2))",
+      "expected": "#f",
+      "note": "lists with different length are not equal"
+    },
+    {
+      "expr": "(equal? (list 1 2 3) (list 1 2 4))",
+      "expected": "#f",
+      "note": "lists with different elements are not equal"
+    },
+    {
+      "expr": "(equal? (list (list 1 2) (list 3 4)) (list (list 1 2) (list 3 4)))",
+      "expected": "#t",
+      "note": "nested lists with same structure are equal"
+    },
+    {
+      "expr": "(equal? (list (list 1 2) 3) (list (list 1 2) 4))",
+      "expected": "#f",
+      "note": "nested lists with different elements are not equal"
+    },
+    {
+      "expr": "(equal? \"hello\" \"hello\")",
+      "expected": "#t",
+      "note": "same strings are equal"
+    },
+    {
+      "expr": "(equal? \"hello\" \"world\")",
+      "expected": "#f",
+      "note": "different strings are not equal"
+    },
+    {
+      "expr": "(equal? 'foo 'foo)",
+      "expected": "#t",
+      "note": "same symbols are equal"
+    },
+    {
+      "expr": "(equal? 'foo 'bar)",
+      "expected": "#f",
+      "note": "different symbols are not equal"
+    },
+    {
+      "expr": "(equal? #t 1)",
+      "expected": "#f",
+      "note": "different types are not equal (boolean vs number)"
+    },
+    {
+      "expr": "(equal? () #f)",
+      "expected": "#f",
+      "note": "different types are not equal (nil vs boolean)"
+    },
+    {
+      "expr": "(equal? 0 #f)",
+      "expected": "#f",
+      "note": "different types are not equal (number vs boolean)"
+    },
+    {
+      "expr": "(equal? $if $if)",
+      "expected": "#t",
+      "note": "same operative is equal to itself"
+    },
+    {
+      "expr": "(equal? cons cons)",
+      "expected": "#t",
+      "note": "same applicative is equal to itself"
+    },
+    {
+      "expr": "($let ((f ($lambda () #t))) (equal? f f))",
+      "expected": "#t",
+      "note": "same lambda is equal to itself"
+    },
+    {
+      "expr": "(equal? ($lambda () #t) ($lambda () #t))",
+      "expected": "#f",
+      "note": "different lambdas are not equal (even with same body)"
+    },
+    {
+      "expr": "($let ((e (make-environment))) (equal? e e))",
+      "expected": "#t",
+      "note": "same environment is equal to itself"
+    },
+    {
+      "expr": "(equal? (make-environment) (make-environment))",
+      "expected": "#f",
+      "note": "different environments are not equal"
+    },
+    {
+      "expr": "(not? #t)",
+      "expected": "#f",
+      "note": "not true is false"
+    },
+    {
+      "expr": "(not? #f)",
+      "expected": "#t",
+      "note": "not false is true"
+    },
+    {
+      "expr": "(not? (eq? 1 1))",
+      "expected": "#f",
+      "note": "not of true expression"
+    },
+    {
+      "expr": "(not? (eq? 1 2))",
+      "expected": "#t",
+      "note": "not of false expression"
+    },
+    {
+      "expr": "(not? (not? #t))",
+      "expected": "#t",
+      "note": "double negation of true"
+    },
+    {
+      "expr": "(not? (not? #f))",
+      "expected": "#f",
+      "note": "double negation of false"
+    },
+    {
+      "expr": "(not? (not? (not? #t)))",
+      "expected": "#f",
+      "note": "triple negation of true"
+    },
+    {
+      "expr": "(not? 0)",
+      "expected": "error",
+      "note": "not? on 0 is error"
+    },
+    {
+      "expr": "(not? 1)",
+      "expected": "error",
+      "note": "not? on 1 is error"
+    },
+    {
+      "expr": "(not? ())",
+      "expected": "error",
+      "note": "not? on nil is error"
+    },
+    {
+      "expr": "(not? (list 1 2))",
+      "expected": "error",
+      "note": "not? on list is error"
+    },
+    {
+      "expr": "(not? \"true\")",
+      "expected": "error",
+      "note": "not? on string is error"
+    },
+    {
+      "expr": "(and?)",
+      "expected": "#t",
+      "note": "zero arguments returns true"
+    },
+    {
+      "expr": "(and? #t)",
+      "expected": "#t",
+      "note": "single true argument"
+    },
+    {
+      "expr": "(and? #f)",
+      "expected": "#f",
+      "note": "single false argument"
+    },
+    {
+      "expr": "(and? #t #t)",
+      "expected": "#t",
+      "note": "two true arguments"
+    },
+    {
+      "expr": "(and? #t #f)",
+      "expected": "#f",
+      "note": "true and false"
+    },
+    {
+      "expr": "(and? #f #t)",
+      "expected": "#f",
+      "note": "false and true"
+    },
+    {
+      "expr": "(and? #f #f)",
+      "expected": "#f",
+      "note": "two false arguments"
+    },
+    {
+      "expr": "(and? #t #t #t)",
+      "expected": "#t",
+      "note": "three true arguments"
+    },
+    {
+      "expr": "(and? #t #t #f)",
+      "expected": "#f",
+      "note": "two true and one false"
+    },
+    {
+      "expr": "(and? #t #f #t)",
+      "expected": "#f",
+      "note": "false in middle"
+    },
+    {
+      "expr": "(and? #f #t #t)",
+      "expected": "#f",
+      "note": "false at start"
+    },
+    {
+      "expr": "(and? #t #t #t #t #t)",
+      "expected": "#t",
+      "note": "many true arguments"
+    },
+    {
+      "expr": "(and? #t #t #t #f #t)",
+      "expected": "#f",
+      "note": "one false among many true"
+    },
+    {
+      "expr": "(and? (eq? 1 1) (eq? 2 2))",
+      "expected": "#t",
+      "note": "and? with evaluated expressions (both true)"
+    },
+    {
+      "expr": "(and? (eq? 1 1) (eq? 1 2))",
+      "expected": "#f",
+      "note": "and? with evaluated expressions (one false)"
+    },
+    {
+      "expr": "(and? #t 1)",
+      "expected": "error",
+      "note": "and? with non-boolean argument"
+    },
+    {
+      "expr": "(and? 1 #t)",
+      "expected": "error",
+      "note": "and? with non-boolean first arg"
+    },
+    {
+      "expr": "(and? #t #t 0 #t)",
+      "expected": "error",
+      "note": "and? with non-boolean in middle"
+    },
+    {
+      "expr": "(or?)",
+      "expected": "#f",
+      "note": "zero arguments returns false"
+    },
+    {
+      "expr": "(or? #t)",
+      "expected": "#t",
+      "note": "single true argument"
+    },
+    {
+      "expr": "(or? #f)",
+      "expected": "#f",
+      "note": "single false argument"
+    },
+    {
+      "expr": "(or? #t #t)",
+      "expected": "#t",
+      "note": "two true arguments"
+    },
+    {
+      "expr": "(or? #t #f)",
+      "expected": "#t",
+      "note": "true or false"
+    },
+    {
+      "expr": "(or? #f #t)",
+      "expected": "#t",
+      "note": "false or true"
+    },
+    {
+      "expr": "(or? #f #f)",
+      "expected": "#f",
+      "note": "two false arguments"
+    },
+    {
+      "expr": "(or? #t #t #t)",
+      "expected": "#t",
+      "note": "three true arguments"
+    },
+    {
+      "expr": "(or? #f #f #t)",
+      "expected": "#t",
+      "note": "two false and one true"
+    },
+    {
+      "expr": "(or? #f #t #f)",
+      "expected": "#t",
+      "note": "true in middle"
+    },
+    {
+      "expr": "(or? #t #f #f)",
+      "expected": "#t",
+      "note": "true at start"
+    },
+    {
+      "expr": "(or? #f #f #f #f #f)",
+      "expected": "#f",
+      "note": "many false arguments"
+    },
+    {
+      "expr": "(or? #f #f #f #t #f)",
+      "expected": "#t",
+      "note": "one true among many false"
+    },
+    {
+      "expr": "(or? (eq? 1 2) (eq? 2 2))",
+      "expected": "#t",
+      "note": "or? with evaluated expressions (one true)"
+    },
+    {
+      "expr": "(or? (eq? 1 2) (eq? 2 3))",
+      "expected": "#f",
+      "note": "or? with evaluated expressions (both false)"
+    },
+    {
+      "expr": "(or? #f 1)",
+      "expected": "error",
+      "note": "or? with non-boolean argument"
+    },
+    {
+      "expr": "(or? 1 #f)",
+      "expected": "error",
+      "note": "or? with non-boolean first arg"
+    },
+    {
+      "expr": "(or? #f #f 0 #f)",
+      "expected": "error",
+      "note": "or? with non-boolean in middle"
+    },
+    {
+      "expr": "($and?)",
+      "expected": "#t",
+      "note": "zero operands returns true"
+    },
+    {
+      "expr": "($and? #t)",
+      "expected": "#t",
+      "note": "single true operand"
+    },
+    {
+      "expr": "($and? #f)",
+      "expected": "#f",
+      "note": "single false operand"
+    },
+    {
+      "expr": "($and? #t #t)",
+      "expected": "#t",
+      "note": "two true operands"
+    },
+    {
+      "expr": "($and? #t #f)",
+      "expected": "#f",
+      "note": "true then false"
+    },
+    {
+      "expr": "($and? #f #t)",
+      "expected": "#f",
+      "note": "false then true"
+    },
+    {
+      "expr": "($and? #f #f)",
+      "expected": "#f",
+      "note": "two false operands"
+    },
+    {
+      "expr": "($and? #t #t #t)",
+      "expected": "#t",
+      "note": "three true operands"
+    },
+    {
+      "expr": "($and? #t #t #f)",
+      "expected": "#f",
+      "note": "two true then false"
+    },
+    {
+      "expr": "($and? #t #f #t)",
+      "expected": "#f",
+      "note": "false in middle"
+    },
+    {
+      "expr": "($and? #f #t #t)",
+      "expected": "#f",
+      "note": "false at start"
+    },
+    {
+      "expr": "($and? #t #t #t #t #t)",
+      "expected": "#t",
+      "note": "many true operands"
+    },
+    {
+      "expr": "($define! x 0) ($and? #f ($define! x 1)) x",
+      "expected": "0",
+      "note": "short-circuits on first false, doesn't evaluate rest"
+    },
+    {
+      "expr": "($define! y 0) ($and? #t #f ($define! y 1)) y",
+      "expected": "0",
+      "note": "short-circuits after second false"
+    },
+    {
+      "expr": "($define! z 0) ($and? #t #t ($define! z 1) #t) z",
+      "expected": "1",
+      "note": "evaluates all when no false encountered"
+    },
+    {
+      "expr": "($and? #f (/ 1 0))",
+      "expected": "#f",
+      "note": "short-circuits before division by zero"
+    },
+    {
+      "expr": "($and? #t #f (/ 1 0))",
+      "expected": "#f",
+      "note": "short-circuits before error expression"
+    },
+    {
+      "expr": "($and? (eq? 1 1))",
+      "expected": "#t",
+      "note": "evaluates single expression"
+    },
+    {
+      "expr": "($and? (eq? 1 2))",
+      "expected": "#f",
+      "note": "evaluates single false expression"
+    },
+    {
+      "expr": "($and? (eq? 1 1) (eq? 2 2))",
+      "expected": "#t",
+      "note": "evaluates multiple true expressions"
+    },
+    {
+      "expr": "($and? (eq? 1 1) (eq? 1 2))",
+      "expected": "#f",
+      "note": "evaluates until false"
+    },
+    {
+      "expr": "($and? (>? 5 3) (<? 2 10) (eq? 1 1))",
+      "expected": "#t",
+      "note": "complex boolean expressions"
+    },
+    {
+      "expr": "($and? 1)",
+      "expected": "error",
+      "note": "non-boolean operand"
+    },
+    {
+      "expr": "($and? #t 1)",
+      "expected": "error",
+      "note": "second operand non-boolean"
+    },
+    {
+      "expr": "($and? #t #t 0)",
+      "expected": "error",
+      "note": "third operand non-boolean"
+    },
+    {
+      "expr": "($or?)",
+      "expected": "#f",
+      "note": "zero operands returns false"
+    },
+    {
+      "expr": "($or? #t)",
+      "expected": "#t",
+      "note": "single true operand"
+    },
+    {
+      "expr": "($or? #f)",
+      "expected": "#f",
+      "note": "single false operand"
+    },
+    {
+      "expr": "($or? #t #t)",
+      "expected": "#t",
+      "note": "two true operands"
+    },
+    {
+      "expr": "($or? #t #f)",
+      "expected": "#t",
+      "note": "true then false"
+    },
+    {
+      "expr": "($or? #f #t)",
+      "expected": "#t",
+      "note": "false then true"
+    },
+    {
+      "expr": "($or? #f #f)",
+      "expected": "#f",
+      "note": "two false operands"
+    },
+    {
+      "expr": "($or? #f #f #f)",
+      "expected": "#f",
+      "note": "three false operands"
+    },
+    {
+      "expr": "($or? #f #f #t)",
+      "expected": "#t",
+      "note": "two false then true"
+    },
+    {
+      "expr": "($or? #f #t #f)",
+      "expected": "#t",
+      "note": "true in middle"
+    },
+    {
+      "expr": "($or? #t #f #f)",
+      "expected": "#t",
+      "note": "true at start"
+    },
+    {
+      "expr": "($or? #f #f #f #f #f)",
+      "expected": "#f",
+      "note": "many false operands"
+    },
+    {
+      "expr": "($define! x 0) ($or? #t ($define! x 1)) x",
+      "expected": "0",
+      "note": "short-circuits on first true, doesn't evaluate rest"
+    },
+    {
+      "expr": "($define! y 0) ($or? #f #t ($define! y 1)) y",
+      "expected": "0",
+      "note": "short-circuits after second true"
+    },
+    {
+      "expr": "($define! z 0) ($or? #f #f ($define! z 1) #f) z",
+      "expected": "1",
+      "note": "evaluates all when no true encountered"
+    },
+    {
+      "expr": "($or? #t (/ 1 0))",
+      "expected": "#t",
+      "note": "short-circuits before division by zero"
+    },
+    {
+      "expr": "($or? #f #t (/ 1 0))",
+      "expected": "#t",
+      "note": "short-circuits before error expression"
+    },
+    {
+      "expr": "($or? (eq? 1 1))",
+      "expected": "#t",
+      "note": "evaluates single true expression"
+    },
+    {
+      "expr": "($or? (eq? 1 2))",
+      "expected": "#f",
+      "note": "evaluates single false expression"
+    },
+    {
+      "expr": "($or? (eq? 1 2) (eq? 2 2))",
+      "expected": "#t",
+      "note": "evaluates until true"
+    },
+    {
+      "expr": "($or? (eq? 1 2) (eq? 2 3))",
+      "expected": "#f",
+      "note": "evaluates all when all false"
+    },
+    {
+      "expr": "($or? (<? 5 3) (>? 2 10) (eq? 1 1))",
+      "expected": "#t",
+      "note": "complex boolean expressions"
+    },
+    {
+      "expr": "($or? 1)",
+      "expected": "error",
+      "note": "non-boolean operand"
+    },
+    {
+      "expr": "($or? #f 1)",
+      "expected": "error",
+      "note": "second operand non-boolean"
+    },
+    {
+      "expr": "($or? #f #f 0)",
+      "expected": "error",
+      "note": "third operand non-boolean"
+    },
+    {
+      "expr": "(and? (or? #f #t) (or? #t #f))",
+      "expected": "#t",
+      "note": "and of ors"
+    },
+    {
+      "expr": "(or? (and? #f #t) (and? #t #t))",
+      "expected": "#t",
+      "note": "or of ands"
+    },
+    {
+      "expr": "(not? (and? #t #f))",
+      "expected": "#t",
+      "note": "not of and"
+    },
+    {
+      "expr": "(not? (or? #f #f))",
+      "expected": "#t",
+      "note": "not of or"
+    },
+    {
+      "expr": "(and? (not? #f) (not? #f))",
+      "expected": "#t",
+      "note": "and of nots"
+    },
+    {
+      "expr": "(or? (not? #t) (not? #t))",
+      "expected": "#f",
+      "note": "or of nots"
+    },
+    {
+      "expr": "($and? ($or? #f #t) ($or? #t #f))",
+      "expected": "#t",
+      "note": "operative and of operative ors"
+    },
+    {
+      "expr": "($or? ($and? #f #t) ($and? #t #t))",
+      "expected": "#t",
+      "note": "operative or of operative ands"
+    },
+    {
+      "expr": "(eq? (and? #t #t) ($and? #t #t))",
+      "expected": "#t",
+      "note": "applicative and operative and agree on result"
+    },
+    {
+      "expr": "(eq? (or? #f #t) ($or? #f #t))",
+      "expected": "#t",
+      "note": "applicative and operative or agree on result"
+    },
+    {
+      "expr": "(eq? (not? (and? #t #f)) (or? (not? #t) (not? #f)))",
+      "expected": "#t",
+      "note": "not(A and B) = (not A) or (not B)"
+    },
+    {
+      "expr": "(eq? (not? (and? #f #f)) (or? (not? #f) (not? #f)))",
+      "expected": "#t",
+      "note": "not(A and B) = (not A) or (not B) - both false"
+    },
+    {
+      "expr": "(eq? (not? (and? #t #t)) (or? (not? #t) (not? #t)))",
+      "expected": "#t",
+      "note": "not(A and B) = (not A) or (not B) - both true"
+    },
+    {
+      "expr": "(eq? (not? (or? #t #f)) (and? (not? #t) (not? #f)))",
+      "expected": "#t",
+      "note": "not(A or B) = (not A) and (not B)"
+    },
+    {
+      "expr": "(eq? (not? (or? #f #f)) (and? (not? #f) (not? #f)))",
+      "expected": "#t",
+      "note": "not(A or B) = (not A) and (not B) - both false"
+    },
+    {
+      "expr": "(eq? (not? (or? #t #t)) (and? (not? #t) (not? #t)))",
+      "expected": "#t",
+      "note": "not(A or B) = (not A) and (not B) - both true"
+    },
+    {
+      "expr": "($let ((x (cons 1 2))) (eq? x x))",
+      "expected": "#t",
+      "note": "reflexivity: x eq x"
+    },
+    {
+      "expr": "($let ((x 42)) (eq? x x))",
+      "expected": "#t",
+      "note": "reflexivity for numbers"
+    },
+    {
+      "expr": "(eq? (eq? #t #f) (eq? #f #t))",
+      "expected": "#t",
+      "note": "symmetry: (eq? a b) = (eq? b a)"
+    },
+    {
+      "expr": "(eq? (eq? 1 2) (eq? 2 1))",
+      "expected": "#t",
+      "note": "symmetry for numbers"
+    },
+    {
+      "expr": "($let ((x 1) (y 1) (z 1)) (and? (eq? x y) (eq? y z) (eq? x z)))",
+      "expected": "#t",
+      "note": "transitivity: if x=y and y=z then x=z"
+    },
+    {
+      "expr": "(equal? (list 1 2 3) (list 1 2 3))",
+      "expected": "#t",
+      "note": "equal? is reflexive for equal structures"
+    },
+    {
+      "expr": "(eq? (equal? (list 1 2) (list 2 1)) (equal? (list 2 1) (list 1 2)))",
+      "expected": "#t",
+      "note": "symmetry of equal?"
+    },
+    {
+      "expr": "(and? (equal? (list 1) (list 1)) (equal? (list 1) (list 1)) (equal? (list 1) (list 1)))",
+      "expected": "#t",
+      "note": "transitivity base case"
+    },
+    {
+      "expr": "($let ((x (cons 1 2))) (and? (eq? x x) (equal? x x)))",
+      "expected": "#t",
+      "note": "eq? true implies equal? true for same pair"
+    },
+    {
+      "expr": "(and? (eq? #t #t) (equal? #t #t))",
+      "expected": "#t",
+      "note": "eq? true implies equal? true for booleans"
+    },
+    {
+      "expr": "(and? (eq? () ()) (equal? () ()))",
+      "expected": "#t",
+      "note": "eq? true implies equal? true for nil"
+    },
+    {
+      "expr": "(and? (eq? 42 42) (equal? 42 42))",
+      "expected": "#t",
+      "note": "eq? true implies equal? true for numbers"
+    }
+  ]
+}

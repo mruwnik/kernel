@@ -1,0 +1,450 @@
+{
+  "description": "Environment test expressions - Tests for Kernel environment features including environment predicates, construction, binding forms, and mutation.",
+  "tests": [
+    {
+      "expr": "(env? (make-environment))",
+      "expected": "#t",
+      "note": "=== environment? / env? predicate ==="
+    },
+    {
+      "expr": "(env? (get-current-environment))",
+      "expected": "#t"
+    },
+    {
+      "expr": "(env? 42)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(env? #t)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(env? ())",
+      "expected": "#f"
+    },
+    {
+      "expr": "(env? (cons 1 2))",
+      "expected": "#f"
+    },
+    {
+      "expr": "(env? ($lambda () #inert))",
+      "expected": "#f"
+    },
+    {
+      "expr": "(env? (make-environment) (make-environment))",
+      "expected": "#t",
+      "note": "Multiple arguments to env?"
+    },
+    {
+      "expr": "(env? (make-environment) 42)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(ignore? #ignore)",
+      "expected": "#t",
+      "note": "=== ignore? predicate ==="
+    },
+    {
+      "expr": "(ignore? #t)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(ignore? #f)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(ignore? #inert)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(ignore? ())",
+      "expected": "#f"
+    },
+    {
+      "expr": "(ignore? 42)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(ignore? #ignore #ignore)",
+      "expected": "#t",
+      "note": "Multiple arguments to ignore?"
+    },
+    {
+      "expr": "(ignore? #ignore #t)",
+      "expected": "#f"
+    },
+    {
+      "expr": "(eval (quote (+ 1 2)) (get-current-environment))",
+      "expected": "3",
+      "note": "=== eval applicative ==="
+    },
+    {
+      "expr": "(eval (quote 42) (get-current-environment))",
+      "expected": "42"
+    },
+    {
+      "expr": "(eval (quote #t) (get-current-environment))",
+      "expected": "#t"
+    },
+    {
+      "expr": "($let ((x 100)) (eval (quote x) (get-current-environment)))",
+      "expected": "100",
+      "note": "eval a symbol - lookup in environment"
+    },
+    {
+      "expr": "($let ((e (make-environment))) ($define! y 50) (eval (quote y) (get-current-environment)))",
+      "expected": "50",
+      "note": "eval in a constructed environment"
+    },
+    {
+      "expr": "(env? (make-environment))",
+      "expected": "#t",
+      "note": "=== make-environment ==="
+    },
+    {
+      "expr": "($let ((e (make-environment))) ($binds? e $if))",
+      "expected": "#t",
+      "note": "make-environment with no args creates child of ground"
+    },
+    {
+      "expr": "($let ((parent (get-current-environment))) ($define! test-var 123) ($let ((child (make-environment parent))) ($binds? child test-var)))",
+      "expected": "#t",
+      "note": "make-environment with one parent"
+    },
+    {
+      "expr": "($let ((outer-env (get-current-environment))) ($define! outer-x 999) ($let ((inner-env (make-environment outer-env))) (eval (quote outer-x) inner-env)))",
+      "expected": "999",
+      "note": "make-environment with explicit parent - child can see parent bindings"
+    },
+    {
+      "expr": "($let ((e (make-environment))) ($binds? e nonexistent-symbol))",
+      "expected": "#f",
+      "note": "Empty environment (no parents except ground) has no local bindings"
+    },
+    {
+      "expr": "(eq? (make-environment) (make-environment))",
+      "expected": "#f",
+      "note": "Two different calls to make-environment return different environments"
+    },
+    {
+      "expr": "($define! simple-var 42) simple-var",
+      "expected": "42",
+      "note": "=== $define! with simple symbols ==="
+    },
+    {
+      "expr": "($define! a 1) ($define! b 2) (+ a b)",
+      "expected": "3"
+    },
+    {
+      "expr": "($define! x 10)",
+      "expected": "#inert",
+      "note": "$define! returns #inert"
+    },
+    {
+      "expr": "($define! rebind-test 1) ($define! rebind-test 2) rebind-test",
+      "expected": "2",
+      "note": "$define! can rebind existing symbol"
+    },
+    {
+      "expr": "($define! (a b) (list 1 2)) (+ a b)",
+      "expected": "3",
+      "note": "=== $define! with pattern matching ==="
+    },
+    {
+      "expr": "($define! (x . rest) (list 1 2 3 4)) rest",
+      "expected": "(2 3 4)"
+    },
+    {
+      "expr": "($define! (x . rest) (list 1 2 3 4)) x",
+      "expected": "1"
+    },
+    {
+      "expr": "($define! ((a b) (c d)) (list (list 1 2) (list 3 4))) (list a b c d)",
+      "expected": "(1 2 3 4)",
+      "note": "Nested pattern matching"
+    },
+    {
+      "expr": "($define! (x #ignore z) (list 1 2 3)) (+ x z)",
+      "expected": "4",
+      "note": "Using #ignore in pattern"
+    },
+    {
+      "expr": "($define! () ()) #t",
+      "expected": "#t",
+      "note": "Empty pattern matches empty list"
+    },
+    {
+      "expr": "($define! ((a #ignore) . rest) (list (list 1 2) 3 4)) (list a rest)",
+      "expected": "(1 (3 4))",
+      "note": "Complex nested pattern with #ignore"
+    },
+    {
+      "expr": "($let ((x 1)) x)",
+      "expected": "1",
+      "note": "=== $let basic ==="
+    },
+    {
+      "expr": "($let ((x 1) (y 2)) (+ x y))",
+      "expected": "3"
+    },
+    {
+      "expr": "($let () 42)",
+      "expected": "42"
+    },
+    {
+      "expr": "($let ((x 1)) ($define! y 2) (+ x y))",
+      "expected": "3",
+      "note": "$let with multiple body expressions"
+    },
+    {
+      "expr": "($define! a 10) ($let ((a 1) (b a)) b)",
+      "expected": "10",
+      "note": "$let bindings evaluated in parallel (original env)"
+    },
+    {
+      "expr": "($let (((x y) (list 1 2))) (+ x y))",
+      "expected": "3",
+      "note": "$let with pattern in binding"
+    },
+    {
+      "expr": "($let ((x 1)) ($let ((y 2)) (+ x y)))",
+      "expected": "3",
+      "note": "Nested $let"
+    },
+    {
+      "expr": "($define! x 100) ($let ((x 1)) x)",
+      "expected": "1",
+      "note": "$let shadowing outer binding"
+    },
+    {
+      "expr": "($define! outer 100) ($let ((inner 1)) inner) outer",
+      "expected": "100",
+      "note": "Outer binding still accessible after $let"
+    },
+    {
+      "expr": "($let* ((x 1)) x)",
+      "expected": "1",
+      "note": "=== $let* sequential bindings ==="
+    },
+    {
+      "expr": "($let* ((x 1) (y 2)) (+ x y))",
+      "expected": "3"
+    },
+    {
+      "expr": "($let* ((x 1) (y (+ x 1))) y)",
+      "expected": "2",
+      "note": "$let* allows later bindings to see earlier ones"
+    },
+    {
+      "expr": "($let* ((a 1) (b (+ a 1)) (c (+ b 1))) c)",
+      "expected": "3",
+      "note": "$let* chain of dependencies"
+    },
+    {
+      "expr": "($let* ((x 1) (x 2)) x)",
+      "expected": "2",
+      "note": "$let* can shadow earlier bindings"
+    },
+    {
+      "expr": "($let* (((a b) (list 1 2)) (c (+ a b))) c)",
+      "expected": "3",
+      "note": "$let* with pattern matching"
+    },
+    {
+      "expr": "($let* () 42)",
+      "expected": "42"
+    },
+    {
+      "expr": "($letrec ((x 1)) x)",
+      "expected": "1",
+      "note": "=== $letrec recursive bindings ==="
+    },
+    {
+      "expr": "($letrec ((fact ($lambda (n) ($if (=? n 0) 1 (* n (fact (- n 1))))))) (fact 5))",
+      "expected": "120",
+      "note": "$letrec allows recursive definitions"
+    },
+    {
+      "expr": "($letrec ((is-even ($lambda (n) ($if (=? n 0) #t (is-odd (- n 1))))) (is-odd ($lambda (n) ($if (=? n 0) #f (is-even (- n 1)))))) (list (is-even 4) (is-odd 4)))",
+      "expected": "(#t #f)",
+      "note": "$letrec with mutually recursive functions (even/odd)"
+    },
+    {
+      "expr": "($letrec () 42)",
+      "expected": "42"
+    },
+    {
+      "expr": "($letrec ((a 1) (b 2)) (+ a b))",
+      "expected": "3",
+      "note": "$letrec simple non-recursive case"
+    },
+    {
+      "expr": "($binds? (get-current-environment) $if)",
+      "expected": "#t",
+      "note": "=== $binds? predicate ==="
+    },
+    {
+      "expr": "($binds? (get-current-environment) nonexistent-symbol-12345)",
+      "expected": "#f"
+    },
+    {
+      "expr": "($define! my-binding 42) ($binds? (get-current-environment) my-binding)",
+      "expected": "#t"
+    },
+    {
+      "expr": "($let ((x 1)) ($binds? (get-current-environment) x))",
+      "expected": "#t",
+      "note": "$binds? with $let environment"
+    },
+    {
+      "expr": "($define! parent-var 1) ($let ((child-var 2)) ($binds? (get-current-environment) parent-var))",
+      "expected": "#t",
+      "note": "$binds? child env can see parent bindings"
+    },
+    {
+      "expr": "($let ((e (make-environment))) ($binds? e $if))",
+      "expected": "#t",
+      "note": "$binds? checks symbol is bound in specified env"
+    },
+    {
+      "expr": "(env? (get-current-environment))",
+      "expected": "#t",
+      "note": "=== get-current-environment ==="
+    },
+    {
+      "expr": "($define! captured-env (get-current-environment)) (env? captured-env)",
+      "expected": "#t",
+      "note": "get-current-environment captures dynamic env"
+    },
+    {
+      "expr": "($let ((x 42)) ($let ((e (get-current-environment))) ($binds? e x)))",
+      "expected": "#t",
+      "note": "get-current-environment in $let captures $let's local env"
+    },
+    {
+      "expr": "($let ((e (get-current-environment))) (eq? e e))",
+      "expected": "#t",
+      "note": "Same environment reference equals itself"
+    },
+    {
+      "expr": "($let () (eq? (get-current-environment) (get-current-environment)))",
+      "expected": "#t",
+      "note": "Different calls to get-current-environment in same scope return same env"
+    },
+    {
+      "expr": "($define! mut-var 1) ($set! mut-var 2) mut-var",
+      "expected": "2",
+      "note": "=== $set! mutation (NOTE: implementation may differ from spec) ==="
+    },
+    {
+      "expr": "($define! a 10) ($define! b 20) ($set! a (+ a b)) a",
+      "expected": "30"
+    },
+    {
+      "expr": "($define! z 1) ($set! z 2)",
+      "expected": "#inert",
+      "note": "$set! returns #inert"
+    },
+    {
+      "expr": "($define! (p q) (list 1 2)) ($set! (p q) (list 10 20)) (list p q)",
+      "expected": "(10 20)",
+      "note": "$set! with pattern matching"
+    },
+    {
+      "expr": "($define! outer-mut 1) ($let () ($set! outer-mut 2)) outer-mut",
+      "expected": "2",
+      "note": "$set! can see binding in parent environment"
+    },
+    {
+      "expr": "($define! shadow-test 1) ($let ((shadow-test 2)) shadow-test)",
+      "expected": "2",
+      "note": "=== Environment shadowing behavior ==="
+    },
+    {
+      "expr": "($define! shadow-outer 100) ($let ((shadow-outer 1)) #inert) shadow-outer",
+      "expected": "100",
+      "note": "Inner shadow doesn't affect outer"
+    },
+    {
+      "expr": "($define! deep 1) ($let ((deep 2)) ($let ((deep 3)) deep))",
+      "expected": "3",
+      "note": "Multiple levels of shadowing"
+    },
+    {
+      "expr": "($define! type-shadow 42) ($let ((type-shadow #t)) type-shadow)",
+      "expected": "#t",
+      "note": "Shadowing with different types"
+    },
+    {
+      "expr": "($let ((a 1)) ($let ((b 2)) ($let ((c 3)) (+ a (+ b c)))))",
+      "expected": "6",
+      "note": "=== Nested environment tests ==="
+    },
+    {
+      "expr": "($let ((x 10)) ($let ((f ($lambda () x))) (f)))",
+      "expected": "10",
+      "note": "Lambda captures static environment"
+    },
+    {
+      "expr": "($define! closure-test 1) ($let ((f ($lambda () closure-test))) ($define! closure-test 2) (f))",
+      "expected": "2",
+      "note": "Lambda sees binding from creation time, not call time"
+    },
+    {
+      "expr": "($define! level1 1) ($let ((level2 2)) ($let ((level3 3)) (+ level1 (+ level2 level3))))",
+      "expected": "6",
+      "note": "Environment chain - inner can access outer"
+    },
+    {
+      "expr": "($define! get-x ($vau () e (eval (quote x) e))) ($let ((x 42)) (get-x))",
+      "expected": "42",
+      "note": "=== Operative dynamic environment access ==="
+    },
+    {
+      "expr": "($define! set-in-caller ($vau (val) e (eval (list $define! (quote caller-var) val) e))) (set-in-caller 99) caller-var",
+      "expected": "99",
+      "note": "Operative can modify dynamic environment"
+    },
+    {
+      "expr": "($let (((a . b) (cons 1 2))) (cons a b))",
+      "expected": "(1 . 2)",
+      "note": "=== Complex pattern matching in environments ==="
+    },
+    {
+      "expr": "($let (((a b c) (list 1 2 3))) (+ a (+ b c)))",
+      "expected": "6"
+    },
+    {
+      "expr": "($define! ((x y) z) (list (list 1 2) 3)) (+ x (+ y z))",
+      "expected": "6"
+    },
+    {
+      "expr": "($let ((e1 (make-environment)) (e2 (make-environment))) ($let ((child (make-environment e1 e2))) (env? child)))",
+      "expected": "#t",
+      "note": "=== make-environment with multiple parents ==="
+    },
+    {
+      "expr": "(eval (list + 1 2) (get-current-environment))",
+      "expected": "3",
+      "note": "=== eval with different expressions ==="
+    },
+    {
+      "expr": "(eval (cons $if (list #t 1 2)) (get-current-environment))",
+      "expected": "1"
+    },
+    {
+      "expr": "($let ((#ignore 42)) #t)",
+      "expected": "#t",
+      "note": "=== Edge cases ==="
+    },
+    {
+      "expr": "($define! #ignore 42)",
+      "expected": "#inert"
+    },
+    {
+      "expr": "($let ((x . rest) (list 1)) rest)",
+      "expected": "()",
+      "note": "Rest pattern captures empty list"
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+{
+  "description": "Higher-order function test expressions (map, filter, reduce, for-each)",
+  "tests": [
+    {
+      "expr": "(map ($lambda (x) (+ x 1)) (list 1 2 3))",
+      "expected": "(2 3 4)"
+    },
+    {
+      "expr": "(map ($lambda (x) (* x 2)) (list 1 2 3 4 5))",
+      "expected": "(2 4 6 8 10)"
+    },
+    {
+      "expr": "(map ($lambda (x) x) (list 10 20 30))",
+      "expected": "(10 20 30)"
+    },
+    {
+      "expr": "(map ($lambda (x) 42) (list 1 2 3))",
+      "expected": "(42 42 42)"
+    },
+    {
+      "expr": "(map ($lambda (x) (- 0 x)) (list 1 2 3))",
+      "expected": "(-1 -2 -3)"
+    },
+    {
+      "expr": "(map ($lambda (x) (* x x)) (list 1 2 3 4))",
+      "expected": "(1 4 9 16)"
+    },
+    {
+      "expr": "(map ($lambda (x) (+ x 1)) ())",
+      "expected": "()"
+    },
+    {
+      "expr": "(map ($lambda (x) (* x 10)) (list 5))",
+      "expected": "(50)"
+    },
+    {
+      "expr": "(null? (map ($lambda (x) x) ()))",
+      "expected": "#t"
+    },
+    {
+      "expr": "(map + (list 1 2 3) (list 10 20 30))",
+      "expected": "(11 22 33)"
+    },
+    {
+      "expr": "(map * (list 1 2 3) (list 4 5 6))",
+      "expected": "(4 10 18)"
+    },
+    {
+      "expr": "(map ($lambda (a b c) (+ a (+ b c))) (list 1 2) (list 10 20) (list 100 200))",
+      "expected": "(111 222)"
+    },
+    {
+      "expr": "(map cons (list 1 2 3) (list 4 5 6))",
+      "expected": "((1 . 4) (2 . 5) (3 . 6))"
+    },
+    {
+      "expr": "(map list (list 1 2 3) (list 4 5 6))",
+      "expected": "((1 4) (2 5) (3 6))"
+    },
+    {
+      "expr": "(map + () ())",
+      "expected": "()"
+    },
+    {
+      "expr": "(list? (map ($lambda (x) x) (list 1 2 3)))",
+      "expected": "#t"
+    },
+    {
+      "expr": "(length (map ($lambda (x) x) (list 1 2 3 4 5)))",
+      "expected": "5"
+    },
+    {
+      "expr": "(map ($lambda (x) (list x x)) (list 1 2 3))",
+      "expected": "((1 1) (2 2) (3 3))"
+    },
+    {
+      "expr": "(map car (list (cons 1 2) (cons 3 4) (cons 5 6)))",
+      "expected": "(1 3 5)"
+    },
+    {
+      "expr": "(map cdr (list (cons 1 2) (cons 3 4) (cons 5 6)))",
+      "expected": "(2 4 6)"
+    },
+    {
+      "expr": "(map ($lambda (lst) (map ($lambda (x) (+ x 1)) lst)) (list (list 1 2) (list 3 4)))",
+      "expected": "((2 3) (4 5))"
+    },
+    {
+      "expr": "($let ((n 10)) (map ($lambda (x) (+ x n)) (list 1 2 3)))",
+      "expected": "(11 12 13)"
+    },
+    {
+      "expr": "(($lambda (mult) (map ($lambda (x) (* x mult)) (list 1 2 3))) 5)",
+      "expected": "(5 10 15)"
+    },
+    {
+      "expr": "(filter ($lambda (x) (>? x 0)) (list (- 0 2) (- 0 1) 0 1 2 3))",
+      "expected": "(1 2 3)"
+    },
+    {
+      "expr": "(filter even? (list 1 2 3 4 5 6))",
+      "expected": "(2 4 6)"
+    },
+    {
+      "expr": "(filter odd? (list 1 2 3 4 5 6))",
+      "expected": "(1 3 5)"
+    },
+    {
+      "expr": "(filter zero? (list 0 1 0 2 0 3))",
+      "expected": "(0 0 0)"
+    },
+    {
+      "expr": "(filter negative? (list (- 0 3) (- 0 2) (- 0 1) 0 1 2 3))",
+      "expected": "(-3 -2 -1)"
+    },
+    {
+      "expr": "(filter ($lambda (x) #t) ())",
+      "expected": "()"
+    },
+    {
+      "expr": "(filter ($lambda (x) (>? x 0)) (list 5))",
+      "expected": "(5)"
+    },
+    {
+      "expr": "(filter ($lambda (x) (>? x 0)) (list (- 0 5)))",
+      "expected": "()"
+    },
+    {
+      "expr": "(filter ($lambda (x) #t) (list 1 2 3 4 5))",
+      "expected": "(1 2 3 4 5)"
+    },
+    {
+      "expr": "(filter ($lambda (x) #f) (list 1 2 3 4 5))",
+      "expected": "()"
+    },
+    {
+      "expr": "(filter ($lambda (x) (>? x 2)) (list 1 5 2 4 3 6))",
+      "expected": "(5 4 3 6)"
+    },
+    {
+      "expr": "(filter ($lambda (x) (even? (car x))) (list (list 2 10) (list 3 20) (list 4 30)))",
+      "expected": "((2 10) (4 30))"
+    },
+    {
+      "expr": "(list? (filter ($lambda (x) #t) (list 1 2 3)))",
+      "expected": "#t"
+    },
+    {
+      "expr": "(null? (filter ($lambda (x) #f) (list 1 2 3)))",
+      "expected": "#t"
+    },
+    {
+      "expr": "(filter ($lambda (x) (and? (>? x 0) (even? x))) (list (- 0 2) (- 0 1) 0 1 2 3 4 5 6))",
+      "expected": "(2 4 6)"
+    },
+    {
+      "expr": "(filter ($lambda (x) (or? (=? x 1) (=? x 5))) (list 1 2 3 4 5))",
+      "expected": "(1 5)"
+    },
+    {
+      "expr": "(filter ($lambda (x) (=? (mod x 3) 0)) (list 1 2 3 4 5 6 7 8 9))",
+      "expected": "(3 6 9)"
+    },
+    {
+      "expr": "(reduce + 0 (list 1 2 3 4 5))",
+      "expected": "15"
+    },
+    {
+      "expr": "(reduce * 1 (list 1 2 3 4 5))",
+      "expected": "120"
+    },
+    {
+      "expr": "(reduce - 0 (list 1 2 3))",
+      "expected": "-6"
+    },
+    {
+      "expr": "(reduce ($lambda (acc x) (cons x acc)) () (list 1 2 3))",
+      "expected": "(3 2 1)"
+    },
+    {
+      "expr": "(reduce + 0 ())",
+      "expected": "0"
+    },
+    {
+      "expr": "(reduce * 1 ())",
+      "expected": "1"
+    },
+    {
+      "expr": "(reduce + 0 (list 42))",
+      "expected": "42"
+    },
+    {
+      "expr": "(reduce * 1 (list 5))",
+      "expected": "5"
+    },
+    {
+      "expr": "(reduce ($lambda (a b) ($if (>? a b) a b)) (- 0 999999) (list 3 1 4 1 5 9 2 6))",
+      "expected": "9"
+    },
+    {
+      "expr": "(reduce ($lambda (a b) ($if (<? a b) a b)) 999999 (list 3 1 4 1 5 9 2 6))",
+      "expected": "1"
+    },
+    {
+      "expr": "(reduce append () (list (list 1 2) (list 3 4) (list 5 6)))",
+      "expected": "(1 2 3 4 5 6)"
+    },
+    {
+      "expr": "(reduce ($lambda (count x) (+ count 1)) 0 (list 10 20 30 40 50))",
+      "expected": "5"
+    },
+    {
+      "expr": "(reduce ($lambda (sum x) (+ sum (* x x))) 0 (list 1 2 3 4))",
+      "expected": "30"
+    },
+    {
+      "expr": "(reduce + 0 (list 1 2 3 4))",
+      "expected": "10"
+    },
+    {
+      "expr": "(reduce * 1 (list 2 3 4))",
+      "expected": "24"
+    },
+    {
+      "expr": "(for-each ($lambda (x) x) (list 1 2 3))",
+      "expected": "#inert"
+    },
+    {
+      "expr": "(for-each ($lambda (x) x) ())",
+      "expected": "#inert"
+    },
+    {
+      "expr": "(for-each ($lambda (x) (+ x 1)) (list 42))",
+      "expected": "#inert"
+    },
+    {
+      "expr": "(inert? (for-each ($lambda (x) (* x 2)) (list 1 2 3 4 5)))",
+      "expected": "#t"
+    },
+    {
+      "expr": "($let ((sum 0)) ($sequence (for-each ($lambda (x) ($set! sum (+ sum x))) (list 1 2 3 4)) sum))",
+      "expected": "10"
+    },
+    {
+      "expr": "($let ((count 0)) ($sequence (for-each ($lambda (x) ($set! count (+ count 1))) (list 10 20 30)) count))",
+      "expected": "3"
+    },
+    {
+      "expr": "($let ((acc ())) ($sequence (for-each ($lambda (x) ($set! acc (cons x acc))) (list 1 2 3)) acc))",
+      "expected": "(3 2 1)"
+    },
+    {
+      "expr": "(for-each ($lambda (a b) (+ a b)) (list 1 2 3) (list 4 5 6))",
+      "expected": "#inert"
+    },
+    {
+      "expr": "($let ((sum 0)) ($sequence (for-each ($lambda (a b) ($set! sum (+ sum (+ a b)))) (list 1 2) (list 10 20)) sum))",
+      "expected": "33"
+    },
+    {
+      "expr": "(map ($lambda (x) (* x 2)) (filter ($lambda (x) (>? x 0)) (list (- 0 1) 0 1 2 3)))",
+      "expected": "(2 4 6)"
+    },
+    {
+      "expr": "(filter even? (map ($lambda (x) (* x 2)) (list 1 2 3 4 5)))",
+      "expected": "(2 4 6 8 10)"
+    },
+    {
+      "expr": "(reduce + 0 (map ($lambda (x) (* x x)) (list 1 2 3 4)))",
+      "expected": "30"
+    },
+    {
+      "expr": "(reduce + 0 (filter ($lambda (x) (>? x 2)) (list 1 2 3 4 5)))",
+      "expected": "12"
+    },
+    {
+      "expr": "(reduce + 0 (map ($lambda (x) (* x 10)) (filter even? (list 1 2 3 4 5 6))))",
+      "expected": "120"
+    },
+    {
+      "expr": "(filter pair? (list 1 (cons 2 3) 4 (list 5 6)))",
+      "expected": "((2 . 3) (5 6))"
+    },
+    {
+      "expr": "(filter null? (list () 1 () 2 ()))",
+      "expected": "(() () ())"
+    },
+    {
+      "expr": "(filter number? (list 1 #t 2 #f 3))",
+      "expected": "(1 2 3)"
+    },
+    {
+      "expr": "(map not (list #t #f #t #f))",
+      "expected": "(#f #t #f #t)"
+    },
+    {
+      "expr": "(map ($lambda (x) (+ x 1)) (list 1))",
+      "expected": "(2)"
+    },
+    {
+      "expr": "(reduce + 0 (list 1 2))",
+      "expected": "3"
+    },
+    {
+      "expr": "(filter ($lambda (x) (=? x 5)) (list 1 2 3 4 5 6 7))",
+      "expected": "(5)"
+    }
+  ]
+}
