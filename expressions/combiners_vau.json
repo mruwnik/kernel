@@ -197,9 +197,9 @@
       "note": "Operative returning dynamic env"
     },
     {
-      "expr": "($let ((x 5)) (($vau () env ($define! x 10 env) x)))",
+      "expr": "($let ((x 5)) (($vau () env (eval (list $define! (quote x) 10) env) (eval (quote x) env))))",
       "expected": "10",
-      "note": "Mutate dynamic env via captured ref"
+      "note": "Mutate dynamic env via eval - standard Kernel doesn't have 3-arg $define!"
     },
     {
       "expr": "(($vau (x) #ignore x) (+ 1 2))",

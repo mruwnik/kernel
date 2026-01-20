@@ -36,6 +36,10 @@ pub enum CombinerKind {
     Wrapped {
         underlying: Rc<Value>,  // Must be a Combiner
     },
+    /// Unwrapped primitive - an operative that evaluates operands before calling the original func
+    UnwrappedPrimitive {
+        func: Func,
+    },
 }
 
 #[derive(Clone)]
@@ -49,6 +53,7 @@ impl fmt::Display for Combiner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
             CombinerKind::Primitive { .. } => write!(f, "{}", self.name),
+            CombinerKind::UnwrappedPrimitive { .. } => write!(f, "{}", self.name),
             CombinerKind::Compound { formals, body, .. } => {
                 write!(f, "#[compound {} {}]", formals, body)
             }
@@ -146,12 +151,16 @@ impl Combiner {
         match &self.kind {
             CombinerKind::Wrapped { underlying } => Ok(underlying.clone()),
             CombinerKind::Primitive { func } => {
-                // Create an operative version of this primitive
+                // Create an operative that evaluates operands before calling the primitive
                 Ok(Rc::new(Value::Combiner(Combiner {
                     c_type: CombinerType::Operative,
                     name: format!("unwrapped-{}", self.name),
-                    kind: CombinerKind::Primitive { func: *func },
+                    kind: CombinerKind::UnwrappedPrimitive { func: *func },
                 })))
+            }
+            CombinerKind::UnwrappedPrimitive { .. } => {
+                // Already unwrapped - shouldn't happen since unwrapped primitives are operatives
+                RuntimeError::type_error("cannot unwrap an already unwrapped primitive")
             }
             CombinerKind::Compound { .. } => {
                 // Compound applicatives shouldn't exist directly, but handle it
@@ -380,16 +389,18 @@ impl Combiner {
             }
         }
 
-        // Get body - for now just single expression, later we'll add $sequence
+        // Get body - wrap multiple body expressions in $sequence
         let body = if params.len() == 2 {
             Value::make_inert()
         } else if params.len() == 3 {
             params[2].clone()
         } else {
-            // Multiple body expressions - wrap in implicit $sequence
-            // For now, just use the last one
-            // TODO: implement proper $sequence handling
-            params[params.len() - 1].clone()
+            // Multiple body expressions - wrap in $sequence
+            let mut seq_args = Value::make_null();
+            for i in (2..params.len()).rev() {
+                seq_args = Value::cons(params[i].clone(), seq_args)?;
+            }
+            Value::cons(Value::make_symbol("$sequence"), seq_args)?
         };
 
         // Make immutable copies of formals and body (if they're pairs)
@@ -1493,6 +1504,11 @@ fn call_operative(c: &Combiner, operands: Rc<Value>, env: EnvRef, env_val: Rc<Va
         CombinerKind::Primitive { func } => {
             func(operands, env)
         }
+        CombinerKind::UnwrappedPrimitive { func } => {
+            // Unwrapped primitive receives unevaluated operands (per spec)
+            // This is the same as a regular primitive operative
+            func(operands, env)
+        }
         CombinerKind::Compound { static_env, formals, eformal, body } => {
             // Create local environment with static_env as parent
             let local_env = Env::new(vec![static_env.clone()]);
@@ -1523,6 +1539,10 @@ fn call_operative(c: &Combiner, operands: Rc<Value>, env: EnvRef, env_val: Rc<Va
 fn call_applicative(c: &Combiner, args: Rc<Value>, env: EnvRef, env_val: Rc<Value>) -> CallResult {
     match &c.kind {
         CombinerKind::Primitive { func } => {
+            func(args, env)
+        }
+        CombinerKind::UnwrappedPrimitive { func } => {
+            // Args already evaluated, just call the func
             func(args, env)
         }
         CombinerKind::Compound { .. } => {

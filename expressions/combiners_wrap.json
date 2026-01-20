@@ -88,8 +88,8 @@
     },
     {
       "expr": "((unwrap car) (cons 1 2))",
-      "expected": "1",
-      "note": "unwrapped car works on literal pair"
+      "expected": "cons",
+      "note": "unwrapped car gets unevaluated list, car of (cons 1 2) is symbol cons"
     },
     {
       "expr": "(combiner? (unwrap cons))",

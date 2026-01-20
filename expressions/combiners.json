@@ -767,9 +767,9 @@
       "note": "Lambda uses static env regardless"
     },
     {
-      "expr": "($let ((e (make-environment))) (eq? (apply list (list 1 2) e) (eval (cons (unwrap list) (list 1 2)) e)))",
+      "expr": "($let ((e (make-environment))) (equal? (apply list (list 1 2) e) (eval (cons (unwrap list) (list 1 2)) e)))",
       "expected": "#t",
-      "note": "Equivalence check"
+      "note": "Equivalence check - both produce (1 2) but as separate objects, so use equal? not eq?"
     },
     {
       "expr": "(apply ($lambda () 42) ())",
@@ -788,13 +788,13 @@
     },
     {
       "expr": "(($vau (f) #ignore (applicative? f)) cons)",
-      "expected": "#t",
-      "note": "Pass applicative to operative"
+      "expected": "#f",
+      "note": "Operative receives unevaluated operand (symbol cons), not the applicative value"
     },
     {
       "expr": "(($vau (f) #ignore (operative? f)) $if)",
-      "expected": "#t",
-      "note": "Pass operative to operative"
+      "expected": "#f",
+      "note": "Operative receives unevaluated operand (symbol $if), not the operative value"
     },
     {
       "expr": "(apply ($lambda (f) (f 1 2)) (list +))",

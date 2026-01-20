@@ -387,8 +387,8 @@
     },
     {
       "expr": "($define! closure-test 1) ($let ((f ($lambda () closure-test))) ($define! closure-test 2) (f))",
-      "expected": "2",
-      "note": "Lambda sees binding from creation time, not call time"
+      "expected": "1",
+      "note": "Lambda captures outer env (per spec 5.10.1), $define! in body creates local binding"
     },
     {
       "expr": "($define! level1 1) ($let ((level2 2)) ($let ((level3 3)) (+ level1 (+ level2 level3))))",
