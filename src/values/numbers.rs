@@ -104,10 +104,13 @@ fn process_div(items: Rc<Value>, func: &dyn Fn(Rc<Value>, Rc<Value>) -> ValueRes
                 Value::Number(_) => func(num1, cdr),
                 Value::Pair(_) => {
                     let num2: Rc<Value> = cdr.car()?.into();
-                    Value::cons(
-                        func(num1, num2)?.into(),
-                        cdr.cdr()?.into()
-                    )
+                    let rest: Rc<Value> = cdr.cdr()?.into();
+                    let result = func(num1, num2)?;
+                    // If no more args, return the result directly
+                    match rest.deref() {
+                        Value::Constant(Constant::Null) => result.ok(),
+                        _ => Value::cons(result.into(), rest)
+                    }
                 }
                 _ => RuntimeError::type_error("/ only works on numbers"),
             }

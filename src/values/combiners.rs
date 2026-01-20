@@ -234,6 +234,16 @@ impl Combiner {
         bind(&env, "eval", CombinerType::Applicative, &Combiner::eval);
         bind(&env, "$define!", CombinerType::Operative, &Combiner::define);
 
+        // Boolean operations
+        bind(&env, "not", CombinerType::Applicative, &Combiner::not);
+        bind(&env, "$and?", CombinerType::Operative, &Combiner::and);
+        bind(&env, "$or?", CombinerType::Operative, &Combiner::or);
+        bind(&env, "and?", CombinerType::Applicative, &Combiner::and_applicative);
+        bind(&env, "or?", CombinerType::Applicative, &Combiner::or_applicative);
+
+        // Apply
+        bind(&env, "apply", CombinerType::Applicative, &Combiner::apply);
+
         // Type checkers (all applicatives - they evaluate their arguments)
         bind(&env, "boolean?", CombinerType::Applicative, &|vals, _| Value::is_boolean(vals)?.as_val());
         bind(&env, "applicative?", CombinerType::Applicative, &|vals, _| Value::is_applicative(vals)?.as_val());
@@ -422,6 +432,118 @@ impl Combiner {
         }
 
         result.as_val()
+    }
+
+    // not: boolean negation
+    fn not(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        match &params[..] {
+            [val] => {
+                if let Value::Bool(b) = val.deref() {
+                    Value::boolean(!matches!(b, crate::values::bools::Bool::True)).as_val()
+                } else {
+                    RuntimeError::type_error("not requires a boolean")
+                }
+            }
+            _ => RuntimeError::type_error("not requires exactly 1 argument"),
+        }
+    }
+
+    // $and?: operative that short-circuits on #f
+    fn and(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let exprs = vals.operands()?;
+        let env_val = Rc::new(Value::Env(env));
+
+        for expr in &exprs {
+            let result = eval(expr.clone(), env_val.clone())?;
+            match result.deref() {
+                Value::Bool(b) if !matches!(b, crate::values::bools::Bool::True) => return Value::boolean(false).as_val(),
+                Value::Bool(_) => continue,
+                _ => return RuntimeError::type_error("$and? requires boolean operands"),
+            }
+        }
+        Value::boolean(true).as_val()
+    }
+
+    // $or?: operative that short-circuits on #t
+    fn or(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let exprs = vals.operands()?;
+        let env_val = Rc::new(Value::Env(env));
+
+        for expr in &exprs {
+            let result = eval(expr.clone(), env_val.clone())?;
+            match result.deref() {
+                Value::Bool(b) if matches!(b, crate::values::bools::Bool::True) => return Value::boolean(true).as_val(),
+                Value::Bool(_) => continue,
+                _ => return RuntimeError::type_error("$or? requires boolean operands"),
+            }
+        }
+        Value::boolean(false).as_val()
+    }
+
+    // and?: applicative version (all args already evaluated)
+    fn and_applicative(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+
+        for arg in &args {
+            match arg.deref() {
+                Value::Bool(b) if !matches!(b, crate::values::bools::Bool::True) => return Value::boolean(false).as_val(),
+                Value::Bool(_) => continue,
+                _ => return RuntimeError::type_error("and? requires boolean arguments"),
+            }
+        }
+        Value::boolean(true).as_val()
+    }
+
+    // or?: applicative version (all args already evaluated)
+    fn or_applicative(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+
+        for arg in &args {
+            match arg.deref() {
+                Value::Bool(b) if matches!(b, crate::values::bools::Bool::True) => return Value::boolean(true).as_val(),
+                Value::Bool(_) => continue,
+                _ => return RuntimeError::type_error("or? requires boolean arguments"),
+            }
+        }
+        Value::boolean(false).as_val()
+    }
+
+    // apply: call an applicative with given argument list and optional environment
+    // (apply applicative args) or (apply applicative args env)
+    fn apply(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        match &params[..] {
+            [applicative, args] => {
+                // Use current environment
+                if let Value::Combiner(c) = applicative.deref() {
+                    if c.c_type != CombinerType::Applicative {
+                        return RuntimeError::type_error("apply requires an applicative");
+                    }
+                    // Call applicative with the given argument list
+                    let env_val = Rc::new(Value::Env(env.clone()));
+                    call_applicative(c, args.clone(), env, env_val)
+                } else {
+                    RuntimeError::type_error("apply requires an applicative")
+                }
+            }
+            [applicative, args, env_arg] => {
+                // Use specified environment
+                if let Value::Combiner(c) = applicative.deref() {
+                    if c.c_type != CombinerType::Applicative {
+                        return RuntimeError::type_error("apply requires an applicative");
+                    }
+                    if let Value::Env(e) = env_arg.deref() {
+                        call_applicative(c, args.clone(), e.clone(), env_arg.clone())
+                    } else {
+                        RuntimeError::type_error("apply environment must be an environment")
+                    }
+                } else {
+                    RuntimeError::type_error("apply requires an applicative")
+                }
+            }
+            _ => RuntimeError::type_error("apply requires 2 or 3 arguments"),
+        }
     }
 }
 
