@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use crate::errors::{ RuntimeError, ErrorTypes };
 use crate::values::{ Value, ValueResult, CallResult, Symbol, CallResultType, is_val };
 use crate::values::eval::eval;
+use crate::values::numbers::Number;
 
 use super::envs::{Env, EnvRef};
 
@@ -219,10 +220,12 @@ impl Combiner {
         // Core primitives
         bind(&env, "$if", CombinerType::Operative, &Combiner::if_);
         bind(&env, "$vau", CombinerType::Operative, &Combiner::vau);
+        bind(&env, "$lambda", CombinerType::Operative, &Combiner::lambda);
+        bind(&env, "$sequence", CombinerType::Operative, &Combiner::sequence);
         bind(&env, "wrap", CombinerType::Applicative, &Combiner::wrap);
         bind(&env, "unwrap", CombinerType::Applicative, &Combiner::unwrap_);
-        bind(&env, "eq?", CombinerType::Operative, &|vals, _| two_val_fn(vals.operands()?, "eq?", &Value::is_eq)?.as_val());
-        bind(&env, "equal?", CombinerType::Operative, &|vals, _| two_val_fn(vals.operands()?, "equal?", &Value::is_equal)?.as_val());
+        bind(&env, "eq?", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "eq?", &Value::is_eq)?.as_val());
+        bind(&env, "equal?", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "equal?", &Value::is_equal)?.as_val());
         bind(&env, "cons", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "cons", &Value::cons)?.as_val());
         bind(&env, "set-car!", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "set-car!", &Value::set_car)?.as_val());
         bind(&env, "set-cdr!", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "set-cdr!", &Value::set_cdr)?.as_val());
@@ -231,23 +234,45 @@ impl Combiner {
         bind(&env, "eval", CombinerType::Applicative, &Combiner::eval);
         bind(&env, "$define!", CombinerType::Operative, &Combiner::define);
 
-        // Type checkers
-        bind(&env, "boolean?", CombinerType::Operative, &|vals, _| Value::is_boolean(vals)?.as_val());
-        bind(&env, "applicative?", CombinerType::Operative, &|vals, _| Value::is_applicative(vals)?.as_val());
-        bind(&env, "operative?", CombinerType::Operative, &|vals, _| Value::is_operative(vals)?.as_val());
-        bind(&env, "combiner?", CombinerType::Operative, &|vals, _| Value::is_combiner(vals)?.as_val());
-        bind(&env, "inert?", CombinerType::Operative, &|vals, _| Value::is_inert(vals)?.as_val());
-        bind(&env, "ignore?", CombinerType::Operative, &|vals, _| Value::is_ignore(vals)?.as_val());
-        bind(&env, "null?", CombinerType::Operative, &|vals, _| Value::is_null(vals)?.as_val());
-        bind(&env, "env?", CombinerType::Operative, &|vals, _| Value::is_env(vals)?.as_val());
-        bind(&env, "number?", CombinerType::Operative, &|vals, _| Value::is_number(vals)?.as_val());
-        bind(&env, "pair?", CombinerType::Operative, &|vals, _| Value::is_pair(vals)?.as_val());
-        bind(&env, "string?", CombinerType::Operative, &|vals, _| Value::is_string(vals)?.as_val());
-        bind(&env, "symbol?", CombinerType::Operative, &|vals, _| Value::is_symbol(vals)?.as_val());
+        // Type checkers (all applicatives - they evaluate their arguments)
+        bind(&env, "boolean?", CombinerType::Applicative, &|vals, _| Value::is_boolean(vals)?.as_val());
+        bind(&env, "applicative?", CombinerType::Applicative, &|vals, _| Value::is_applicative(vals)?.as_val());
+        bind(&env, "operative?", CombinerType::Applicative, &|vals, _| Value::is_operative(vals)?.as_val());
+        bind(&env, "combiner?", CombinerType::Applicative, &|vals, _| Value::is_combiner(vals)?.as_val());
+        bind(&env, "inert?", CombinerType::Applicative, &|vals, _| Value::is_inert(vals)?.as_val());
+        bind(&env, "ignore?", CombinerType::Applicative, &|vals, _| Value::is_ignore(vals)?.as_val());
+        bind(&env, "null?", CombinerType::Applicative, &|vals, _| Value::is_null(vals)?.as_val());
+        bind(&env, "env?", CombinerType::Applicative, &|vals, _| Value::is_env(vals)?.as_val());
+        bind(&env, "number?", CombinerType::Applicative, &|vals, _| Value::is_number(vals)?.as_val());
+        bind(&env, "pair?", CombinerType::Applicative, &|vals, _| Value::is_pair(vals)?.as_val());
+        bind(&env, "string?", CombinerType::Applicative, &|vals, _| Value::is_string(vals)?.as_val());
+        bind(&env, "symbol?", CombinerType::Applicative, &|vals, _| Value::is_symbol(vals)?.as_val());
 
-        // Library
+        // Library - arithmetic
         bind(&env, "+", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::add, "+"));
         bind(&env, "-", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::minus, "-"));
+        bind(&env, "*", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::multiply, "*"));
+        bind(&env, "/", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::divide, "/"));
+        bind(&env, "mod", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::modulo, "mod"));
+
+        // Comparisons (using Kernel-style names with ?)
+        bind(&env, "<?", CombinerType::Applicative, &|vals, _| {
+            two_val_fn(vals.operands()?, "<?", &|a, b| Number::less_than(&a, &b))?.as_val()
+        });
+        bind(&env, "<=?", CombinerType::Applicative, &|vals, _| {
+            two_val_fn(vals.operands()?, "<=?", &|a, b| Number::less_than_or_equal(&a, &b))?.as_val()
+        });
+        bind(&env, ">?", CombinerType::Applicative, &|vals, _| {
+            two_val_fn(vals.operands()?, ">?", &|a, b| Number::greater_than(&a, &b))?.as_val()
+        });
+        bind(&env, ">=?", CombinerType::Applicative, &|vals, _| {
+            two_val_fn(vals.operands()?, ">=?", &|a, b| Number::greater_than_or_equal(&a, &b))?.as_val()
+        });
+        bind(&env, "=?", CombinerType::Applicative, &|vals, _| {
+            two_val_fn(vals.operands()?, "=?", &|a, b| Number::numeric_equal(&a, &b))?.as_val()
+        });
+
+        // Library - list operations
         bind(&env, "car", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.as_val());
         bind(&env, "cdr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.as_val());
         bind(&env, "list", CombinerType::Applicative, &|vals, _| vals.as_val());
@@ -293,10 +318,14 @@ impl Combiner {
             params[params.len() - 1].clone()
         };
 
-        // Make immutable copies of formals and body
-        let formals_copy = Value::copy_es_immutable(formals.as_pair())?;
+        // Make immutable copies of formals and body (if they're pairs)
+        let formals_copy = if matches!(formals.deref(), Value::Pair(_)) {
+            Value::copy_es_immutable(formals.clone())?
+        } else {
+            formals
+        };
         let body_copy = if matches!(body.deref(), Value::Pair(_)) {
-            Value::copy_es_immutable(body.as_pair())?
+            Value::copy_es_immutable(body.clone())?
         } else {
             body
         };
@@ -326,6 +355,73 @@ impl Combiner {
             }
             _ => RuntimeError::type_error("unwrap requires exactly 1 argument"),
         }
+    }
+
+    // $lambda operative: creates an applicative (wrapped operative with #ignore for eformal)
+    // ($lambda <formals> . <body>) = (wrap ($vau <formals> #ignore . <body>))
+    fn lambda(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.is_empty() {
+            return RuntimeError::type_error("$lambda requires at least formals");
+        }
+
+        let formals = params[0].clone();
+
+        // Validate formals and check for duplicates
+        let mut seen_symbols: HashSet<String> = HashSet::new();
+        validate_formals(&formals, &mut seen_symbols)?;
+
+        // Get body - for now just single expression, later we'll add $sequence
+        let body = if params.len() == 1 {
+            Value::make_inert()
+        } else if params.len() == 2 {
+            params[1].clone()
+        } else {
+            // Multiple body expressions - wrap in implicit $sequence
+            // TODO: implement proper $sequence handling
+            params[params.len() - 1].clone()
+        };
+
+        // Make immutable copies of formals and body (if they're pairs)
+        let formals_copy = if matches!(formals.deref(), Value::Pair(_)) {
+            Value::copy_es_immutable(formals.clone())?
+        } else {
+            formals
+        };
+        let body_copy = if matches!(body.deref(), Value::Pair(_)) {
+            Value::copy_es_immutable(body.clone())?
+        } else {
+            body
+        };
+
+        // Create the compound operative with #ignore for eformal
+        let operative = Combiner::new_compound(
+            env,
+            formals_copy,
+            Value::make_const(crate::values::Constant::Ignore),
+            body_copy,
+        );
+
+        // Wrap it to make an applicative
+        Combiner::new_wrapped(operative)?.as_val()
+    }
+
+    // $sequence operative: evaluates operands in order, returns last result
+    // ($sequence . <exprs>) evaluates each expr and returns the result of the last one
+    fn sequence(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let exprs = vals.operands()?;
+        if exprs.is_empty() {
+            return Value::make_inert().as_val();
+        }
+
+        let env_val = Rc::new(Value::Env(env.clone()));
+        let mut result = Value::make_inert();
+
+        for expr in &exprs {
+            result = eval(expr.clone(), env_val.clone())?;
+        }
+
+        result.as_val()
     }
 }
 

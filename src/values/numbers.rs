@@ -55,6 +55,65 @@ impl Value {
     pub fn minus(items: Rc<Value>) -> ValueResult {
         process(items, &Number::minus)
     }
+
+    pub fn multiply(items: Rc<Value>) -> ValueResult {
+        process_mult(items, &Number::multiply)
+    }
+
+    pub fn divide(items: Rc<Value>) -> ValueResult {
+        process_div(items, &Number::divide)
+    }
+
+    pub fn modulo(items: Rc<Value>) -> ValueResult {
+        process(items, &Number::modulo)
+    }
+}
+
+fn process_mult(items: Rc<Value>, func: &dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult) -> ValueResult {
+    match items.deref() {
+        Value::Constant(Constant::Null) => Number::int(1).ok(), // Identity for multiplication
+        Value::Pair(_) => {
+            let num1: Rc<Value> = items.car()?.into();
+            let cdr: Rc<Value> = items.cdr()?.into();
+            match cdr.deref() {
+                Value::Constant(Constant::Null) => num1.ok(),
+                Value::Number(_) => func(num1, cdr),
+                Value::Pair(_) => {
+                    let num2: Rc<Value> = cdr.car()?.into();
+                    Value::cons(
+                        func(num1, num2)?.into(),
+                        cdr.cdr()?.into()
+                    )
+                }
+                _ => RuntimeError::type_error("* only works on numbers"),
+            }
+        },
+        _ => RuntimeError::type_error("* only works on numbers"),
+    }
+}
+
+fn process_div(items: Rc<Value>, func: &dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult) -> ValueResult {
+    match items.deref() {
+        Value::Constant(Constant::Null) => RuntimeError::type_error("/ requires at least one argument"),
+        Value::Pair(_) => {
+            let num1: Rc<Value> = items.car()?.into();
+            let cdr: Rc<Value> = items.cdr()?.into();
+            match cdr.deref() {
+                // Single argument: (/ n) = 1/n (reciprocal)
+                Value::Constant(Constant::Null) => func(Number::int(1), num1),
+                Value::Number(_) => func(num1, cdr),
+                Value::Pair(_) => {
+                    let num2: Rc<Value> = cdr.car()?.into();
+                    Value::cons(
+                        func(num1, num2)?.into(),
+                        cdr.cdr()?.into()
+                    )
+                }
+                _ => RuntimeError::type_error("/ only works on numbers"),
+            }
+        },
+        _ => RuntimeError::type_error("/ only works on numbers"),
+    }
 }
 
 impl Number {
@@ -103,7 +162,134 @@ impl Number {
                 };
                 Value::Number(num).ok()
             },
-            _ => RuntimeError::type_error(format!("+ only works on numbers - got (- {val1} {val2})")),
+            _ => RuntimeError::type_error(format!("- only works on numbers - got (- {val1} {val2})")),
+        }
+    }
+
+    fn multiply(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let num = match (n1, n2) {
+                    (Number::Int(n1), Number::Int(n2)) => Number::Int(n1 * n2),
+                    (Number::Float(n1), Number::Int(n2)) => Number::Float(n1 * *n2 as f64),
+                    (Number::Int(n1), Number::Float(n2)) => Number::Float(*n1 as f64 * n2),
+                    (Number::Float(n1), Number::Float(n2)) => Number::Float(n1 * n2),
+                };
+                Value::Number(num).ok()
+            },
+            _ => RuntimeError::type_error(format!("* only works on numbers - got (* {val1} {val2})")),
+        }
+    }
+
+    fn divide(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                // Check for division by zero
+                let is_zero = match n2 {
+                    Number::Int(0) => true,
+                    Number::Float(f) if *f == 0.0 => true,
+                    _ => false,
+                };
+                if is_zero {
+                    return RuntimeError::type_error("division by zero");
+                }
+                let num = match (n1, n2) {
+                    (Number::Int(n1), Number::Int(n2)) => Number::Int(n1 / n2), // Integer division
+                    (Number::Float(n1), Number::Int(n2)) => Number::Float(n1 / *n2 as f64),
+                    (Number::Int(n1), Number::Float(n2)) => Number::Float(*n1 as f64 / n2),
+                    (Number::Float(n1), Number::Float(n2)) => Number::Float(n1 / n2),
+                };
+                Value::Number(num).ok()
+            },
+            _ => RuntimeError::type_error(format!("/ only works on numbers - got (/ {val1} {val2})")),
+        }
+    }
+
+    fn modulo(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(Number::Int(n1)), Value::Number(Number::Int(n2))) => {
+                if *n2 == 0 {
+                    return RuntimeError::type_error("modulo by zero");
+                }
+                Value::Number(Number::Int(n1 % n2)).ok()
+            },
+            _ => RuntimeError::type_error("mod only works on integers"),
+        }
+    }
+
+    // Comparisons
+    pub fn less_than(val1: &Rc<Value>, val2: &Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let result = match (n1, n2) {
+                    (Number::Int(a), Number::Int(b)) => a < b,
+                    (Number::Float(a), Number::Float(b)) => a < b,
+                    (Number::Int(a), Number::Float(b)) => (*a as f64) < *b,
+                    (Number::Float(a), Number::Int(b)) => *a < (*b as f64),
+                };
+                Value::boolean(result).ok()
+            },
+            _ => RuntimeError::type_error("< only works on numbers"),
+        }
+    }
+
+    pub fn less_than_or_equal(val1: &Rc<Value>, val2: &Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let result = match (n1, n2) {
+                    (Number::Int(a), Number::Int(b)) => a <= b,
+                    (Number::Float(a), Number::Float(b)) => a <= b,
+                    (Number::Int(a), Number::Float(b)) => (*a as f64) <= *b,
+                    (Number::Float(a), Number::Int(b)) => *a <= (*b as f64),
+                };
+                Value::boolean(result).ok()
+            },
+            _ => RuntimeError::type_error("<= only works on numbers"),
+        }
+    }
+
+    pub fn greater_than(val1: &Rc<Value>, val2: &Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let result = match (n1, n2) {
+                    (Number::Int(a), Number::Int(b)) => a > b,
+                    (Number::Float(a), Number::Float(b)) => a > b,
+                    (Number::Int(a), Number::Float(b)) => (*a as f64) > *b,
+                    (Number::Float(a), Number::Int(b)) => *a > (*b as f64),
+                };
+                Value::boolean(result).ok()
+            },
+            _ => RuntimeError::type_error("> only works on numbers"),
+        }
+    }
+
+    pub fn greater_than_or_equal(val1: &Rc<Value>, val2: &Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let result = match (n1, n2) {
+                    (Number::Int(a), Number::Int(b)) => a >= b,
+                    (Number::Float(a), Number::Float(b)) => a >= b,
+                    (Number::Int(a), Number::Float(b)) => (*a as f64) >= *b,
+                    (Number::Float(a), Number::Int(b)) => *a >= (*b as f64),
+                };
+                Value::boolean(result).ok()
+            },
+            _ => RuntimeError::type_error(">= only works on numbers"),
+        }
+    }
+
+    pub fn numeric_equal(val1: &Rc<Value>, val2: &Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(n1), Value::Number(n2)) => {
+                let result = match (n1, n2) {
+                    (Number::Int(a), Number::Int(b)) => a == b,
+                    (Number::Float(a), Number::Float(b)) => a == b,
+                    (Number::Int(a), Number::Float(b)) => (*a as f64) == *b,
+                    (Number::Float(a), Number::Int(b)) => *a == (*b as f64),
+                };
+                Value::boolean(result).ok()
+            },
+            _ => RuntimeError::type_error("=? only works on numbers"),
         }
     }
 }
