@@ -1,10 +1,11 @@
 use std::{fmt, ops::Deref};
 use std::rc::Rc;
+use std::collections::HashSet;
 use crate::errors::{ RuntimeError, ErrorTypes };
 use crate::values::{ Value, ValueResult, CallResult, Symbol, CallResultType, is_val };
 use crate::values::eval::eval;
 
-use super::envs::EnvRef;
+use super::envs::{Env, EnvRef};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CombinerType {
@@ -12,21 +13,46 @@ pub enum CombinerType {
     Applicative,
 }
 
-type Func = &'static dyn Fn(Rc<Value>, EnvRef) -> CallResult;
+pub type Func = &'static dyn Fn(Rc<Value>, EnvRef) -> CallResult;
 type ValueFunc = &'static dyn Fn(Rc<Value>, Rc<Value>) -> ValueResult;
 type Method = &'static dyn Fn(Rc<Value>) -> ValueResult;
 
+/// The kind of combiner - either a primitive (built-in) or compound (user-defined)
+#[derive(Clone)]
+pub enum CombinerKind {
+    /// Primitive combiner with a static function pointer
+    Primitive {
+        func: Func,
+    },
+    /// Compound combiner created by $vau
+    Compound {
+        static_env: EnvRef,
+        formals: Rc<Value>,
+        eformal: Rc<Value>,  // Symbol or #ignore
+        body: Rc<Value>,
+    },
+    /// Wrapped combiner (for applicatives created by wrap)
+    Wrapped {
+        underlying: Rc<Value>,  // Must be a Combiner
+    },
+}
+
 #[derive(Clone)]
 pub struct Combiner {
-    c_type: CombinerType,
-    expr: Rc<Value>,
+    pub c_type: CombinerType,
     name: String,
-    func: Func,
+    kind: CombinerKind,
 }
 
 impl fmt::Display for Combiner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#func({} {})", self.name, self.expr)
+        match &self.kind {
+            CombinerKind::Primitive { .. } => write!(f, "#[{}]", self.name),
+            CombinerKind::Compound { formals, body, .. } => {
+                write!(f, "#[compound {} {}]", formals, body)
+            }
+            CombinerKind::Wrapped { underlying } => write!(f, "#[wrapped {}]", underlying),
+        }
     }
 }
 
@@ -35,14 +61,15 @@ impl fmt::Debug for Combiner {
         f.debug_struct("Combiner")
             .field("type", &self.c_type)
             .field("name", &self.name)
-            .field("expr", &self.expr)
             .finish()
     }
 }
 
 impl PartialEq for Combiner {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.expr == other.expr
+        // For now, combiners are equal if they have the same name and type
+        // This is a simplification; full equality would need to compare kind
+        self.name == other.name && self.c_type == other.c_type
     }
 }
 
@@ -73,13 +100,74 @@ fn method(val: Rc<Value>, func: Method) -> ValueResult {
 }
 
 impl Combiner {
-    fn new(name: impl Into<String>, func: Func, expr: Rc<Value>, c_type: CombinerType) -> Rc<Value> {
-        Rc::new(Value::Combiner(Combiner { c_type, name: name.into(), func, expr }))
+    fn new_primitive(name: impl Into<String>, func: Func, c_type: CombinerType) -> Rc<Value> {
+        Rc::new(Value::Combiner(Combiner {
+            c_type,
+            name: name.into(),
+            kind: CombinerKind::Primitive { func },
+        }))
+    }
+
+    pub fn new_compound(
+        static_env: EnvRef,
+        formals: Rc<Value>,
+        eformal: Rc<Value>,
+        body: Rc<Value>,
+    ) -> Rc<Value> {
+        Rc::new(Value::Combiner(Combiner {
+            c_type: CombinerType::Operative,
+            name: "$vau".to_string(),
+            kind: CombinerKind::Compound {
+                static_env,
+                formals,
+                eformal,
+                body,
+            },
+        }))
+    }
+
+    pub fn new_wrapped(underlying: Rc<Value>) -> Result<Rc<Value>, RuntimeError> {
+        // Verify that underlying is a combiner
+        if !matches!(underlying.deref(), Value::Combiner(_)) {
+            return RuntimeError::type_error("wrap requires a combiner");
+        }
+        Ok(Rc::new(Value::Combiner(Combiner {
+            c_type: CombinerType::Applicative,
+            name: "wrapped".to_string(),
+            kind: CombinerKind::Wrapped { underlying },
+        })))
+    }
+
+    pub fn unwrap(&self) -> Result<Rc<Value>, RuntimeError> {
+        if self.c_type != CombinerType::Applicative {
+            return RuntimeError::type_error("unwrap requires an applicative");
+        }
+        match &self.kind {
+            CombinerKind::Wrapped { underlying } => Ok(underlying.clone()),
+            CombinerKind::Primitive { func } => {
+                // Create an operative version of this primitive
+                Ok(Rc::new(Value::Combiner(Combiner {
+                    c_type: CombinerType::Operative,
+                    name: format!("unwrapped-{}", self.name),
+                    kind: CombinerKind::Primitive { func: *func },
+                })))
+            }
+            CombinerKind::Compound { .. } => {
+                // Compound applicatives shouldn't exist directly, but handle it
+                RuntimeError::type_error("cannot unwrap compound applicative")
+            }
+        }
     }
 
     pub fn is_eq(self: &Self, other: &Self) -> Result<bool, RuntimeError> {
-        let same_exprs = Value::is_eq(self.expr.clone(), other.expr.clone())?.is_true();
-        Ok(self.name == other.name && self.c_type == other.c_type && same_exprs)
+        // Two combiners are eq? only if they are the same object
+        // For primitives, compare by name and type
+        // For compound/wrapped, they're only eq? if same object (handled by pointer comparison in caller)
+        Ok(self.name == other.name && self.c_type == other.c_type)
+    }
+
+    pub fn get_kind(&self) -> &CombinerKind {
+        &self.kind
     }
 
     // proper underlying combiner implementations
@@ -124,12 +212,15 @@ impl Combiner {
             let name = name.into();
             env.borrow_mut().bind(
                 Symbol(name.clone()),
-                Combiner::new(name, func, Value::make_null(), type_)
+                Combiner::new_primitive(name, func, type_)
             );
         }
 
-        // primatives
+        // Core primitives
         bind(&env, "$if", CombinerType::Operative, &Combiner::if_);
+        bind(&env, "$vau", CombinerType::Operative, &Combiner::vau);
+        bind(&env, "wrap", CombinerType::Applicative, &Combiner::wrap);
+        bind(&env, "unwrap", CombinerType::Applicative, &Combiner::unwrap_);
         bind(&env, "eq?", CombinerType::Operative, &|vals, _| two_val_fn(vals.operands()?, "eq?", &Value::is_eq)?.as_val());
         bind(&env, "equal?", CombinerType::Operative, &|vals, _| two_val_fn(vals.operands()?, "equal?", &Value::is_equal)?.as_val());
         bind(&env, "cons", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "cons", &Value::cons)?.as_val());
@@ -144,6 +235,7 @@ impl Combiner {
         bind(&env, "boolean?", CombinerType::Operative, &|vals, _| Value::is_boolean(vals)?.as_val());
         bind(&env, "applicative?", CombinerType::Operative, &|vals, _| Value::is_applicative(vals)?.as_val());
         bind(&env, "operative?", CombinerType::Operative, &|vals, _| Value::is_operative(vals)?.as_val());
+        bind(&env, "combiner?", CombinerType::Operative, &|vals, _| Value::is_combiner(vals)?.as_val());
         bind(&env, "inert?", CombinerType::Operative, &|vals, _| Value::is_inert(vals)?.as_val());
         bind(&env, "ignore?", CombinerType::Operative, &|vals, _| Value::is_ignore(vals)?.as_val());
         bind(&env, "null?", CombinerType::Operative, &|vals, _| Value::is_null(vals)?.as_val());
@@ -153,23 +245,121 @@ impl Combiner {
         bind(&env, "string?", CombinerType::Operative, &|vals, _| Value::is_string(vals)?.as_val());
         bind(&env, "symbol?", CombinerType::Operative, &|vals, _| Value::is_symbol(vals)?.as_val());
 
-        // library
+        // Library
         bind(&env, "+", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::add, "+"));
         bind(&env, "-", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::minus, "-"));
         bind(&env, "car", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.as_val());
         bind(&env, "cdr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.as_val());
         bind(&env, "list", CombinerType::Applicative, &|vals, _| vals.as_val());
     }
+
+    // $vau operative: creates a compound operative
+    // ($vau <formals> <eformal> <body>)
+    fn vau(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.len() < 2 {
+            return RuntimeError::type_error("$vau requires at least formals and eformal");
+        }
+
+        let formals = params[0].clone();
+        let eformal = params[1].clone();
+
+        // Validate eformal: must be symbol or #ignore
+        match eformal.deref() {
+            Value::Symbol(_) | Value::Constant(crate::values::Constant::Ignore) => {}
+            _ => return RuntimeError::type_error("$vau eformal must be a symbol or #ignore"),
+        }
+
+        // Validate formals and check for duplicates
+        let mut seen_symbols: HashSet<String> = HashSet::new();
+        validate_formals(&formals, &mut seen_symbols)?;
+
+        // Check that eformal is not in formals
+        if let Value::Symbol(Symbol(name)) = eformal.deref() {
+            if seen_symbols.contains(name) {
+                return RuntimeError::type_error("eformal cannot duplicate a symbol in formals");
+            }
+        }
+
+        // Get body - for now just single expression, later we'll add $sequence
+        let body = if params.len() == 2 {
+            Value::make_inert()
+        } else if params.len() == 3 {
+            params[2].clone()
+        } else {
+            // Multiple body expressions - wrap in implicit $sequence
+            // For now, just use the last one
+            // TODO: implement proper $sequence handling
+            params[params.len() - 1].clone()
+        };
+
+        // Make immutable copies of formals and body
+        let formals_copy = Value::copy_es_immutable(formals.as_pair())?;
+        let body_copy = if matches!(body.deref(), Value::Pair(_)) {
+            Value::copy_es_immutable(body.as_pair())?
+        } else {
+            body
+        };
+
+        Combiner::new_compound(env, formals_copy, eformal, body_copy).as_val()
+    }
+
+    // wrap applicative: wraps a combiner to create an applicative
+    fn wrap(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        match &params[..] {
+            [combiner] => Combiner::new_wrapped(combiner.clone())?.as_val(),
+            _ => RuntimeError::type_error("wrap requires exactly 1 argument"),
+        }
+    }
+
+    // unwrap applicative: extracts the underlying combiner from an applicative
+    fn unwrap_(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        match &params[..] {
+            [val] => {
+                if let Value::Combiner(c) = val.deref() {
+                    c.unwrap()?.as_val()
+                } else {
+                    RuntimeError::type_error("unwrap requires an applicative")
+                }
+            }
+            _ => RuntimeError::type_error("unwrap requires exactly 1 argument"),
+        }
+    }
+}
+
+/// Validate that a formal parameter tree is valid and collect all symbols
+fn validate_formals(formals: &Rc<Value>, seen: &mut HashSet<String>) -> Result<(), RuntimeError> {
+    match formals.deref() {
+        Value::Symbol(Symbol(name)) => {
+            if seen.contains(name) {
+                return RuntimeError::type_error(format!("duplicate symbol in formals: {}", name));
+            }
+            seen.insert(name.clone());
+            Ok(())
+        }
+        Value::Constant(crate::values::Constant::Ignore) => Ok(()),
+        Value::Constant(crate::values::Constant::Null) => Ok(()),
+        Value::Pair(_) => {
+            let car = formals.car()?;
+            let cdr = formals.cdr()?;
+            validate_formals(&car, seen)?;
+            validate_formals(&cdr, seen)?;
+            Ok(())
+        }
+        _ => RuntimeError::type_error("invalid formal parameter tree"),
+    }
 }
 
 impl Value {
     // helpers
-    pub fn new_applicative(name: impl Into<String>, func: Func, expr: Rc<Value>) -> Rc<Value> {
-        Combiner::new(name, func, expr, CombinerType::Applicative)
+    pub fn new_applicative(name: impl Into<String>, func: Func, _expr: Rc<Value>) -> Rc<Value> {
+        Combiner::new_primitive(name, func, CombinerType::Applicative)
     }
 
-    pub fn new_operative(name: impl Into<String>, func: Func, expr: Rc<Value>) -> Rc<Value> {
-        Combiner::new(name, func, expr, CombinerType::Operative)
+    pub fn new_operative(name: impl Into<String>, func: Func, _expr: Rc<Value>) -> Rc<Value> {
+        Combiner::new_primitive(name, func, CombinerType::Operative)
     }
 
     fn arguments(&self, env: Rc<Value>) -> Result<Vec<Rc<Value>>, RuntimeError> {
@@ -189,13 +379,19 @@ impl Value {
     pub fn call(fun: Rc<Value>, env: Rc<Value>, params: Rc<Value>) -> CallResult {
         if let Value::Env(e) = env.deref() {
             match fun.deref() {
-                Value::Combiner(Combiner{ c_type: CombinerType::Operative, func, ..}) => {
-                    func(params, e.clone())
-                },
-                Value::Combiner(Combiner{ c_type: CombinerType::Applicative, func, ..}) => {
-                    let args = params.arguments(env.clone())?;
-                    func(Value::to_list(args)?, e.clone())
-                },
+                Value::Combiner(c) => {
+                    match c.c_type {
+                        CombinerType::Operative => {
+                            call_operative(c, params, e.clone(), env.clone())
+                        }
+                        CombinerType::Applicative => {
+                            // Evaluate arguments first
+                            let args = params.arguments(env.clone())?;
+                            let args_list = Value::to_list(args)?;
+                            call_applicative(c, args_list, e.clone(), env.clone())
+                        }
+                    }
+                }
                 _ => Err(RuntimeError::new(ErrorTypes::TypeError, "eval tried to call a non combiner")),
             }
         } else {
@@ -203,13 +399,17 @@ impl Value {
         }
     }
 
-    // primatives
+    // primitives
     pub fn is_operative(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Combiner(Combiner{ c_type: CombinerType::Operative, .. })))
     }
 
     pub fn is_applicative(val: Rc<Value>) -> ValueResult {
         is_val(val, &|val| matches!(val.deref(), Value::Combiner(Combiner{ c_type: CombinerType::Applicative, .. })))
+    }
+
+    pub fn is_combiner(val: Rc<Value>) -> ValueResult {
+        is_val(val, &|val| matches!(val.deref(), Value::Combiner(_)))
     }
 
     pub fn as_tail_call(&self) -> CallResult {
@@ -221,6 +421,92 @@ impl Value {
     }
 }
 
+/// Call an operative combiner with unevaluated operands
+fn call_operative(c: &Combiner, operands: Rc<Value>, env: EnvRef, env_val: Rc<Value>) -> CallResult {
+    match &c.kind {
+        CombinerKind::Primitive { func } => {
+            func(operands, env)
+        }
+        CombinerKind::Compound { static_env, formals, eformal, body } => {
+            // Create local environment with static_env as parent
+            let local_env = Env::new(vec![static_env.clone()]);
+
+            // Match formals to operands in local environment
+            match_formals(&formals, &operands, &local_env)?;
+
+            // Bind eformal to dynamic environment if it's a symbol
+            if let Value::Symbol(sym) = eformal.deref() {
+                local_env.borrow_mut().bind(sym.clone(), env_val);
+            }
+
+            // Evaluate body in local environment as tail context
+            body.eval(Rc::new(Value::Env(local_env)))
+        }
+        CombinerKind::Wrapped { underlying } => {
+            // Wrapped operatives shouldn't exist, but handle it
+            if let Value::Combiner(inner) = underlying.deref() {
+                call_operative(inner, operands, env, env_val)
+            } else {
+                RuntimeError::type_error("wrapped combiner is invalid")
+            }
+        }
+    }
+}
+
+/// Call an applicative combiner with already-evaluated arguments
+fn call_applicative(c: &Combiner, args: Rc<Value>, env: EnvRef, env_val: Rc<Value>) -> CallResult {
+    match &c.kind {
+        CombinerKind::Primitive { func } => {
+            func(args, env)
+        }
+        CombinerKind::Compound { .. } => {
+            // This shouldn't happen - compound combiners are always operatives
+            // But if we get here, treat it like an operative call
+            RuntimeError::type_error("compound combiner cannot be applicative directly")
+        }
+        CombinerKind::Wrapped { underlying } => {
+            // Call the underlying combiner as an operative with the evaluated args
+            if let Value::Combiner(inner) = underlying.deref() {
+                call_operative(inner, args, env, env_val)
+            } else {
+                RuntimeError::type_error("wrapped combiner is invalid")
+            }
+        }
+    }
+}
+
+/// Match a formal parameter tree against an operand tree, binding symbols in the environment
+fn match_formals(formals: &Rc<Value>, operands: &Rc<Value>, env: &EnvRef) -> Result<(), RuntimeError> {
+    match (formals.deref(), operands.deref()) {
+        // Symbol binds to the entire operand
+        (Value::Symbol(sym), _) => {
+            env.borrow_mut().bind(sym.clone(), operands.clone());
+            Ok(())
+        }
+        // #ignore matches anything
+        (Value::Constant(crate::values::Constant::Ignore), _) => Ok(()),
+        // () matches only ()
+        (Value::Constant(crate::values::Constant::Null), Value::Constant(crate::values::Constant::Null)) => Ok(()),
+        (Value::Constant(crate::values::Constant::Null), _) => {
+            RuntimeError::type_error("formal/operand mismatch: expected ()")
+        }
+        // Pair matches pair recursively
+        (Value::Pair(_), Value::Pair(_)) => {
+            let formal_car = formals.car()?;
+            let formal_cdr = formals.cdr()?;
+            let operand_car = operands.car()?;
+            let operand_cdr = operands.cdr()?;
+            match_formals(&formal_car, &operand_car, env)?;
+            match_formals(&formal_cdr, &operand_cdr, env)?;
+            Ok(())
+        }
+        (Value::Pair(_), _) => {
+            RuntimeError::type_error("formal/operand mismatch: expected pair")
+        }
+        _ => RuntimeError::type_error("invalid formal parameter tree"),
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -228,11 +514,21 @@ mod tests {
 
     use std::rc::Rc;
     use std::ops::Deref;
-    use crate::values::{ Constant, Number, Value, tests::sample_values };
+    use crate::values::{ Constant, Value, tests::sample_values };
     use crate::values::eval::eval;
     use crate::values::Combiner;
 
-    use super::CombinerType;
+    use super::{CombinerType, CombinerKind};
+
+    fn make_test_combiner(name: &str, c_type: CombinerType) -> Combiner {
+        Combiner {
+            name: name.to_string(),
+            c_type,
+            kind: CombinerKind::Primitive {
+                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
+            },
+        }
+    }
 
     #[test]
     fn test_is_combiner() {
@@ -278,22 +574,8 @@ mod tests {
     }
 
     #[parameterized(
-        applicative = {
-            Combiner{
-                name: "applicative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            }
-        },
-        operative = {
-            Combiner{
-                name: "operative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            }
-        },
+        applicative = { make_test_combiner("applicative", CombinerType::Applicative) },
+        operative = { make_test_combiner("operative", CombinerType::Operative) },
     )]
     fn test_is_eq_self(val: Combiner) {
         assert!(val.is_eq(&val).unwrap());
@@ -301,32 +583,12 @@ mod tests {
 
     #[parameterized(
         applicatives = {
-            Combiner{
-                name: "applicative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            },
-            Combiner{
-                name: "applicative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            }
+            make_test_combiner("applicative", CombinerType::Applicative),
+            make_test_combiner("applicative", CombinerType::Applicative)
         },
         operatives = {
-            Combiner{
-                name: "operative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            },
-            Combiner{
-                name: "operative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            }
+            make_test_combiner("operative", CombinerType::Operative),
+            make_test_combiner("operative", CombinerType::Operative)
         },
     )]
     fn test_is_eq(val1: Combiner, val2: Combiner) {
@@ -336,80 +598,23 @@ mod tests {
 
     #[parameterized(
         applicative_different_names = {
-            Combiner{
-                name: "applicativebla".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            },
-            Combiner{
-                name: "applicative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            }
-        },
-        applicatives_differnt_expr = {
-            Combiner{
-                name: "applicative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Inert)),
-                c_type: CombinerType::Applicative,
-            },
-            Combiner{
-                name: "applicative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            }
+            make_test_combiner("applicativebla", CombinerType::Applicative),
+            make_test_combiner("applicative", CombinerType::Applicative)
         },
         operatives_diff_names = {
-            Combiner{
-                name: "operativebla".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            },
-            Combiner{
-                name: "operative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            }
-        },
-        operatives_diff_exprs = {
-            Combiner{
-                name: "operative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Inert)),
-                c_type: CombinerType::Operative,
-            },
-            Combiner{
-                name: "operative".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            }
+            make_test_combiner("operativebla", CombinerType::Operative),
+            make_test_combiner("operative", CombinerType::Operative)
         },
         different_types = {
-            Combiner{
-                name: "bla".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Applicative,
-            },
-            Combiner{
-                name: "bla".to_string(),
-                func: &|_e, _en| Value::Constant(Constant::Null).as_val(),
-                expr: Rc::new(Value::Constant(Constant::Null)),
-                c_type: CombinerType::Operative,
-            }
+            make_test_combiner("bla", CombinerType::Applicative),
+            make_test_combiner("bla", CombinerType::Operative)
         },
     )]
     fn test_is_eq_not(val1: Combiner, val2: Combiner) {
         assert!(!val1.is_eq(&val2).unwrap());
         assert!(!val2.is_eq(&val1).unwrap());
     }
+
     #[parameterized(
         yes = { Value::to_list(
             vec![Value::boolean(true), Value::make_null(), Value::make_ignore()]).unwrap().into(), "()"
@@ -425,5 +630,4 @@ mod tests {
             assert_eq!(func.to_string(), format!("{expected}"));
         }
     }
-
 }

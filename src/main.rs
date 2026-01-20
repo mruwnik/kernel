@@ -3,6 +3,9 @@ pub mod tokens;
 pub mod values;
 pub mod errors;
 
+#[cfg(test)]
+mod tests;
+
 use std::env;
 use std::rc::Rc;
 use errors::RuntimeError;
@@ -16,11 +19,7 @@ fn rep(raw: impl Into<String>) -> CallResult {
 
     let lexes = lexemes::get_lexemes(&mut chars)?;
     let values = tokens::parse(lexes)?;
-    // dbg!(values);
     let base_env = Value::ground_env();
-
-    base_env.define(Value::make_symbol("bla"), Value::make_string("this is from bla"))?;
-    base_env.define(Value::make_symbol("ble"), Value::make_string("this is from ble"))?;
 
     let results = values.iter()
         .map(|v| eval(v.clone(), base_env.clone()))
@@ -32,9 +31,6 @@ fn rep(raw: impl Into<String>) -> CallResult {
 }
 
 fn main() {
-    let raw = format!("1231 bla ble (+ 1 (- 4 9) 3 4)");
-    let _ = rep(raw);
-
     env::args()
         .skip(1)
         .for_each(|s| match rep(s) {

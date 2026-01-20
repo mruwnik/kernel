@@ -73,18 +73,11 @@ impl Pair {
         )
     }
 
-    pub fn is_equal(self: &Self, other: &PairRef) -> Result<bool, RuntimeError> {
-        Ok(
-            self.car().is_equal(other.borrow().car().clone())?.is_true() &&
-                self.cdr().is_equal(other.borrow().cdr().clone())?.is_true()
-        )
-    }
-
-    fn car(self: &Self) -> Rc<Value> {
+    pub fn car(self: &Self) -> Rc<Value> {
         self.car.clone()
     }
 
-    fn cdr(self: &Self) -> Rc<Value> {
+    pub fn cdr(self: &Self) -> Rc<Value> {
         self.cdr.clone()
     }
 
@@ -395,16 +388,20 @@ mod tests {
         mutability = { number_list(vec![1, 2, 3]), make_immutable(number_list(vec![1, 2, 3])) },
     )]
     fn test_is_equal(val1: PairRef, val2: PairRef) {
-        assert!(val1.borrow().is_equal(&val2).expect("ok"));
-        assert!(val2.borrow().is_equal(&val1).expect("ok"));
+        let v1: Rc<Value> = Rc::new(Value::Pair(val1));
+        let v2: Rc<Value> = Rc::new(Value::Pair(val2));
+        assert!(v1.clone().is_equal(v2.clone()).expect("ok").is_true());
+        assert!(v2.is_equal(v1).expect("ok").is_true());
     }
 
     #[parameterized(
         basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2]) },
     )]
     fn test_is_equal_not(val1: PairRef, val2: PairRef) {
-        assert!(!val1.borrow().is_equal(&val2).expect("ok"));
-        assert!(!val2.borrow().is_equal(&val1).expect("ok"));
+        let v1: Rc<Value> = Rc::new(Value::Pair(val1));
+        let v2: Rc<Value> = Rc::new(Value::Pair(val2));
+        assert!(!v1.clone().is_equal(v2.clone()).expect("ok").is_true());
+        assert!(!v2.is_equal(v1).expect("ok").is_true());
     }
 
     #[parameterized(

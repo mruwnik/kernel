@@ -68,7 +68,6 @@ impl Value {
     pub fn define(&self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
         if let Value::Env(e) = self {
             let vals = eval(vals_expr, self.into())?;
-            println!("vals: {vals}");
             e.deref().borrow_mut().set(formals, vals)
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "$define! requires an env as its first argument"))
