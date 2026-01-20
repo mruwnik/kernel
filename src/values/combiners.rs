@@ -220,6 +220,7 @@ impl Combiner {
         // Core primitives
         bind(&env, "$if", CombinerType::Operative, &Combiner::if_);
         bind(&env, "$vau", CombinerType::Operative, &Combiner::vau);
+        bind(&env, "quote", CombinerType::Operative, &|vals, _| vals.car()?.as_val());
         bind(&env, "$lambda", CombinerType::Operative, &Combiner::lambda);
         bind(&env, "$sequence", CombinerType::Operative, &Combiner::sequence);
         bind(&env, "wrap", CombinerType::Applicative, &Combiner::wrap);
@@ -300,7 +301,7 @@ impl Combiner {
         bind(&env, "list-ref", CombinerType::Applicative, &Combiner::list_ref);
         bind(&env, "list-tail", CombinerType::Applicative, &Combiner::list_tail);
         bind(&env, "reverse", CombinerType::Applicative, &Combiner::reverse);
-        bind(&env, "member?", CombinerType::Applicative, &Combiner::member);
+        bind(&env, "member", CombinerType::Applicative, &Combiner::member);
         bind(&env, "assoc", CombinerType::Applicative, &Combiner::assoc);
         bind(&env, "map", CombinerType::Applicative, &Combiner::map);
         bind(&env, "for-each", CombinerType::Applicative, &Combiner::for_each);
@@ -839,20 +840,29 @@ impl Combiner {
         }
     }
 
-    // member?: check if element is in list (using equal?)
+    // member: find element in list, return tail or #f
     fn member(vals: Rc<Value>, _env: EnvRef) -> CallResult {
         let args = vals.operands()?;
         match &args[..] {
             [obj, list] => {
-                let items = list.operands()?;
-                for item in &items {
-                    if Value::is_equal(obj.clone(), item.clone())?.is_true() {
-                        return Value::boolean(true).as_val();
+                let mut current = list.clone();
+                loop {
+                    match current.deref() {
+                        Value::Constant(crate::values::Constant::Null) => {
+                            return Value::boolean(false).as_val();
+                        }
+                        Value::Pair(_) => {
+                            let head = current.car()?;
+                            if Value::is_equal(obj.clone(), head.into())?.is_true() {
+                                return current.as_val();
+                            }
+                            current = current.cdr()?.into();
+                        }
+                        _ => return RuntimeError::type_error("member requires a list"),
                     }
                 }
-                Value::boolean(false).as_val()
             }
-            _ => RuntimeError::type_error("member? requires 2 arguments"),
+            _ => RuntimeError::type_error("member requires 2 arguments"),
         }
     }
 
@@ -942,11 +952,11 @@ impl Combiner {
         }
     }
 
-    // reduce: fold left with binary function
+    // reduce: fold left with binary function (reduce func identity list)
     fn reduce(vals: Rc<Value>, env: EnvRef) -> CallResult {
         let args = vals.operands()?;
         match &args[..] {
-            [list, identity, func] => {
+            [func, identity, list] => {
                 let items = list.operands()?;
                 let env_val = Rc::new(Value::Env(env));
 
@@ -962,7 +972,7 @@ impl Combiner {
 
                 acc.as_val()
             }
-            _ => RuntimeError::type_error("reduce requires 3 arguments: list, identity, func"),
+            _ => RuntimeError::type_error("reduce requires 3 arguments: func, identity, list"),
         }
     }
 
