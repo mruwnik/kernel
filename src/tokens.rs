@@ -46,11 +46,12 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
         Lexeme::String(v) => Token::String(v.clone()),
         Lexeme::Special(v) => Token::Special(v.clone()),
         Lexeme::Symbol(val) => {
-            match val.to_lowercase().as_str() {
+            let lower = val.to_lowercase();
+            match lower.as_str() {
                 "+" | "-" => Token::Symbol(val.clone()),
                 "." => Token::Special(SpecialLexeme::FullStop),
 
-                // Constants
+                // Constants (case-insensitive matching)
                 "#t" => Token::Constant(Constant::True),
                 "#f" => Token::Constant(Constant::False),
                 "#inert" => Token::Constant(Constant::Inert),
@@ -61,7 +62,8 @@ pub fn parse_token(lexeme: &Lexeme) -> Result<Token, RuntimeError> {
                 v => match val.chars().next().unwrap() {
                     '+' | '-' => parse_number(v)?,
                     c if c.is_digit(10) => parse_number(v)?,
-                    _ => Token::Symbol(v.to_string()),
+                    // Preserve original case for symbols
+                    _ => Token::Symbol(val.clone()),
                 },
             }
         },
@@ -278,7 +280,7 @@ mod tests {
         let string = chars.to_string();
         assert_eq!(
             parse_token(&Lexeme::Symbol(string.clone())).ok().unwrap(),
-            Token::Symbol(string.to_lowercase().clone())
+            Token::Symbol(string.clone())  // Preserve original case
         );
     }
 

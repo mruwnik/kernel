@@ -138,7 +138,7 @@ pub fn get_lexemes(chars: &mut std::str::Chars) -> Result<Vec<Lexeme>, RuntimeEr
         // token, assuming that the previous char was a basic character
         if let Char::WhiteSpace | Char::Special(_) = &char {
             if let Char::Char(_) = prev {
-                lexemes.push(Lexeme::Symbol(current_lexeme.clone().to_lowercase()));
+                lexemes.push(Lexeme::Symbol(current_lexeme.clone()));
                 current_lexeme.clear();
             }
         }
@@ -155,7 +155,7 @@ pub fn get_lexemes(chars: &mut std::str::Chars) -> Result<Vec<Lexeme>, RuntimeEr
         prev = char;
     }
     if !current_lexeme.is_empty() {
-        lexemes.push(Lexeme::Symbol(current_lexeme.clone().to_lowercase()));
+        lexemes.push(Lexeme::Symbol(current_lexeme.clone()));
     }
     Result::Ok(lexemes)
 }
@@ -260,9 +260,9 @@ mod tests {
             format!(" (BLA  ble WrAr) "),
             vec![
                 Lexeme::Special(SpecialLexeme::LeftParam),
-                Lexeme::Symbol(format!("bla")),
+                Lexeme::Symbol(format!("BLA")),
                 Lexeme::Symbol(format!("ble")),
-                Lexeme::Symbol(format!("wrar")),
+                Lexeme::Symbol(format!("WrAr")),
                 Lexeme::Special(SpecialLexeme::RightParam),
             ]
         },

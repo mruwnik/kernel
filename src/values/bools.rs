@@ -42,7 +42,8 @@ impl Value {
                 (Value::String(a), Value::String(b)) => a.is_eq(b),
                 // Mutable types - compare by pointer (same object)
                 (Value::Combiner(_), Value::Combiner(_)) => Rc::ptr_eq(&self, &other),
-                (Value::Env(_), Value::Env(_)) => Rc::ptr_eq(&self, &other),
+                // Environments: compare underlying EnvRef identity (not the Value wrapper)
+                (Value::Env(e1), Value::Env(e2)) => Rc::ptr_eq(e1, e2),
                 (Value::Pair(_), Value::Pair(_)) => Rc::ptr_eq(&self, &other),
                 _ => false
             }

@@ -1,11 +1,28 @@
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::ops::Deref;
 
 use super::{ ValueResult, Value, is_val };
 
-#[derive(Debug, PartialEq, Hash, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Symbol(pub String);
+
+// Case-insensitive comparison for HashMap lookup
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_lowercase() == other.0.to_lowercase()
+    }
+}
+
+impl Eq for Symbol {}
+
+// Case-insensitive hash to match PartialEq
+impl Hash for Symbol {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_lowercase().hash(state);
+    }
+}
 
 impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

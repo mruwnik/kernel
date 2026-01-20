@@ -50,6 +50,14 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Number(Number::Int(_))))
     }
 
+    pub fn is_finite(items: Rc<Value>) -> ValueResult {
+        is_val(items, &|val| match val.deref() {
+            Value::Number(Number::Int(_)) => true,
+            Value::Number(Number::Float(f)) => f.is_finite(),
+            _ => false,
+        })
+    }
+
     // Adds the first 2 items, returning a list of all remaining items to sum, or the final sum if fewer
     // than 2 items provided
     pub fn add(items: Rc<Value>) -> ValueResult {
@@ -218,9 +226,24 @@ impl Number {
                 if *n2 == 0 {
                     return RuntimeError::type_error("modulo by zero");
                 }
-                Value::Number(Number::Int(n1 % n2)).ok()
+                // Use rem_euclid for proper mathematical modulo (always non-negative when divisor is positive)
+                Value::Number(Number::Int(n1.rem_euclid(*n2))).ok()
             },
             _ => RuntimeError::type_error("mod only works on integers"),
+        }
+    }
+
+    /// Euclidean integer division (quotient that pairs with rem_euclid for mod)
+    /// Satisfies the identity: n = (div n d) * d + (mod n d)
+    pub fn div(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(Number::Int(n1)), Value::Number(Number::Int(n2))) => {
+                if *n2 == 0 {
+                    return RuntimeError::type_error("division by zero");
+                }
+                Value::Number(Number::Int(n1.div_euclid(*n2))).ok()
+            },
+            _ => RuntimeError::type_error("div only works on integers"),
         }
     }
 
@@ -299,6 +322,42 @@ impl Number {
             _ => RuntimeError::type_error("=? only works on numbers"),
         }
     }
+
+    /// Greatest common divisor (always returns non-negative result)
+    pub fn gcd(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(Number::Int(a)), Value::Number(Number::Int(b))) => {
+                let result = gcd_helper(a.abs(), b.abs());
+                Value::Number(Number::Int(result)).ok()
+            },
+            _ => RuntimeError::type_error("gcd only works on integers"),
+        }
+    }
+
+    /// Least common multiple (always returns non-negative result)
+    pub fn lcm(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
+        match (val1.deref(), val2.deref()) {
+            (Value::Number(Number::Int(a)), Value::Number(Number::Int(b))) => {
+                if *a == 0 || *b == 0 {
+                    return Value::Number(Number::Int(0)).ok();
+                }
+                let g = gcd_helper(a.abs(), b.abs());
+                let result = (a.abs() / g) * b.abs();
+                Value::Number(Number::Int(result)).ok()
+            },
+            _ => RuntimeError::type_error("lcm only works on integers"),
+        }
+    }
+}
+
+/// Euclidean GCD algorithm
+fn gcd_helper(mut a: i64, mut b: i64) -> i64 {
+    while b != 0 {
+        let t = b;
+        b = a % b;
+        a = t;
+    }
+    a
 }
 
 

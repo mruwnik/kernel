@@ -284,6 +284,7 @@ impl Combiner {
         bind(&env, "env?", CombinerType::Applicative, &|vals, _| Value::is_env(vals)?.as_val());
         bind(&env, "number?", CombinerType::Applicative, &|vals, _| Value::is_number(vals)?.as_val());
         bind(&env, "integer?", CombinerType::Applicative, &|vals, _| Value::is_integer(vals)?.as_val());
+        bind(&env, "finite?", CombinerType::Applicative, &|vals, _| Value::is_finite(vals)?.as_val());
         bind(&env, "pair?", CombinerType::Applicative, &|vals, _| Value::is_pair(vals)?.as_val());
         bind(&env, "list?", CombinerType::Applicative, &|vals, _| Value::is_list(vals)?.as_val());
         bind(&env, "string?", CombinerType::Applicative, &|vals, _| Value::is_string(vals)?.as_val());
@@ -295,6 +296,7 @@ impl Combiner {
         bind(&env, "*", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::multiply, "*"));
         bind(&env, "/", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::divide, "/"));
         bind(&env, "mod", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::modulo, "mod"));
+        bind(&env, "div", CombinerType::Applicative, &Combiner::div);
 
         // Comparisons (using Kernel-style names with ?)
         // Chained comparisons (work on 2+ arguments)
@@ -315,6 +317,12 @@ impl Combiner {
         bind(&env, "abs", CombinerType::Applicative, &Combiner::abs);
         bind(&env, "min", CombinerType::Applicative, &Combiner::min);
         bind(&env, "max", CombinerType::Applicative, &Combiner::max);
+        bind(&env, "gcd", CombinerType::Applicative, &Combiner::gcd);
+        bind(&env, "lcm", CombinerType::Applicative, &Combiner::lcm);
+        bind(&env, "floor", CombinerType::Applicative, &Combiner::floor);
+        bind(&env, "ceiling", CombinerType::Applicative, &Combiner::ceiling);
+        bind(&env, "truncate", CombinerType::Applicative, &Combiner::truncate);
+        bind(&env, "round", CombinerType::Applicative, &Combiner::round);
 
         // Library - list operations
         bind(&env, "car", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.as_val());
@@ -1151,87 +1159,43 @@ impl Combiner {
         chained_comparison(vals, &|a, b| Number::numeric_equal(a, b))
     }
 
-    // Numeric predicates
+    // Numeric predicates - all support multiple arguments (all must satisfy)
     fn zero_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
-        let args = vals.operands()?;
-        match &args[..] {
-            [n] => {
-                if let Value::Number(num) = n.deref() {
-                    let is_zero = match num {
-                        Number::Int(i) => *i == 0,
-                        Number::Float(f) => *f == 0.0,
-                    };
-                    Value::boolean(is_zero).as_val()
-                } else {
-                    RuntimeError::type_error("zero? requires a number")
-                }
-            }
-            _ => RuntimeError::type_error("zero? requires 1 argument"),
-        }
+        is_val(vals, &|v| match v.deref() {
+            Value::Number(Number::Int(i)) => *i == 0,
+            Value::Number(Number::Float(f)) => *f == 0.0,
+            _ => false,
+        })?.as_val()
     }
 
     fn positive_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
-        let args = vals.operands()?;
-        match &args[..] {
-            [n] => {
-                if let Value::Number(num) = n.deref() {
-                    let is_positive = match num {
-                        Number::Int(i) => *i > 0,
-                        Number::Float(f) => *f > 0.0,
-                    };
-                    Value::boolean(is_positive).as_val()
-                } else {
-                    RuntimeError::type_error("positive? requires a number")
-                }
-            }
-            _ => RuntimeError::type_error("positive? requires 1 argument"),
-        }
+        is_val(vals, &|v| match v.deref() {
+            Value::Number(Number::Int(i)) => *i > 0,
+            Value::Number(Number::Float(f)) => *f > 0.0,
+            _ => false,
+        })?.as_val()
     }
 
     fn negative_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
-        let args = vals.operands()?;
-        match &args[..] {
-            [n] => {
-                if let Value::Number(num) = n.deref() {
-                    let is_negative = match num {
-                        Number::Int(i) => *i < 0,
-                        Number::Float(f) => *f < 0.0,
-                    };
-                    Value::boolean(is_negative).as_val()
-                } else {
-                    RuntimeError::type_error("negative? requires a number")
-                }
-            }
-            _ => RuntimeError::type_error("negative? requires 1 argument"),
-        }
+        is_val(vals, &|v| match v.deref() {
+            Value::Number(Number::Int(i)) => *i < 0,
+            Value::Number(Number::Float(f)) => *f < 0.0,
+            _ => false,
+        })?.as_val()
     }
 
     fn odd_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
-        let args = vals.operands()?;
-        match &args[..] {
-            [n] => {
-                if let Value::Number(Number::Int(i)) = n.deref() {
-                    Value::boolean(*i % 2 != 0).as_val()
-                } else {
-                    RuntimeError::type_error("odd? requires an integer")
-                }
-            }
-            _ => RuntimeError::type_error("odd? requires 1 argument"),
-        }
+        is_val(vals, &|v| match v.deref() {
+            Value::Number(Number::Int(i)) => *i % 2 != 0,
+            _ => false,
+        })?.as_val()
     }
 
     fn even_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
-        let args = vals.operands()?;
-        match &args[..] {
-            [n] => {
-                if let Value::Number(Number::Int(i)) = n.deref() {
-                    Value::boolean(*i % 2 == 0).as_val()
-                } else {
-                    RuntimeError::type_error("even? requires an integer")
-                }
-            }
-            _ => RuntimeError::type_error("even? requires 1 argument"),
-        }
+        is_val(vals, &|v| match v.deref() {
+            Value::Number(Number::Int(i)) => *i % 2 == 0,
+            _ => false,
+        })?.as_val()
     }
 
     // abs: absolute value
@@ -1282,13 +1246,132 @@ impl Combiner {
         }
         result.as_val()
     }
+
+    // div: integer division
+    fn div(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [a, b] => Number::div(a.clone(), b.clone())?.as_val(),
+            _ => RuntimeError::type_error("div requires exactly 2 arguments"),
+        }
+    }
+
+    // gcd: greatest common divisor (supports variadic args)
+    fn gcd(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [] => Number::int(0).as_val(),  // gcd() = 0
+            [a] => {
+                // gcd(n) = |n|
+                if let Value::Number(Number::Int(n)) = a.deref() {
+                    Number::int(n.abs()).as_val()
+                } else {
+                    RuntimeError::type_error("gcd requires integers")
+                }
+            }
+            _ => {
+                // Fold across all arguments
+                let mut result = Number::int(0);
+                for arg in &args {
+                    result = Number::gcd(result, arg.clone())?;
+                }
+                result.as_val()
+            }
+        }
+    }
+
+    // lcm: least common multiple (supports variadic args)
+    fn lcm(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [] => Number::int(1).as_val(),  // lcm() = 1
+            [a] => {
+                // lcm(n) = |n|
+                if let Value::Number(Number::Int(n)) = a.deref() {
+                    Number::int(n.abs()).as_val()
+                } else {
+                    RuntimeError::type_error("lcm requires integers")
+                }
+            }
+            _ => {
+                // Fold across all arguments
+                let mut result = Number::int(1);
+                for arg in &args {
+                    result = Number::lcm(result, arg.clone())?;
+                }
+                result.as_val()
+            }
+        }
+    }
+
+    // floor: largest integer <= n
+    fn floor(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                match n.deref() {
+                    Value::Number(Number::Int(i)) => Number::int(*i).as_val(),
+                    Value::Number(Number::Float(f)) => Number::int(f.floor() as i64).as_val(),
+                    _ => RuntimeError::type_error("floor requires a number"),
+                }
+            }
+            _ => RuntimeError::type_error("floor requires 1 argument"),
+        }
+    }
+
+    // ceiling: smallest integer >= n
+    fn ceiling(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                match n.deref() {
+                    Value::Number(Number::Int(i)) => Number::int(*i).as_val(),
+                    Value::Number(Number::Float(f)) => Number::int(f.ceil() as i64).as_val(),
+                    _ => RuntimeError::type_error("ceiling requires a number"),
+                }
+            }
+            _ => RuntimeError::type_error("ceiling requires 1 argument"),
+        }
+    }
+
+    // truncate: integer part (toward zero)
+    fn truncate(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                match n.deref() {
+                    Value::Number(Number::Int(i)) => Number::int(*i).as_val(),
+                    Value::Number(Number::Float(f)) => Number::int(f.trunc() as i64).as_val(),
+                    _ => RuntimeError::type_error("truncate requires a number"),
+                }
+            }
+            _ => RuntimeError::type_error("truncate requires 1 argument"),
+        }
+    }
+
+    // round: nearest integer (banker's rounding for .5)
+    fn round(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                match n.deref() {
+                    Value::Number(Number::Int(i)) => Number::int(*i).as_val(),
+                    Value::Number(Number::Float(f)) => Number::int(f.round() as i64).as_val(),
+                    _ => RuntimeError::type_error("round requires a number"),
+                }
+            }
+            _ => RuntimeError::type_error("round requires 1 argument"),
+        }
+    }
 }
 
 /// Chained comparison helper
+/// Returns #t for 0 or 1 arguments (vacuously true)
 fn chained_comparison(vals: Rc<Value>, compare: &dyn Fn(&Rc<Value>, &Rc<Value>) -> ValueResult) -> CallResult {
     let args = vals.operands()?;
+    // 0 or 1 arguments is vacuously true
     if args.len() < 2 {
-        return RuntimeError::type_error("comparison requires at least 2 arguments");
+        return Value::boolean(true).as_val();
     }
 
     for i in 0..args.len() - 1 {
