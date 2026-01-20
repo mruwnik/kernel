@@ -107,12 +107,12 @@
       "note": "Test expression that evaluates to false"
     },
     {
-      "expr": "($if (null? ()) yes no)",
+      "expr": "($if (null? ()) (quote yes) (quote no))",
       "expected": "yes",
       "note": "Using null? as test"
     },
     {
-      "expr": "($if (null? (cons 1 2)) yes no)",
+      "expr": "($if (null? (cons 1 2)) (quote yes) (quote no))",
       "expected": "no",
       "note": "Using null? on pair as test"
     },
@@ -147,12 +147,12 @@
       "note": "Nested $if, both false paths"
     },
     {
-      "expr": "($if ($if #t #t #f) a b)",
+      "expr": "($if ($if #t #t #f) (quote a) (quote b))",
       "expected": "a",
       "note": "Nested $if in test position"
     },
     {
-      "expr": "($if ($if #f #t #f) a b)",
+      "expr": "($if ($if #f #t #f) (quote a) (quote b))",
       "expected": "b",
       "note": "Nested $if in test, inner returns #f"
     },
@@ -287,17 +287,17 @@
       "note": "All false returns #inert"
     },
     {
-      "expr": "($cond ((eq? 1 1) yes))",
+      "expr": "($cond ((eq? 1 1) (quote yes)))",
       "expected": "yes",
       "note": "Test expression evaluated"
     },
     {
-      "expr": "($cond ((eq? 1 2) no) ((eq? 2 2) yes))",
+      "expr": "($cond ((eq? 1 2) (quote no)) ((eq? 2 2) (quote yes)))",
       "expected": "yes",
       "note": "Multiple test evaluations"
     },
     {
-      "expr": "($cond ((null? ()) empty) (#t not-empty))",
+      "expr": "($cond ((null? ()) (quote empty)) (#t (quote not-empty)))",
       "expected": "empty",
       "note": "null? as test"
     },
@@ -317,47 +317,47 @@
       "note": "Body with multiple side effects"
     },
     {
-      "expr": "($define! touched #f) ($cond (#t first) (($define! touched #t) second)) touched",
+      "expr": "($define! touched #f) ($cond (#t (quote first)) (($define! touched #t) (quote second))) touched",
       "expected": "#f",
       "note": "Tests after match not evaluated"
     },
     {
-      "expr": "($define! count 0) ($cond (($sequence ($define! count (+ count 1)) #f) a) (($sequence ($define! count (+ count 1)) #t) b)) count",
+      "expr": "($define! count 0) ($cond (($sequence ($define! count (+ count 1)) #f) (quote a)) (($sequence ($define! count (+ count 1)) #t) (quote b))) count",
       "expected": "2",
       "note": "Tests evaluated until true found"
     },
     {
-      "expr": "($cond (#f first) (#f second) (#t else-value))",
+      "expr": "($cond (#f (quote first)) (#f (quote second)) (#t (quote else-value)))",
       "expected": "else-value",
       "note": "#t as last clause acts like else"
     },
     {
-      "expr": "($define! n 5) ($cond ((=? n 0) zero) ((=? n 1) one) (#t other))",
+      "expr": "($define! n 5) ($cond ((=? n 0) (quote zero)) ((=? n 1) (quote one)) (#t (quote other)))",
       "expected": "other",
       "note": "Default clause pattern"
     },
     {
-      "expr": "($define! m 1) ($cond ((=? m 0) zero) ((=? m 1) one) (#t other))",
+      "expr": "($define! m 1) ($cond ((=? m 0) (quote zero)) ((=? m 1) (quote one)) (#t (quote other)))",
       "expected": "one",
       "note": "Matching before default"
     },
     {
-      "expr": "($cond (#t ($cond (#t inner))))",
+      "expr": "($cond (#t ($cond (#t (quote inner)))))",
       "expected": "inner",
       "note": "Nested $cond"
     },
     {
-      "expr": "($cond (#f outer) (#t ($cond (#f inner1) (#t inner2))))",
+      "expr": "($cond (#f (quote outer)) (#t ($cond (#f (quote inner1)) (#t (quote inner2)))))",
       "expected": "inner2",
       "note": "Nested $cond in body"
     },
     {
-      "expr": "($cond (($cond (#t #t)) yes) (#t no))",
+      "expr": "($cond (($cond (#t #t)) (quote yes)) (#t (quote no)))",
       "expected": "yes",
       "note": "Nested $cond in test"
     },
     {
-      "expr": "($define! x 3) ($cond ((<? x 0) negative) ((=? x 0) zero) ((>? x 0) positive))",
+      "expr": "($define! x 3) ($cond ((<? x 0) (quote negative)) ((=? x 0) (quote zero)) ((>? x 0) (quote positive)))",
       "expected": "positive",
       "note": "Numeric classification"
     },
@@ -402,7 +402,7 @@
       "note": "for-each processes elements (order may vary per spec)"
     },
     {
-      "expr": "($define! count 0) (for-each ($lambda (x) ($set! count (+ count 1))) (list a b c d e)) count",
+      "expr": "($define! count 0) (for-each ($lambda (x) ($set! count (+ count 1))) (list 1 2 3 4 5)) count",
       "expected": "5",
       "note": "for-each counts via side effect"
     },

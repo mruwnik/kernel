@@ -203,13 +203,13 @@
     },
     {
       "expr": "(apply list (list))",
-      "expected": "(())",
-      "note": "Apply list with empty list as single arg"
+      "expected": "()",
+      "note": "Apply list with empty operand tree returns empty list"
     },
     {
       "expr": "(apply cons (list () ()))",
-      "expected": "(() . ())",
-      "note": "Apply cons with two empty lists"
+      "expected": "(())",
+      "note": "Apply cons with two empty lists - (()) is proper list notation for (() . ())"
     },
     {
       "expr": "(apply car (list (list ())))",

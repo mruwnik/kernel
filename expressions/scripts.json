@@ -182,9 +182,9 @@
       "note": "tree-map-leaves"
     },
     {
-      "expr": "($let ((alist (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3)))) ($let ((lookup ($lambda (key al) ($let ((pair (assoc key al))) ($if pair (cadr pair) #f))))) (list (lookup (quote a) alist) (lookup (quote b) alist) (lookup (quote c) alist) (lookup (quote d) alist))))",
+      "expr": "($let ((alist (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3)))) ($let ((lookup ($lambda (key al) ($let ((pair (assoc key al))) ($if (pair? pair) (cadr pair) #f))))) (list (lookup (quote a) alist) (lookup (quote b) alist) (lookup (quote c) alist) (lookup (quote d) alist))))",
       "expected": "(1 2 3 #f)",
-      "note": "alist-lookup"
+      "note": "alist-lookup - uses pair? since $if requires boolean test"
     },
     {
       "expr": "($letrec ((alist-set ($lambda (key val al) ($cond ((null? al) (list (list key val))) ((equal? (caar al) key) (cons (list key val) (cdr al))) (#t (cons (car al) (alist-set key val (cdr al)))))))) (alist-set (quote b) 42 (list (list (quote a) 1) (list (quote b) 2) (list (quote c) 3))))",
@@ -267,7 +267,7 @@
       "note": "partial-application"
     },
     {
-      "expr": "($let ((curry2 ($lambda (f) ($lambda (a) ($lambda (b) (f a b)))))) ($let ((curried-sub (curry2 ($lambda (x y) (- x y))))) (((curried-sub) 10) 3)))",
+      "expr": "($let ((curry2 ($lambda (f) ($lambda (a) ($lambda (b) (f a b)))))) ($let ((curried-sub (curry2 ($lambda (x y) (- x y))))) ((curried-sub 10) 3)))",
       "expected": "7",
       "note": "curry-two-arg"
     },
@@ -497,9 +497,9 @@
       "note": "cps-map"
     },
     {
-      "expr": "($letrec ((make-thunk ($lambda (f) (list (quote thunk) f))) (thunk? ($lambda (x) (and? (pair? x) (eq? (car x) (quote thunk))))) (run-thunk ($lambda (t) ((cadr t)))) (trampoline ($lambda (t) ($if (thunk? t) (trampoline (run-thunk t)) t))) (even-t ($lambda (n) ($if (=? n 0) #t (make-thunk ($lambda () (odd-t (- n 1))))))) (odd-t ($lambda (n) ($if (=? n 0) #f (make-thunk ($lambda () (even-t (- n 1)))))))) (list (trampoline (even-t 10)) (trampoline (odd-t 10)) (trampoline (even-t 11)) (trampoline (odd-t 11))))",
+      "expr": "($letrec ((make-thunk ($lambda (f) (list (quote thunk) f))) (thunk? ($lambda (x) ($and? (pair? x) (eq? (car x) (quote thunk))))) (run-thunk ($lambda (t) ((cadr t)))) (trampoline ($lambda (t) ($if (thunk? t) (trampoline (run-thunk t)) t))) (even-t ($lambda (n) ($if (=? n 0) #t (make-thunk ($lambda () (odd-t (- n 1))))))) (odd-t ($lambda (n) ($if (=? n 0) #f (make-thunk ($lambda () (even-t (- n 1)))))))) (list (trampoline (even-t 10)) (trampoline (odd-t 10)) (trampoline (even-t 11)) (trampoline (odd-t 11))))",
       "expected": "(#t #f #f #t)",
-      "note": "trampoline-even-odd"
+      "note": "trampoline-even-odd - uses $and? for short-circuit evaluation"
     },
     {
       "expr": "($let ((nums (list 2 4 6 8 10))) ($let ((sum (reduce + 0 nums)) (len (length nums)) (mean (div (reduce + 0 nums) (length nums)))) (list sum len mean)))",

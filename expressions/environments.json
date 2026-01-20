@@ -108,13 +108,13 @@
     },
     {
       "expr": "($let ((parent (get-current-environment))) ($define! test-var 123) ($let ((child (make-environment parent))) ($binds? child test-var)))",
-      "expected": "#t",
-      "note": "make-environment with one parent"
+      "expected": "#f",
+      "note": "parent captures outer env (per spec 5.10.1), test-var is in $let local env, not parent"
     },
     {
       "expr": "($let ((outer-env (get-current-environment))) ($define! outer-x 999) ($let ((inner-env (make-environment outer-env))) (eval (quote outer-x) inner-env)))",
-      "expected": "999",
-      "note": "make-environment with explicit parent - child can see parent bindings"
+      "expected": "error",
+      "note": "outer-env captures env before $let body (per spec 5.10.1), outer-x not visible"
     },
     {
       "expr": "($let ((e (make-environment))) ($binds? e nonexistent-symbol))",
@@ -442,9 +442,9 @@
       "expected": "#inert"
     },
     {
-      "expr": "($let ((x . rest) (list 1)) rest)",
+      "expr": "($let (((x . rest) (list 1))) rest)",
       "expected": "()",
-      "note": "Rest pattern captures empty list"
+      "note": "Rest pattern captures empty list (triple parens for pattern binding)"
     }
   ]
 }

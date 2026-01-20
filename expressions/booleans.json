@@ -198,8 +198,8 @@
     },
     {
       "expr": "(eq? \"hello\" \"hello\")",
-      "expected": "#t",
-      "note": "identical string literals are eq (interned)"
+      "expected": "#f",
+      "note": "strings are NOT interned in Kernel - use equal? for value comparison"
     },
     {
       "expr": "(eq? 'foo 'foo)",

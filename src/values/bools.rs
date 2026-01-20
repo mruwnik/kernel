@@ -63,7 +63,8 @@ impl Value {
         Value::boolean(
             match (self_val.deref(), other.deref()) {
                 (Value::Bool(a), Value::Bool(b)) => a == b,
-                (Value::Combiner(a), Value::Combiner(b)) => a.is_eq(b)?,
+                // Per spec §4.10: "Two combiners are equal? iff they are eq?"
+                (Value::Combiner(_), Value::Combiner(_)) => Rc::ptr_eq(&self_val, &other),
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
                 (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_equal(b),
