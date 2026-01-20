@@ -294,6 +294,21 @@ impl Combiner {
         bind(&env, "car", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.as_val());
         bind(&env, "cdr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.as_val());
         bind(&env, "list", CombinerType::Applicative, &|vals, _| vals.as_val());
+        bind(&env, "list*", CombinerType::Applicative, &Combiner::list_star);
+        bind(&env, "append", CombinerType::Applicative, &Combiner::append);
+        bind(&env, "length", CombinerType::Applicative, &Combiner::length);
+        bind(&env, "list-ref", CombinerType::Applicative, &Combiner::list_ref);
+        bind(&env, "list-tail", CombinerType::Applicative, &Combiner::list_tail);
+        bind(&env, "reverse", CombinerType::Applicative, &Combiner::reverse);
+        bind(&env, "member?", CombinerType::Applicative, &Combiner::member);
+        bind(&env, "assoc", CombinerType::Applicative, &Combiner::assoc);
+        bind(&env, "map", CombinerType::Applicative, &Combiner::map);
+        bind(&env, "for-each", CombinerType::Applicative, &Combiner::for_each);
+        bind(&env, "filter", CombinerType::Applicative, &Combiner::filter);
+        bind(&env, "reduce", CombinerType::Applicative, &Combiner::reduce);
+
+        // Environment operations
+        bind(&env, "get-current-environment", CombinerType::Operative, &Combiner::get_current_env);
     }
 
     // $vau operative: creates a compound operative
@@ -706,6 +721,254 @@ impl Combiner {
             }
             _ => RuntimeError::type_error("apply requires 2 or 3 arguments"),
         }
+    }
+
+    // list*: construct list with last element as tail
+    // (list* a b c d) = (a b c . d)
+    fn list_star(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        if args.is_empty() {
+            return RuntimeError::type_error("list* requires at least one argument");
+        }
+        if args.len() == 1 {
+            return args[0].clone().as_val();
+        }
+        // Build list with last element as tail
+        let mut result = args[args.len() - 1].clone();
+        for i in (0..args.len() - 1).rev() {
+            result = Value::cons(args[i].clone(), result)?;
+        }
+        result.as_val()
+    }
+
+    // append: concatenate lists
+    fn append(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        if args.is_empty() {
+            return Value::make_null().as_val();
+        }
+        if args.len() == 1 {
+            return args[0].clone().as_val();
+        }
+
+        // Collect all elements from all lists except the last
+        let mut elements: Vec<Rc<Value>> = Vec::new();
+        for i in 0..args.len() - 1 {
+            let list = &args[i];
+            let items = list.operands()?;
+            for item in items {
+                elements.push(item);
+            }
+        }
+
+        // Build result with last arg as tail
+        let last = args[args.len() - 1].clone();
+        let mut result = last;
+        for elem in elements.into_iter().rev() {
+            result = Value::cons(elem, result)?;
+        }
+        result.as_val()
+    }
+
+    // length: return length of list
+    fn length(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [list] => {
+                let items = list.operands()?;
+                Number::int(items.len() as i64).as_val()
+            }
+            _ => RuntimeError::type_error("length requires exactly 1 argument"),
+        }
+    }
+
+    // list-ref: get element at index
+    fn list_ref(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [list, index] => {
+                if let Value::Number(Number::Int(i)) = index.deref() {
+                    let items = list.operands()?;
+                    if *i < 0 || (*i as usize) >= items.len() {
+                        return RuntimeError::type_error("list-ref index out of bounds");
+                    }
+                    items[*i as usize].clone().as_val()
+                } else {
+                    RuntimeError::type_error("list-ref index must be an integer")
+                }
+            }
+            _ => RuntimeError::type_error("list-ref requires 2 arguments"),
+        }
+    }
+
+    // list-tail: return tail starting at index
+    fn list_tail(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [list, index] => {
+                if let Value::Number(Number::Int(i)) = index.deref() {
+                    let mut current = list.clone();
+                    for _ in 0..*i {
+                        match current.deref() {
+                            Value::Pair(_) => current = current.cdr()?.into(),
+                            _ => return RuntimeError::type_error("list-tail index out of bounds"),
+                        }
+                    }
+                    current.as_val()
+                } else {
+                    RuntimeError::type_error("list-tail index must be an integer")
+                }
+            }
+            _ => RuntimeError::type_error("list-tail requires 2 arguments"),
+        }
+    }
+
+    // reverse: reverse a list
+    fn reverse(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [list] => {
+                let items = list.operands()?;
+                let mut result = Value::make_null();
+                for item in items {
+                    result = Value::cons(item, result)?;
+                }
+                result.as_val()
+            }
+            _ => RuntimeError::type_error("reverse requires exactly 1 argument"),
+        }
+    }
+
+    // member?: check if element is in list (using equal?)
+    fn member(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [obj, list] => {
+                let items = list.operands()?;
+                for item in &items {
+                    if Value::is_equal(obj.clone(), item.clone())?.is_true() {
+                        return Value::boolean(true).as_val();
+                    }
+                }
+                Value::boolean(false).as_val()
+            }
+            _ => RuntimeError::type_error("member? requires 2 arguments"),
+        }
+    }
+
+    // assoc: find association in alist
+    fn assoc(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [key, alist] => {
+                let items = alist.operands()?;
+                for item in &items {
+                    if let Value::Pair(_) = item.deref() {
+                        let item_key = item.car()?;
+                        if Value::is_equal(key.clone(), item_key.into())?.is_true() {
+                            return item.clone().as_val();
+                        }
+                    }
+                }
+                Value::boolean(false).as_val()
+            }
+            _ => RuntimeError::type_error("assoc requires 2 arguments"),
+        }
+    }
+
+    // map: apply function to each element
+    fn map(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        if args.len() < 2 {
+            return RuntimeError::type_error("map requires at least 2 arguments");
+        }
+
+        let func = args[0].clone();
+        let list = &args[1];
+        let items = list.operands()?;
+        let env_val = Rc::new(Value::Env(env));
+
+        let mut results: Vec<Rc<Value>> = Vec::new();
+        for item in &items {
+            // Call (func item)
+            let call_expr = Value::cons(func.clone(), Value::cons(item.clone(), Value::make_null())?)?;
+            let result = eval(call_expr.into(), env_val.clone())?;
+            results.push(result);
+        }
+
+        Value::to_list(results)?.as_val()
+    }
+
+    // for-each: apply function for side effects
+    fn for_each(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        if args.len() < 2 {
+            return RuntimeError::type_error("for-each requires at least 2 arguments");
+        }
+
+        let func = args[0].clone();
+        let list = &args[1];
+        let items = list.operands()?;
+        let env_val = Rc::new(Value::Env(env));
+
+        for item in &items {
+            let call_expr = Value::cons(func.clone(), Value::cons(item.clone(), Value::make_null())?)?;
+            eval(call_expr.into(), env_val.clone())?;
+        }
+
+        Value::make_inert().as_val()
+    }
+
+    // filter: select elements satisfying predicate
+    fn filter(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [pred, list] => {
+                let items = list.operands()?;
+                let env_val = Rc::new(Value::Env(env));
+
+                let mut results: Vec<Rc<Value>> = Vec::new();
+                for item in &items {
+                    let call_expr = Value::cons(pred.clone(), Value::cons(item.clone(), Value::make_null())?)?;
+                    let result = eval(call_expr.into(), env_val.clone())?;
+                    if result.is_true() {
+                        results.push(item.clone());
+                    }
+                }
+
+                Value::to_list(results)?.as_val()
+            }
+            _ => RuntimeError::type_error("filter requires 2 arguments"),
+        }
+    }
+
+    // reduce: fold left with binary function
+    fn reduce(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [list, identity, func] => {
+                let items = list.operands()?;
+                let env_val = Rc::new(Value::Env(env));
+
+                let mut acc = identity.clone();
+                for item in &items {
+                    // (func acc item)
+                    let call_expr = Value::cons(
+                        func.clone(),
+                        Value::cons(acc, Value::cons(item.clone(), Value::make_null())?)?
+                    )?;
+                    acc = eval(call_expr.into(), env_val.clone())?;
+                }
+
+                acc.as_val()
+            }
+            _ => RuntimeError::type_error("reduce requires 3 arguments: list, identity, func"),
+        }
+    }
+
+    // get-current-environment: returns the dynamic environment
+    fn get_current_env(_vals: Rc<Value>, env: EnvRef) -> CallResult {
+        Rc::new(Value::Env(env)).as_val()
     }
 }
 
