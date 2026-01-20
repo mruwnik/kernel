@@ -46,6 +46,10 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Number(_)))
     }
 
+    pub fn is_integer(items: Rc<Value>) -> ValueResult {
+        is_val(items, &|val| matches!(val.deref(), Value::Number(Number::Int(_))))
+    }
+
     // Adds the first 2 items, returning a list of all remaining items to sum, or the final sum if fewer
     // than 2 items provided
     pub fn add(items: Rc<Value>) -> ValueResult {

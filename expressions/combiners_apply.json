@@ -1,0 +1,255 @@
+{
+  "description": "apply applicative tests",
+  "tests": [
+    {
+      "expr": "(apply + (list 1 2 3))",
+      "expected": "6",
+      "note": "Basic apply with + and list"
+    },
+    {
+      "expr": "(apply * (list 2 3 4))",
+      "expected": "24",
+      "note": "Basic apply with *"
+    },
+    {
+      "expr": "(apply - (list 10 3))",
+      "expected": "7",
+      "note": "Basic apply with -"
+    },
+    {
+      "expr": "(apply list (list 1 2 3 4 5))",
+      "expected": "(1 2 3 4 5)",
+      "note": "Apply list to arguments"
+    },
+    {
+      "expr": "(apply cons (list 1 2))",
+      "expected": "(1 . 2)",
+      "note": "Apply cons"
+    },
+    {
+      "expr": "(apply car (list (cons 1 2)))",
+      "expected": "1",
+      "note": "Apply car to pair"
+    },
+    {
+      "expr": "(apply cdr (list (cons 1 2)))",
+      "expected": "2",
+      "note": "Apply cdr to pair"
+    },
+    {
+      "expr": "(apply pair? (list (cons 1 2)))",
+      "expected": "#t",
+      "note": "Apply predicate"
+    },
+    {
+      "expr": "(apply null? (list ()))",
+      "expected": "#t",
+      "note": "Apply null? predicate"
+    },
+    {
+      "expr": "(apply equal? (list 42 42))",
+      "expected": "#t",
+      "note": "Apply equal? with matching values"
+    },
+    {
+      "expr": "(apply + ())",
+      "expected": "0",
+      "note": "+ with empty list returns identity"
+    },
+    {
+      "expr": "(apply * ())",
+      "expected": "1",
+      "note": "* with empty list returns identity"
+    },
+    {
+      "expr": "(apply cons (list (list 1 2) (list 3 4)))",
+      "expected": "((1 2) 3 4)",
+      "note": "Apply cons with list arguments"
+    },
+    {
+      "expr": "(apply list ())",
+      "expected": "()",
+      "note": "Apply list with empty args"
+    },
+    {
+      "expr": "(apply + (list 1))",
+      "expected": "1",
+      "note": "Apply + with single element"
+    },
+    {
+      "expr": "(apply * (list 42))",
+      "expected": "42",
+      "note": "Apply * with single element"
+    },
+    {
+      "expr": "(apply car (list (list 1 2 3)))",
+      "expected": "1",
+      "note": "Apply car to list"
+    },
+    {
+      "expr": "(apply cdr (list (list 1 2 3)))",
+      "expected": "(2 3)",
+      "note": "Apply cdr to list"
+    },
+    {
+      "expr": "(apply append (list (list 1 2) (list 3 4)))",
+      "expected": "(1 2 3 4)",
+      "note": "Apply append"
+    },
+    {
+      "expr": "(apply length (list (list 1 2 3 4 5)))",
+      "expected": "5",
+      "note": "Apply length"
+    },
+    {
+      "expr": "(apply ($lambda (x y) (+ x y)) (list 3 4))",
+      "expected": "7",
+      "note": "Apply user lambda with two params"
+    },
+    {
+      "expr": "(apply ($lambda (a b c) (+ a (+ b c))) (list 1 2 3))",
+      "expected": "6",
+      "note": "Apply lambda with three params"
+    },
+    {
+      "expr": "(apply ($lambda (x) (* x x)) (list 5))",
+      "expected": "25",
+      "note": "Apply single-param lambda"
+    },
+    {
+      "expr": "(apply ($lambda () 42) ())",
+      "expected": "42",
+      "note": "Apply zero-arg lambda"
+    },
+    {
+      "expr": "(apply ($lambda args args) (list 1 2 3))",
+      "expected": "(1 2 3)",
+      "note": "Apply lambda with rest parameter"
+    },
+    {
+      "expr": "(apply ($lambda (x . rest) (cons x rest)) (list 1 2 3))",
+      "expected": "(1 2 3)",
+      "note": "Apply lambda with dotted rest"
+    },
+    {
+      "expr": "(apply ($lambda (a b . rest) (list a b rest)) (list 1 2 3 4 5))",
+      "expected": "(1 2 (3 4 5))",
+      "note": "Apply lambda with fixed and rest params"
+    },
+    {
+      "expr": "(apply ($lambda ((a . b)) (+ a b)) (list (cons 3 7)))",
+      "expected": "10",
+      "note": "Apply lambda with destructuring"
+    },
+    {
+      "expr": "(apply ($lambda ((a b)) (+ a b)) (list (list 10 20)))",
+      "expected": "30",
+      "note": "Apply lambda destructuring list"
+    },
+    {
+      "expr": "($let ((f ($lambda (x) (+ x 10)))) (apply f (list 5)))",
+      "expected": "15",
+      "note": "Apply lambda bound in let"
+    },
+    {
+      "expr": "(apply ($lambda () 42) () (make-environment))",
+      "expected": "42",
+      "note": "Apply with explicit empty environment"
+    },
+    {
+      "expr": "($let ((x 100)) (apply ($lambda () x) () (get-current-environment)))",
+      "expected": "100",
+      "note": "Lambda uses its static env regardless of apply env"
+    },
+    {
+      "expr": "($let ((y 99)) ($let ((e (get-current-environment))) (apply ($lambda () y) () e)))",
+      "expected": "99",
+      "note": "Lambda uses its static env; env arg is for unwrapped operative"
+    },
+    {
+      "expr": "(apply + (list 1 2 3) (make-environment))",
+      "expected": "6",
+      "note": "Apply + with explicit env"
+    },
+    {
+      "expr": "(apply cons (list 1 2) (make-environment))",
+      "expected": "(1 . 2)",
+      "note": "Apply cons with explicit env"
+    },
+    {
+      "expr": "($let ((x 10) (y 20)) (apply + (list x y) (get-current-environment)))",
+      "expected": "30",
+      "note": "Apply with current env - args already evaluated"
+    },
+    {
+      "expr": "(apply list (list 1 2) (make-environment))",
+      "expected": "(1 2)",
+      "note": "Apply list with env"
+    },
+    {
+      "expr": "($let ((f ($lambda (n) (* n n)))) (apply f (list 7) (make-environment)))",
+      "expected": "49",
+      "note": "Apply lambda with env argument"
+    },
+    {
+      "expr": "($let ((e (make-environment))) (equal? (apply list (list 1 2) e) (apply list (list 1 2))))",
+      "expected": "#t",
+      "note": "Results equal with and without env"
+    },
+    {
+      "expr": "($let ((test-env (make-environment))) (apply + (list 1 2 3) test-env))",
+      "expected": "6",
+      "note": "Apply with env bound in let"
+    },
+    {
+      "expr": "(apply list (list))",
+      "expected": "(())",
+      "note": "Apply list with empty list as single arg"
+    },
+    {
+      "expr": "(apply cons (list () ()))",
+      "expected": "(() . ())",
+      "note": "Apply cons with two empty lists"
+    },
+    {
+      "expr": "(apply car (list (list ())))",
+      "expected": "()",
+      "note": "Apply car to list containing empty list"
+    },
+    {
+      "expr": "(apply + (list 0))",
+      "expected": "0",
+      "note": "Apply + with single zero"
+    },
+    {
+      "expr": "(apply ($lambda x x) 42)",
+      "expected": "42",
+      "note": "Apply with non-list operand tree (single value)"
+    },
+    {
+      "expr": "(apply ($lambda x x) (cons 1 2))",
+      "expected": "(1 . 2)",
+      "note": "Apply with improper list as operand tree"
+    },
+    {
+      "expr": "(apply ($lambda (a . b) b) (cons 1 (cons 2 3)))",
+      "expected": "(2 . 3)",
+      "note": "Apply with improper list, matching dotted param"
+    },
+    {
+      "expr": "(apply apply (list + (list 1 2 3)))",
+      "expected": "6",
+      "note": "Nested apply - apply applied to apply"
+    },
+    {
+      "expr": "(apply apply (list list (list 1 2 3)))",
+      "expected": "(1 2 3)",
+      "note": "Nested apply with list"
+    },
+    {
+      "expr": "(apply ($lambda (f x) (f x)) (list ($lambda (n) (+ n 1)) 5))",
+      "expected": "6",
+      "note": "Apply higher-order function"
+    }
+  ]
+}

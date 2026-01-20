@@ -77,6 +77,16 @@ fn extract_list(tokens: &mut Iter<Token>) -> ValueResult {
                 let val = match token {
                     Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
                     Token::Special(SpecialLexeme::RightParam) => break,
+                    Token::Special(SpecialLexeme::Quote) => {
+                        // 'foo inside list expands to (quote foo)
+                        let next_token = tokens.next()
+                            .ok_or_else(|| RuntimeError::new(crate::errors::ErrorTypes::ParseError, "quote requires an expression".to_string()))?;
+                        let quoted_value = to_value(next_token, tokens)?;
+                        Value::cons(
+                            Value::make_symbol("quote"),
+                            Value::cons(quoted_value, Value::make_null())?
+                        )?
+                    },
                     Token::Special(SpecialLexeme::FullStop) => {
                         let val = match tokens.next() {
                             None => return RuntimeError::parse_error("expression ended with a dot"),
@@ -118,6 +128,17 @@ fn to_value(token: &Token, tokens: &mut Iter<Token>) -> ValueResult {
         Token::Special(SpecialLexeme::LeftParam) => extract_list(tokens)?,
         Token::Special(SpecialLexeme::RightParam) => return RuntimeError::parse_error("Dangling closing param found"),
         Token::Special(SpecialLexeme::FullStop) => return RuntimeError::parse_error("Dangling dot found - this can only be provided to mark the ending of a list"),
+        Token::Special(SpecialLexeme::Quote) => {
+            // 'foo expands to (quote foo)
+            let next_token = tokens.next()
+                .ok_or_else(|| RuntimeError::new(crate::errors::ErrorTypes::ParseError, "quote requires an expression".to_string()))?;
+            let quoted_value = to_value(next_token, tokens)?;
+            // Build (quote <value>)
+            Value::cons(
+                Value::make_symbol("quote"),
+                Value::cons(quoted_value, Value::make_null())?
+            )?
+        },
         Token::Constant(Constant::True) => Value::boolean(true),
         Token::Constant(Constant::False) => Value::boolean(false),
 

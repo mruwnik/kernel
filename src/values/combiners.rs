@@ -48,11 +48,11 @@ pub struct Combiner {
 impl fmt::Display for Combiner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
-            CombinerKind::Primitive { .. } => write!(f, "#[{}]", self.name),
+            CombinerKind::Primitive { .. } => write!(f, "{}", self.name),
             CombinerKind::Compound { formals, body, .. } => {
                 write!(f, "#[compound {} {}]", formals, body)
             }
-            CombinerKind::Wrapped { underlying } => write!(f, "#[wrapped {}]", underlying),
+            CombinerKind::Wrapped { underlying } => write!(f, "{}", underlying),
         }
     }
 }
@@ -177,10 +177,17 @@ impl Combiner {
         let params = vals.operands()?;
         match &params[..] {
             [test, branch1, branch2] => {
-                if eval(test.clone(), env_val.clone())?.is_true() {
-                    branch1.eval(env_val)
-                } else {
-                    branch2.eval(env_val)
+                let test_result = eval(test.clone(), env_val.clone())?;
+                // $if requires a boolean test value
+                match test_result.deref() {
+                    Value::Bool(b) => {
+                        if matches!(b, crate::values::bools::Bool::True) {
+                            branch1.eval(env_val)
+                        } else {
+                            branch2.eval(env_val)
+                        }
+                    }
+                    _ => RuntimeError::type_error("$if test must be a boolean"),
                 }
             },
             _ => RuntimeError::type_error("$if requires 3 arguments"),
@@ -249,6 +256,7 @@ impl Combiner {
 
         // Boolean operations
         bind(&env, "not", CombinerType::Applicative, &Combiner::not);
+        bind(&env, "not?", CombinerType::Applicative, &Combiner::not);  // Kernel-style alias
         bind(&env, "$and?", CombinerType::Operative, &Combiner::and);
         bind(&env, "$or?", CombinerType::Operative, &Combiner::or);
         bind(&env, "and?", CombinerType::Applicative, &Combiner::and_applicative);
@@ -275,7 +283,9 @@ impl Combiner {
         bind(&env, "null?", CombinerType::Applicative, &|vals, _| Value::is_null(vals)?.as_val());
         bind(&env, "env?", CombinerType::Applicative, &|vals, _| Value::is_env(vals)?.as_val());
         bind(&env, "number?", CombinerType::Applicative, &|vals, _| Value::is_number(vals)?.as_val());
+        bind(&env, "integer?", CombinerType::Applicative, &|vals, _| Value::is_integer(vals)?.as_val());
         bind(&env, "pair?", CombinerType::Applicative, &|vals, _| Value::is_pair(vals)?.as_val());
+        bind(&env, "list?", CombinerType::Applicative, &|vals, _| Value::is_list(vals)?.as_val());
         bind(&env, "string?", CombinerType::Applicative, &|vals, _| Value::is_string(vals)?.as_val());
         bind(&env, "symbol?", CombinerType::Applicative, &|vals, _| Value::is_symbol(vals)?.as_val());
 
@@ -404,7 +414,8 @@ impl Combiner {
         match &params[..] {
             [val] => {
                 if let Value::Combiner(c) = val.deref() {
-                    c.unwrap()?.as_val()
+                    // Return the Rc directly to preserve identity for eq?
+                    Ok(CallResultType::Value(c.unwrap()?))
                 } else {
                     RuntimeError::type_error("unwrap requires an applicative")
                 }
@@ -971,7 +982,7 @@ impl Combiner {
         }
     }
 
-    // for-each: apply function for side effects
+    // for-each: apply function for side effects (supports multiple lists)
     fn for_each(vals: Rc<Value>, env: EnvRef) -> CallResult {
         let args = vals.operands()?;
         if args.len() < 2 {
@@ -979,8 +990,6 @@ impl Combiner {
         }
 
         let func = args[0].clone();
-        let list = &args[1];
-        let items = list.operands()?;
         let env_val = Rc::new(Value::Env(env.clone()));
 
         // func must be an applicative
@@ -993,9 +1002,36 @@ impl Combiner {
             return RuntimeError::type_error("for-each requires an applicative");
         };
 
-        for item in &items {
-            let arg_list = Value::cons(item.clone(), Value::make_null())?;
-            call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
+        if args.len() == 2 {
+            // Single list case
+            let items = args[1].operands()?;
+            for item in &items {
+                let arg_list = Value::cons(item.clone(), Value::make_null())?;
+                call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
+            }
+        } else {
+            // Multiple lists case - zip and apply
+            let lists: Vec<Vec<Rc<Value>>> = args[1..]
+                .iter()
+                .map(|list| list.operands())
+                .collect::<Result<Vec<_>, _>>()?;
+
+            // Check all lists have same length
+            let len = lists[0].len();
+            for list in &lists {
+                if list.len() != len {
+                    return RuntimeError::type_error("for-each: all lists must have same length");
+                }
+            }
+
+            for i in 0..len {
+                // Build argument list from ith element of each list
+                let mut call_args = Value::make_null();
+                for list in lists.iter().rev() {
+                    call_args = Value::cons(list[i].clone(), call_args)?;
+                }
+                call_applicative_full(combiner, call_args, env.clone(), env_val.clone())?;
+            }
         }
 
         Value::make_inert().as_val()

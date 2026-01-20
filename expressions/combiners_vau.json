@@ -1,0 +1,255 @@
+{
+  "description": "$vau operative tests",
+  "tests": [
+    {
+      "expr": "(($vau (x) #ignore x) 42)",
+      "expected": "42",
+      "note": "Single parameter binding"
+    },
+    {
+      "expr": "(($vau (a b) #ignore (list a b)) 1 2)",
+      "expected": "(1 2)",
+      "note": "Two parameter binding"
+    },
+    {
+      "expr": "(($vau (a b c) #ignore (list c b a)) 1 2 3)",
+      "expected": "(3 2 1)",
+      "note": "Three parameters, reversed"
+    },
+    {
+      "expr": "(($vau args #ignore args) 1 2 3 4 5)",
+      "expected": "(1 2 3 4 5)",
+      "note": "Symbol captures all operands as list"
+    },
+    {
+      "expr": "(($vau args #ignore args))",
+      "expected": "()",
+      "note": "Symbol captures empty operand list"
+    },
+    {
+      "expr": "(($vau (first . rest) #ignore first) 1 2 3)",
+      "expected": "1",
+      "note": "Dot notation: first element"
+    },
+    {
+      "expr": "(($vau (first . rest) #ignore rest) 1 2 3)",
+      "expected": "(2 3)",
+      "note": "Dot notation: rest of list"
+    },
+    {
+      "expr": "(($vau (a b . rest) #ignore rest) 1 2 3 4 5)",
+      "expected": "(3 4 5)",
+      "note": "Two fixed params with rest"
+    },
+    {
+      "expr": "(($vau (a b . rest) #ignore (list a b)) 1 2 3 4)",
+      "expected": "(1 2)",
+      "note": "Two fixed params, ignore rest"
+    },
+    {
+      "expr": "(($vau (h . t) #ignore t) 1)",
+      "expected": "()",
+      "note": "Dot notation: empty rest"
+    },
+    {
+      "expr": "(($vau #ignore #ignore 42))",
+      "expected": "42",
+      "note": "#ignore as entire formals - ignores all operands"
+    },
+    {
+      "expr": "(($vau #ignore #ignore 42) 1 2 3)",
+      "expected": "42",
+      "note": "#ignore formals ignores any number of operands"
+    },
+    {
+      "expr": "(($vau (#ignore) #ignore 99) 1)",
+      "expected": "99",
+      "note": "#ignore in list position"
+    },
+    {
+      "expr": "(($vau (#ignore b) #ignore b) 1 2)",
+      "expected": "2",
+      "note": "#ignore first param, bind second"
+    },
+    {
+      "expr": "(($vau (a #ignore) #ignore a) 1 2)",
+      "expected": "1",
+      "note": "Bind first, #ignore second"
+    },
+    {
+      "expr": "(($vau (a #ignore c) #ignore (cons a c)) 1 2 3)",
+      "expected": "(1 . 3)",
+      "note": "#ignore middle param"
+    },
+    {
+      "expr": "(($vau (#ignore . rest) #ignore rest) 1 2 3)",
+      "expected": "(2 3)",
+      "note": "#ignore with dot rest"
+    },
+    {
+      "expr": "(($vau (a . #ignore) #ignore a) 1 2 3 4)",
+      "expected": "1",
+      "note": "Bind first, #ignore rest"
+    },
+    {
+      "expr": "(($vau () e (env? e)))",
+      "expected": "#t",
+      "note": "#ignore env but env still valid when bound"
+    },
+    {
+      "expr": "(($vau (#ignore #ignore #ignore) #ignore 0) 1 2 3)",
+      "expected": "0",
+      "note": "Multiple #ignore in formals"
+    },
+    {
+      "expr": "(($vau ((a b)) #ignore (+ a b)) (1 2))",
+      "expected": "3",
+      "note": "Nested list destructuring"
+    },
+    {
+      "expr": "(($vau ((a . b)) #ignore a) (1 2 3))",
+      "expected": "1",
+      "note": "Nested car extraction"
+    },
+    {
+      "expr": "(($vau ((a . b)) #ignore b) (1 2 3))",
+      "expected": "(2 3)",
+      "note": "Nested cdr extraction"
+    },
+    {
+      "expr": "(($vau ((a b) c) #ignore (list a b c)) (1 2) 3)",
+      "expected": "(1 2 3)",
+      "note": "Mixed nested and flat"
+    },
+    {
+      "expr": "(($vau (a (b c)) #ignore (list a b c)) 1 (2 3))",
+      "expected": "(1 2 3)",
+      "note": "Flat first, nested second"
+    },
+    {
+      "expr": "(($vau ((a b) (c d)) #ignore (list a b c d)) (1 2) (3 4))",
+      "expected": "(1 2 3 4)",
+      "note": "Two nested lists"
+    },
+    {
+      "expr": "(($vau (((a))) #ignore a) ((42)))",
+      "expected": "42",
+      "note": "Deeply nested single value"
+    },
+    {
+      "expr": "(($vau ((a (b c))) #ignore (list a b c)) (1 (2 3)))",
+      "expected": "(1 2 3)",
+      "note": "Nested within nested"
+    },
+    {
+      "expr": "(($vau ((a . b) . c) #ignore (list a b c)) (1 2) 3 4)",
+      "expected": "(1 (2) (3 4))",
+      "note": "Dot notation at multiple levels"
+    },
+    {
+      "expr": "(($vau ((#ignore b)) #ignore b) (1 2))",
+      "expected": "2",
+      "note": "Nested #ignore"
+    },
+    {
+      "expr": "(($vau () e (env? e)))",
+      "expected": "#t",
+      "note": "Environment parameter is environment"
+    },
+    {
+      "expr": "($let ((x 42)) (($vau () e (eval (quote x) e))))",
+      "expected": "42",
+      "note": "Eval symbol in captured dynamic env"
+    },
+    {
+      "expr": "($let ((y 10)) (($vau (expr) e (eval expr e)) (+ y 5)))",
+      "expected": "15",
+      "note": "Eval unevaluated operand in dynamic env"
+    },
+    {
+      "expr": "($let ((a 1) (b 2)) (($vau () e (+ (eval (quote a) e) (eval (quote b) e)))))",
+      "expected": "3",
+      "note": "Multiple eval in dynamic env"
+    },
+    {
+      "expr": "($let ((f +)) (($vau (x y) e ((eval (quote f) e) x y)) 3 4))",
+      "expected": "7",
+      "note": "Lookup combiner in dynamic env"
+    },
+    {
+      "expr": "(($vau (sym) e (eval sym e)) (quote cons))",
+      "expected": "cons",
+      "note": "Quote prevents evaluation, eval retrieves binding"
+    },
+    {
+      "expr": "($let ((x 100)) ($let ((shadow ($vau () e (eval (quote x) e)))) ($let ((x 200)) (shadow))))",
+      "expected": "200",
+      "note": "Dynamic env sees inner binding"
+    },
+    {
+      "expr": "(($vau (a b) dyn-e (list (eval (quote list) dyn-e) a b)) x y)",
+      "expected": "(list x y)",
+      "note": "Named env parameter"
+    },
+    {
+      "expr": "($define! capture-env ($vau () e e)) (env? (capture-env))",
+      "expected": "#t",
+      "note": "Operative returning dynamic env"
+    },
+    {
+      "expr": "($let ((x 5)) (($vau () env ($define! x 10 env) x)))",
+      "expected": "10",
+      "note": "Mutate dynamic env via captured ref"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Operand NOT evaluated - returns unevaluated list"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) (cons 1 2))",
+      "expected": "(cons 1 2)",
+      "note": "Operand NOT evaluated - cons not called"
+    },
+    {
+      "expr": "(($vau (f a b) #ignore (list f a b)) + 1 2)",
+      "expected": "(+ 1 2)",
+      "note": "All operands unevaluated including combiner"
+    },
+    {
+      "expr": "(($vau args #ignore args) (+ 1 2) (* 3 4))",
+      "expected": "((+ 1 2) (* 3 4))",
+      "note": "Multiple unevaluated expressions"
+    },
+    {
+      "expr": "(($vau (x) #ignore (list (quote quote) x)) hello)",
+      "expected": "(quote hello)",
+      "note": "Symbol operand not looked up"
+    },
+    {
+      "expr": "(($vau (x y) #ignore (list x y)) undefined-symbol 42)",
+      "expected": "(undefined-symbol 42)",
+      "note": "Undefined symbol OK because not evaluated"
+    },
+    {
+      "expr": "(car (($vau (x) #ignore x) (a b c)))",
+      "expected": "a",
+      "note": "Can extract car from unevaluated list"
+    },
+    {
+      "expr": "(cdr (($vau (x) #ignore x) (a b c)))",
+      "expected": "(b c)",
+      "note": "Can extract cdr from unevaluated list"
+    },
+    {
+      "expr": "(($vau (x) #ignore (eval x (get-current-environment))) (+ 1 2))",
+      "expected": "3",
+      "note": "Explicit eval to get evaluated result"
+    },
+    {
+      "expr": "(pair? (($vau (x) #ignore x) (1 2 3)))",
+      "expected": "#t",
+      "note": "Unevaluated operand is still a pair"
+    }
+  ]
+}

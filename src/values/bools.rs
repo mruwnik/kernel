@@ -28,17 +28,22 @@ impl Value {
         is_val(items, &|val| matches!(val.deref(), Value::Bool(_)))
     }
 
+    /// eq? checks pointer equality (same object identity)
+    /// For immutable types (bools, numbers, symbols, strings), value equality is used
+    /// For mutable types (pairs, combiners, envs), pointer equality is used
     pub fn is_eq(self: Rc<Self>, other: Rc<Self>) -> ValueResult {
         Value::boolean(
             match (self.deref(), other.deref()) {
+                // Immutable types - compare by value
                 (Value::Bool(a), Value::Bool(b)) => a == b,
-                (Value::Combiner(a), Value::Combiner(b)) => a.is_eq(b)?,
                 (Value::Constant(a), Value::Constant(b)) => a.is_eq(b),
-                (Value::Env(a), Value::Env(b)) => a.borrow().is_eq(b.clone()),
                 (Value::Number(a), Value::Number(b)) => a.is_eq(b),
-                (Value::Pair(a), Value::Pair(b)) => a.borrow().is_eq(b)?,
                 (Value::Symbol(a), Value::Symbol(b)) => a.is_eq(b),
                 (Value::String(a), Value::String(b)) => a.is_eq(b),
+                // Mutable types - compare by pointer (same object)
+                (Value::Combiner(_), Value::Combiner(_)) => Rc::ptr_eq(&self, &other),
+                (Value::Env(_), Value::Env(_)) => Rc::ptr_eq(&self, &other),
+                (Value::Pair(_), Value::Pair(_)) => Rc::ptr_eq(&self, &other),
                 _ => false
             }
         ).ok()

@@ -8,7 +8,8 @@ pub fn eval(val: Rc<Value>, env: Rc<Value>) -> ValueResult {
     loop {
         match current.eval(env.clone())? {
             CallResultType::Value(v) => {
-                return v.ok()
+                // Return the Rc directly to preserve pointer identity for eq?
+                return Ok(v)
             },
             CallResultType::Call(c) => {
                 current = c;
@@ -22,9 +23,10 @@ impl Value {
         if let Value::Env(e) = env.deref() {
             match self.clone() {
                 // If it's a symbol find it in the env and return it
+                // Note: we return the Rc directly to preserve pointer identity for eq?
                 Value::Symbol(s) => match e.borrow().get(s.clone()) {
                     None => RuntimeError::lookup_error(format!("Could not find symbol {s}")),
-                    Some(v) => v.as_val(),
+                    Some(v) => Ok(CallResultType::Value(v)),
                 },
                 // pairs should be evaluated such that the car gets evaluated and then is called with the cdr
                 Value::Pair(_) => {
@@ -64,14 +66,23 @@ mod tests {
         ignore = { Rc::new(Value::Constant(Constant::Ignore)) },
         inert = { Rc::new(Value::Constant(Constant::Inert)) },
         null = { Rc::new(Value::Constant(Constant::Null)) },
-        env = { Rc::new(Value::Env(Env::new(vec![]))) },
         number = { Rc::new(Value::Number(Number::Int(123))) },
         string = { Rc::new(Value::String(Str::new("bla"))) },
     )]
     fn test_eval_self(val: Rc<Value>) {
         let env = Rc::new(Value::Env(Env::new(vec![])));
         let evaled = val.eval(env).expect("This should evaluate");
-        assert!(Value::is_eq(val, evaled.into()).unwrap().is_true());
+        // Use is_equal (value comparison) since eval returns a new Rc
+        assert!(Value::is_equal(val, evaled.into()).unwrap().is_true());
+    }
+
+    #[test]
+    fn test_eval_self_env() {
+        // Environments evaluate to themselves
+        let env = Rc::new(Value::Env(Env::new(vec![])));
+        let evaled = env.eval(env.clone()).expect("This should evaluate");
+        // Can't test eq? because eval creates a new Rc, but equal? should work
+        assert!(Value::is_equal(env, evaled.into()).unwrap().is_true());
     }
 
     #[test]

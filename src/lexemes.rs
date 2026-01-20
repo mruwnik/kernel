@@ -9,12 +9,12 @@ pub enum SpecialLexeme {
     DoubleQuote,
     Semicolon,
     FullStop,
+    Quote,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum InvalidLexeme {
     HashParam,
-    Quote,
     BackQuote,
     Comma,
     CommaAt,
@@ -24,7 +24,6 @@ impl fmt::Display for InvalidLexeme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
             InvalidLexeme::HashParam => "#(",
-            InvalidLexeme::Quote => "'",
             InvalidLexeme::BackQuote => "`",
             InvalidLexeme::Comma => ",",
             InvalidLexeme::CommaAt => ",@"
@@ -125,7 +124,7 @@ pub fn get_lexemes(chars: &mut std::str::Chars) -> Result<Vec<Lexeme>, RuntimeEr
 
             ',' => Char::Invalid(InvalidLexeme::Comma),
             '`' => Char::Invalid(InvalidLexeme::BackQuote),
-            '\'' => Char::Invalid(InvalidLexeme::Quote),
+            '\'' => Char::Special(SpecialLexeme::Quote),
 
             '[' => Char::Reserved(ReservedLexeme::LeftSquare),
             ']' => Char::Reserved(ReservedLexeme::RightSquare),
@@ -284,7 +283,6 @@ mod tests {
     }
 
     #[parameterized(
-        quote = { format!("'") },
         comma = { format!(",") },
         backquote = { format!("`") },
         hash_param = { format!("#(") },

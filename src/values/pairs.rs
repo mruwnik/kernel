@@ -20,20 +20,19 @@ impl Iterator for ValueIter {
     type Item = Rc<Value>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.node.as_deref() {
-            None => None,
-            Some(v) => {
-                let val = Rc::new(v.clone());
-                match v.deref() {
-                    Value::Pair(_) => {
-                        self.node = Some(val.cdr().unwrap().into());
-                        Some(val.car().unwrap().into())
-                    },
-                    _ => {
-                        self.node = None;
-                        Some(val.clone())
-                    }
-                }
+        let node = self.node.take()?;
+        match node.deref() {
+            Value::Pair(p) => {
+                // Preserve Rc identity by getting car/cdr directly from the pair
+                let car = p.borrow().car();
+                let cdr = p.borrow().cdr();
+                self.node = Some(cdr);
+                Some(car)
+            },
+            _ => {
+                // Non-pair (including null for proper list terminator)
+                self.node = None;
+                Some(node)
             }
         }
     }
@@ -144,10 +143,11 @@ impl Value {
     }
 
     pub fn to_list(vals: Vec<Rc<Value>>) -> ValueResult {
-        let root = Value::make_null().as_pair();
+        let root: Rc<Value> = Value::cons(Value::make_null(), Value::make_null())?.into();
         let mut last = root.clone();
         for item in vals {
-            let next = item.as_pair();
+            // Preserve Rc identity by using item directly instead of as_pair
+            let next: Rc<Value> = Value::cons(item, Value::make_null())?.into();
             Value::set_cdr(last.clone(), next.clone())?;
             last = next;
         }
@@ -157,6 +157,24 @@ impl Value {
     // primatives
     pub fn is_pair(items: Rc<Value>) -> ValueResult {
         is_val(items, &|val| matches!(val.deref(), Value::Pair(_)))
+    }
+
+    /// A list is either null or a pair whose cdr is a list (proper list check)
+    pub fn is_list(items: Rc<Value>) -> ValueResult {
+        is_val(items, &|val| Value::is_proper_list(val))
+    }
+
+    /// Check if a single value is a proper list (null or ends in null)
+    fn is_proper_list(val: Rc<Value>) -> bool {
+        let mut current = val;
+        loop {
+            let next = match current.deref() {
+                Value::Constant(Constant::Null) => return true,
+                Value::Pair(p) => p.borrow().cdr(),
+                _ => return false,
+            };
+            current = next;
+        }
     }
 
     pub fn cons(val1: Rc<Value>, val2: Rc<Value>) -> ValueResult {
@@ -210,7 +228,8 @@ impl Value {
 
     pub fn car(&self) -> ValueResult {
         if let Value::Pair(p) = self {
-            p.borrow().car().ok()
+            // Return the Rc directly to preserve pointer identity for eq?
+            Ok(p.borrow().car())
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "car expects a pair"))
         }
@@ -218,7 +237,8 @@ impl Value {
 
     pub fn cdr(&self) -> ValueResult {
         if let Value::Pair(p) = self {
-            p.borrow().cdr().ok()
+            // Return the Rc directly to preserve pointer identity for eq?
+            Ok(p.borrow().cdr())
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "cdr expects a pair"))
         }
@@ -330,39 +350,30 @@ mod tests {
         assert!(val.borrow().is_eq(&val).expect("ok"));
     }
 
+    // Note: eq? for pairs uses pointer comparison (same object identity)
+    // Two different pairs with the same values are NOT eq
+    // Use is_equal for value comparison
+
     #[parameterized(
         basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2, 3]) },
-        nested = {
-            Pair::new(
-                Rc::new(Value::Pair(number_list(vec![5, 3, 2]))),
-                Value::cons(
-                    Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
-                    Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok").into(),
-                true
-            ),
-            Pair::new(
-                Rc::new(Value::Pair(number_list(vec![5, 3, 2]))),
-                Value::cons(
-                    Rc::new(Value::Pair(number_list(vec![1, 2, 3]))),
-                    Rc::new(Value::Constant(Constant::Null))
-                ).expect("ok").into(),
-                true
-            ),
-        },
+        same_values = { number_list(vec![1, 2, 3]), number_list(vec![1, 2, 3]) },
     )]
-    fn test_is_eq(val1: PairRef, val2: PairRef) {
-        assert!(val1.borrow().is_eq(&val2).expect("ok"));
-        assert!(val2.borrow().is_eq(&val1).expect("ok"));
+    fn test_is_eq_different_pairs(val1: PairRef, val2: PairRef) {
+        // Different pairs with same values should NOT be eq (pointer comparison)
+        let v1 = Rc::new(Value::Pair(val1));
+        let v2 = Rc::new(Value::Pair(val2));
+        assert!(!v1.clone().is_eq(v2.clone()).expect("ok").is_true());
+        assert!(!v2.is_eq(v1).expect("ok").is_true());
     }
 
     #[parameterized(
         basic = { number_list(vec![1, 2, 3]), number_list(vec![1, 2]) },
-        mutability = { number_list(vec![1, 2, 3]), make_immutable(number_list(vec![1, 2, 3])) },
     )]
     fn test_is_eq_not(val1: PairRef, val2: PairRef) {
-        assert!(!val1.borrow().is_eq(&val2).expect("ok"));
-        assert!(!val2.borrow().is_eq(&val1).expect("ok"));
+        let v1 = Rc::new(Value::Pair(val1));
+        let v2 = Rc::new(Value::Pair(val2));
+        assert!(!v1.clone().is_eq(v2.clone()).expect("ok").is_true());
+        assert!(!v2.is_eq(v1).expect("ok").is_true());
     }
 
     #[parameterized(

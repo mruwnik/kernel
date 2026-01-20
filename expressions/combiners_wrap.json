@@ -1,0 +1,255 @@
+{
+  "description": "wrap and unwrap tests",
+  "tests": [
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "wrap returns an applicative"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau (x) #ignore x)))",
+      "expected": "#t",
+      "note": "wrap with parameter returns applicative"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) 42)",
+      "expected": "42",
+      "note": "wrapped operative accepts literal argument"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) (+ 2 3))",
+      "expected": "5",
+      "note": "wrapped operative evaluates its argument"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (list a b))) (+ 1 0) (+ 2 0))",
+      "expected": "(1 2)",
+      "note": "wrapped operative evaluates multiple arguments"
+    },
+    {
+      "expr": "((wrap ($vau args #ignore args)) (+ 1 0) (+ 0 2) (+ 0 3))",
+      "expected": "(1 2 3)",
+      "note": "wrapped operative with rest param evaluates all args"
+    },
+    {
+      "expr": "((wrap ($vau (a . rest) #ignore (cons a rest))) (* 2 2) (* 3 3) (* 4 4))",
+      "expected": "(4 9 16)",
+      "note": "wrap with dotted formals evaluates all parts"
+    },
+    {
+      "expr": "(applicative? (wrap $if))",
+      "expected": "#t",
+      "note": "can wrap primitive operative"
+    },
+    {
+      "expr": "(applicative? (wrap $vau))",
+      "expected": "#t",
+      "note": "can wrap $vau itself"
+    },
+    {
+      "expr": "(combiner? (wrap ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "wrapped result is still a combiner"
+    },
+    {
+      "expr": "(operative? (unwrap cons))",
+      "expected": "#t",
+      "note": "unwrap returns operative"
+    },
+    {
+      "expr": "(operative? (unwrap list))",
+      "expected": "#t",
+      "note": "unwrap list returns operative"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "unwrap arithmetic returns operative"
+    },
+    {
+      "expr": "(operative? (unwrap car))",
+      "expected": "#t",
+      "note": "unwrap car returns operative"
+    },
+    {
+      "expr": "(operative? (unwrap ($lambda (x) x)))",
+      "expected": "#t",
+      "note": "unwrap lambda returns operative"
+    },
+    {
+      "expr": "((unwrap cons) 1 2)",
+      "expected": "(1 . 2)",
+      "note": "unwrapped cons takes unevaluated operands"
+    },
+    {
+      "expr": "((unwrap list) a b c)",
+      "expected": "(a b c)",
+      "note": "unwrapped list gets symbols, not values"
+    },
+    {
+      "expr": "((unwrap car) (cons 1 2))",
+      "expected": "1",
+      "note": "unwrapped car works on literal pair"
+    },
+    {
+      "expr": "(combiner? (unwrap cons))",
+      "expected": "#t",
+      "note": "unwrapped result is still combiner"
+    },
+    {
+      "expr": "(operative? (unwrap (wrap ($vau () #ignore #t))))",
+      "expected": "#t",
+      "note": "unwrap(wrap(op)) returns operative"
+    },
+    {
+      "expr": "($let ((op ($vau (x) #ignore x))) (eq? op (unwrap (wrap op))))",
+      "expected": "#t",
+      "note": "unwrap(wrap(op)) returns same operative"
+    },
+    {
+      "expr": "($let ((op ($vau () #ignore 42))) ((unwrap (wrap op))))",
+      "expected": "42",
+      "note": "unwrap(wrap(op)) behaves as original operative"
+    },
+    {
+      "expr": "($let ((f ($vau (x) #ignore x))) (($let ((w (wrap f))) (unwrap w)) (+ 1 2)))",
+      "expected": "(+ 1 2)",
+      "note": "round-trip preserves operative behavior"
+    },
+    {
+      "expr": "(applicative? (wrap (unwrap cons)))",
+      "expected": "#t",
+      "note": "wrap(unwrap(app)) returns applicative"
+    },
+    {
+      "expr": "((wrap (unwrap cons)) 1 2)",
+      "expected": "(1 . 2)",
+      "note": "wrap(unwrap(app)) behaves like original"
+    },
+    {
+      "expr": "((wrap (unwrap list)) (+ 1 0) (+ 2 0))",
+      "expected": "(1 2)",
+      "note": "wrap(unwrap(list)) evaluates args"
+    },
+    {
+      "expr": "(applicative? (wrap (unwrap (wrap ($vau () #ignore #t)))))",
+      "expected": "#t",
+      "note": "double round-trip produces applicative"
+    },
+    {
+      "expr": "((wrap (unwrap +)) (+ 1 1) (+ 2 2))",
+      "expected": "6",
+      "note": "wrap(unwrap(+)) evaluates and adds"
+    },
+    {
+      "expr": "($let ((f ($vau (x) #ignore x))) ((wrap f) (+ 1 2)))",
+      "expected": "3",
+      "note": "wrap makes operative evaluate args"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "bare operative does NOT evaluate operand"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) (+ 1 2))",
+      "expected": "3",
+      "note": "wrapped operative DOES evaluate argument"
+    },
+    {
+      "expr": "(cons (+ 1 2) (+ 3 4))",
+      "expected": "(3 . 7)",
+      "note": "applicative cons evaluates args"
+    },
+    {
+      "expr": "((unwrap cons) (+ 1 2) (+ 3 4))",
+      "expected": "((+ 1 2) + 3 4)",
+      "note": "unwrapped cons gets unevaluated forms"
+    },
+    {
+      "expr": "(list (+ 1 0) (+ 2 0) (+ 3 0))",
+      "expected": "(1 2 3)",
+      "note": "applicative list evaluates args"
+    },
+    {
+      "expr": "((unwrap list) (+ 1 0) (+ 2 0) (+ 3 0))",
+      "expected": "((+ 1 0) (+ 2 0) (+ 3 0))",
+      "note": "unwrapped list gets unevaluated forms"
+    },
+    {
+      "expr": "(($lambda (x) x) (+ 5 5))",
+      "expected": "10",
+      "note": "lambda evaluates argument"
+    },
+    {
+      "expr": "((unwrap ($lambda (x) x)) (+ 5 5))",
+      "expected": "(+ 5 5)",
+      "note": "unwrapped lambda does NOT evaluate"
+    },
+    {
+      "expr": "($let ((x 10)) ((wrap ($vau (y) #ignore (+ x y))) (+ 2 3)))",
+      "expected": "15",
+      "note": "wrapped operative with static env and evaluated arg"
+    },
+    {
+      "expr": "($let ((x 10)) (($vau (y) #ignore y) (+ x 5)))",
+      "expected": "(+ x 5)",
+      "note": "unwrapped operative captures form literally"
+    },
+    {
+      "expr": "(operative? (wrap ($vau () #ignore #t)))",
+      "expected": "#f",
+      "note": "wrap result is NOT operative"
+    },
+    {
+      "expr": "(applicative? (unwrap cons))",
+      "expected": "#f",
+      "note": "unwrap result is NOT applicative"
+    },
+    {
+      "expr": "(operative? (unwrap (wrap ($vau () #ignore #t))))",
+      "expected": "#t",
+      "note": "unwrap(wrap(op)) is operative"
+    },
+    {
+      "expr": "(applicative? (wrap (unwrap cons)))",
+      "expected": "#t",
+      "note": "wrap(unwrap(app)) is applicative"
+    },
+    {
+      "expr": "(operative? (unwrap (wrap (unwrap cons))))",
+      "expected": "#t",
+      "note": "unwrap(wrap(unwrap(app))) is operative"
+    },
+    {
+      "expr": "(applicative? (wrap (wrap ($vau () #ignore #t))))",
+      "expected": "#t",
+      "note": "double wrap is applicative"
+    },
+    {
+      "expr": "(operative? (unwrap (unwrap (wrap (wrap ($vau () #ignore #t))))))",
+      "expected": "#t",
+      "note": "double unwrap of double wrap is operative"
+    },
+    {
+      "expr": "(applicative? (unwrap (wrap (wrap ($vau () #ignore #t)))))",
+      "expected": "#t",
+      "note": "single unwrap of double wrap is still applicative"
+    },
+    {
+      "expr": "(eq? (operative? (unwrap cons)) (operative? ($vau () #ignore #t)))",
+      "expected": "#t",
+      "note": "both unwrapped app and vau result are operatives"
+    },
+    {
+      "expr": "(eq? (applicative? (wrap ($vau () #ignore #t))) (applicative? cons))",
+      "expected": "#t",
+      "note": "both wrapped op and primitive app are applicatives"
+    },
+    {
+      "expr": "($let ((id ($vau (x) #ignore x))) (eq? (applicative? (wrap id)) (not? (operative? (wrap id)))))",
+      "expected": "#t",
+      "note": "applicative? and operative? are mutually exclusive for combiners"
+    }
+  ]
+}
