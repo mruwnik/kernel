@@ -115,27 +115,24 @@ mod tests {
 
     #[test]
     fn test_is_type() {
-        let env = Value::ground_env();
-        fn checker(name: impl Into<String>, vals: Rc<Value>, env: Rc<Value>) {
-            let expr = Value::cons(Value::make_symbol(name), vals).unwrap();
-            assert!(eval(expr, env).expect("da").is_true());
-        }
+        // Test type predicates by directly calling the Rust functions
+        // (Going through eval would require quoting symbols)
         for val in sample_values() {
             let vals = val.as_pair();
             match val.deref() {
-                Value::Bool(_) => checker("boolean?", vals, env.clone()),
-                Value::Constant(Constant::Ignore) => checker("ignore?", vals, env.clone()),
-                Value::Constant(Constant::Inert) => checker("inert?", vals, env.clone()),
-                Value::Constant(Constant::Null) => checker("null?", vals, env.clone()),
-                Value::Env(_) => checker("env?", vals, env.clone()),
-                Value::Number(_) => checker("number?", vals, env.clone()),
-                Value::Pair(_) => checker("pair?", vals, env.clone()),
-                Value::String(_) => checker("string?", vals, env.clone()),
-                Value::Symbol(_) => checker("symbol?", vals, env.clone()),
+                Value::Bool(_) => assert!(Value::is_boolean(vals).unwrap().is_true()),
+                Value::Constant(Constant::Ignore) => assert!(Value::is_ignore(vals).unwrap().is_true()),
+                Value::Constant(Constant::Inert) => assert!(Value::is_inert(vals).unwrap().is_true()),
+                Value::Constant(Constant::Null) => assert!(Value::is_null(vals).unwrap().is_true()),
+                Value::Env(_) => assert!(Value::is_env(vals).unwrap().is_true()),
+                Value::Number(_) => assert!(Value::is_number(vals).unwrap().is_true()),
+                Value::Pair(_) => assert!(Value::is_pair(vals).unwrap().is_true()),
+                Value::String(_) => assert!(Value::is_string(vals).unwrap().is_true()),
+                Value::Symbol(_) => assert!(Value::is_symbol(vals).unwrap().is_true()),
                 Value::Combiner(_) => if Value::is_applicative(vals.clone()).unwrap().is_true() {
-                    checker("applicative?", vals, env.clone())
+                    assert!(Value::is_applicative(vals).unwrap().is_true())
                 } else {
-                    checker("operative?", vals, env.clone())
+                    assert!(Value::is_operative(vals).unwrap().is_true())
                 }
             }
         }

@@ -2,7 +2,7 @@ use std::{fmt, ops::Deref};
 use std::rc::Rc;
 use std::collections::HashSet;
 use crate::errors::{ RuntimeError, ErrorTypes };
-use crate::values::{ Value, ValueResult, CallResult, Symbol, CallResultType, is_val };
+use crate::values::{ Value, ValueResult, CallResult, CallResultType, Symbol, is_val };
 use crate::values::eval::eval;
 use crate::values::numbers::Number;
 
@@ -208,6 +208,17 @@ impl Combiner {
         }
     }
 
+    fn set(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let env_val = Rc::new(Value::Env(env.clone()));
+        let params = vals.operands()?;
+        match &params[..] {
+            [val1, val2] => {
+                env_val.assign(val1.clone(), val2.clone())?.as_val()
+            },
+            _ => RuntimeError::type_error(format!("$set! requires 2 arguments")),
+        }
+    }
+
     pub fn bind_ground(env: &EnvRef) {
         fn bind(env: &EnvRef, name: impl Into<String>, type_: CombinerType, func: Func) {
             let name = name.into();
@@ -234,6 +245,7 @@ impl Combiner {
         bind(&env, "make-environment", CombinerType::Applicative, &|vals, _| Value::make_environment(vals)?.as_val());
         bind(&env, "eval", CombinerType::Applicative, &Combiner::eval);
         bind(&env, "$define!", CombinerType::Operative, &Combiner::define);
+        bind(&env, "$set!", CombinerType::Operative, &Combiner::set);
 
         // Boolean operations
         bind(&env, "not", CombinerType::Applicative, &Combiner::not);
@@ -275,21 +287,24 @@ impl Combiner {
         bind(&env, "mod", CombinerType::Applicative, &|vals, _| number_applicative(vals, &Value::modulo, "mod"));
 
         // Comparisons (using Kernel-style names with ?)
-        bind(&env, "<?", CombinerType::Applicative, &|vals, _| {
-            two_val_fn(vals.operands()?, "<?", &|a, b| Number::less_than(&a, &b))?.as_val()
-        });
-        bind(&env, "<=?", CombinerType::Applicative, &|vals, _| {
-            two_val_fn(vals.operands()?, "<=?", &|a, b| Number::less_than_or_equal(&a, &b))?.as_val()
-        });
-        bind(&env, ">?", CombinerType::Applicative, &|vals, _| {
-            two_val_fn(vals.operands()?, ">?", &|a, b| Number::greater_than(&a, &b))?.as_val()
-        });
-        bind(&env, ">=?", CombinerType::Applicative, &|vals, _| {
-            two_val_fn(vals.operands()?, ">=?", &|a, b| Number::greater_than_or_equal(&a, &b))?.as_val()
-        });
-        bind(&env, "=?", CombinerType::Applicative, &|vals, _| {
-            two_val_fn(vals.operands()?, "=?", &|a, b| Number::numeric_equal(&a, &b))?.as_val()
-        });
+        // Chained comparisons (work on 2+ arguments)
+        bind(&env, "<?", CombinerType::Applicative, &Combiner::chained_less_than);
+        bind(&env, "<=?", CombinerType::Applicative, &Combiner::chained_less_equal);
+        bind(&env, ">?", CombinerType::Applicative, &Combiner::chained_greater_than);
+        bind(&env, ">=?", CombinerType::Applicative, &Combiner::chained_greater_equal);
+        bind(&env, "=?", CombinerType::Applicative, &Combiner::chained_numeric_equal);
+
+        // Numeric predicates
+        bind(&env, "zero?", CombinerType::Applicative, &Combiner::zero_pred);
+        bind(&env, "positive?", CombinerType::Applicative, &Combiner::positive_pred);
+        bind(&env, "negative?", CombinerType::Applicative, &Combiner::negative_pred);
+        bind(&env, "odd?", CombinerType::Applicative, &Combiner::odd_pred);
+        bind(&env, "even?", CombinerType::Applicative, &Combiner::even_pred);
+
+        // Numeric functions
+        bind(&env, "abs", CombinerType::Applicative, &Combiner::abs);
+        bind(&env, "min", CombinerType::Applicative, &Combiner::min);
+        bind(&env, "max", CombinerType::Applicative, &Combiner::max);
 
         // Library - list operations
         bind(&env, "car", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.as_val());
@@ -310,6 +325,13 @@ impl Combiner {
 
         // Environment operations
         bind(&env, "get-current-environment", CombinerType::Operative, &Combiner::get_current_env);
+        bind(&env, "$binds?", CombinerType::Operative, &Combiner::binds);
+
+        // Convenience accessors
+        bind(&env, "cadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.as_val());
+        bind(&env, "caddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.car()?.as_val());
+        bind(&env, "caar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.as_val());
+        bind(&env, "cdar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.as_val());
     }
 
     // $vau operative: creates a compound operative
@@ -405,15 +427,18 @@ impl Combiner {
         let mut seen_symbols: HashSet<String> = HashSet::new();
         validate_formals(&formals, &mut seen_symbols)?;
 
-        // Get body - for now just single expression, later we'll add $sequence
+        // Get body - wrap multiple body expressions in $sequence
         let body = if params.len() == 1 {
             Value::make_inert()
         } else if params.len() == 2 {
             params[1].clone()
         } else {
-            // Multiple body expressions - wrap in implicit $sequence
-            // TODO: implement proper $sequence handling
-            params[params.len() - 1].clone()
+            // Multiple body expressions - wrap in $sequence
+            let mut seq_args = Value::make_null();
+            for i in (1..params.len()).rev() {
+                seq_args = Value::cons(params[i].clone(), seq_args)?;
+            }
+            Value::cons(Value::make_symbol("$sequence"), seq_args)?
         };
 
         // Make immutable copies of formals and body (if they're pairs)
@@ -886,7 +911,7 @@ impl Combiner {
         }
     }
 
-    // map: apply function to each element
+    // map: apply function to each element (supports multiple lists)
     fn map(vals: Rc<Value>, env: EnvRef) -> CallResult {
         let args = vals.operands()?;
         if args.len() < 2 {
@@ -894,19 +919,56 @@ impl Combiner {
         }
 
         let func = args[0].clone();
-        let list = &args[1];
-        let items = list.operands()?;
-        let env_val = Rc::new(Value::Env(env));
+        let env_val = Rc::new(Value::Env(env.clone()));
 
-        let mut results: Vec<Rc<Value>> = Vec::new();
-        for item in &items {
-            // Call (func item)
-            let call_expr = Value::cons(func.clone(), Value::cons(item.clone(), Value::make_null())?)?;
-            let result = eval(call_expr.into(), env_val.clone())?;
-            results.push(result);
+        // func must be an applicative
+        let combiner = if let Value::Combiner(c) = func.deref() {
+            if c.c_type != CombinerType::Applicative {
+                return RuntimeError::type_error("map requires an applicative");
+            }
+            c
+        } else {
+            return RuntimeError::type_error("map requires an applicative");
+        };
+
+        if args.len() == 2 {
+            // Single list case
+            let items = args[1].operands()?;
+            let mut results: Vec<Rc<Value>> = Vec::new();
+            for item in &items {
+                // Call the function directly with the item as argument
+                let arg_list = Value::cons(item.clone(), Value::make_null())?;
+                let result = call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
+                results.push(result);
+            }
+            Value::to_list(results)?.as_val()
+        } else {
+            // Multiple lists case - zip and apply
+            let lists: Vec<Vec<Rc<Value>>> = args[1..]
+                .iter()
+                .map(|list| list.operands())
+                .collect::<Result<Vec<_>, _>>()?;
+
+            // Check all lists have same length
+            let len = lists[0].len();
+            for list in &lists {
+                if list.len() != len {
+                    return RuntimeError::type_error("map: all lists must have same length");
+                }
+            }
+
+            let mut results: Vec<Rc<Value>> = Vec::new();
+            for i in 0..len {
+                // Build argument list from ith element of each list
+                let mut call_args = Value::make_null();
+                for list in lists.iter().rev() {
+                    call_args = Value::cons(list[i].clone(), call_args)?;
+                }
+                let result = call_applicative_full(combiner, call_args, env.clone(), env_val.clone())?;
+                results.push(result);
+            }
+            Value::to_list(results)?.as_val()
         }
-
-        Value::to_list(results)?.as_val()
     }
 
     // for-each: apply function for side effects
@@ -919,11 +981,21 @@ impl Combiner {
         let func = args[0].clone();
         let list = &args[1];
         let items = list.operands()?;
-        let env_val = Rc::new(Value::Env(env));
+        let env_val = Rc::new(Value::Env(env.clone()));
+
+        // func must be an applicative
+        let combiner = if let Value::Combiner(c) = func.deref() {
+            if c.c_type != CombinerType::Applicative {
+                return RuntimeError::type_error("for-each requires an applicative");
+            }
+            c
+        } else {
+            return RuntimeError::type_error("for-each requires an applicative");
+        };
 
         for item in &items {
-            let call_expr = Value::cons(func.clone(), Value::cons(item.clone(), Value::make_null())?)?;
-            eval(call_expr.into(), env_val.clone())?;
+            let arg_list = Value::cons(item.clone(), Value::make_null())?;
+            call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
         }
 
         Value::make_inert().as_val()
@@ -935,12 +1007,22 @@ impl Combiner {
         match &args[..] {
             [pred, list] => {
                 let items = list.operands()?;
-                let env_val = Rc::new(Value::Env(env));
+                let env_val = Rc::new(Value::Env(env.clone()));
+
+                // pred must be an applicative
+                let combiner = if let Value::Combiner(c) = pred.deref() {
+                    if c.c_type != CombinerType::Applicative {
+                        return RuntimeError::type_error("filter requires an applicative predicate");
+                    }
+                    c
+                } else {
+                    return RuntimeError::type_error("filter requires an applicative predicate");
+                };
 
                 let mut results: Vec<Rc<Value>> = Vec::new();
                 for item in &items {
-                    let call_expr = Value::cons(pred.clone(), Value::cons(item.clone(), Value::make_null())?)?;
-                    let result = eval(call_expr.into(), env_val.clone())?;
+                    let arg_list = Value::cons(item.clone(), Value::make_null())?;
+                    let result = call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
                     if result.is_true() {
                         results.push(item.clone());
                     }
@@ -958,16 +1040,23 @@ impl Combiner {
         match &args[..] {
             [func, identity, list] => {
                 let items = list.operands()?;
-                let env_val = Rc::new(Value::Env(env));
+                let env_val = Rc::new(Value::Env(env.clone()));
+
+                // func must be an applicative
+                let combiner = if let Value::Combiner(c) = func.deref() {
+                    if c.c_type != CombinerType::Applicative {
+                        return RuntimeError::type_error("reduce requires an applicative");
+                    }
+                    c
+                } else {
+                    return RuntimeError::type_error("reduce requires an applicative");
+                };
 
                 let mut acc = identity.clone();
                 for item in &items {
                     // (func acc item)
-                    let call_expr = Value::cons(
-                        func.clone(),
-                        Value::cons(acc, Value::cons(item.clone(), Value::make_null())?)?
-                    )?;
-                    acc = eval(call_expr.into(), env_val.clone())?;
+                    let arg_list = Value::cons(acc, Value::cons(item.clone(), Value::make_null())?)?;
+                    acc = call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
                 }
 
                 acc.as_val()
@@ -979,6 +1068,211 @@ impl Combiner {
     // get-current-environment: returns the dynamic environment
     fn get_current_env(_vals: Rc<Value>, env: EnvRef) -> CallResult {
         Rc::new(Value::Env(env)).as_val()
+    }
+
+    // $binds?: check if a symbol is bound in an environment
+    // ($binds? env symbol)
+    fn binds(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        match &params[..] {
+            [env_expr, symbol] => {
+                let env_val = Rc::new(Value::Env(env.clone()));
+                let target_env = eval(env_expr.clone(), env_val)?;
+                if let Value::Env(e) = target_env.deref() {
+                    // Check if symbol is bound - symbol is NOT evaluated
+                    if let Value::Symbol(sym) = symbol.deref() {
+                        let bound = e.borrow().get(sym.clone()).is_some();
+                        Value::boolean(bound).as_val()
+                    } else {
+                        RuntimeError::type_error("$binds? requires a symbol")
+                    }
+                } else {
+                    RuntimeError::type_error("$binds? requires an environment")
+                }
+            }
+            _ => RuntimeError::type_error("$binds? requires 2 arguments"),
+        }
+    }
+
+    // Chained comparisons
+    fn chained_less_than(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        chained_comparison(vals, &|a, b| Number::less_than(a, b))
+    }
+
+    fn chained_less_equal(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        chained_comparison(vals, &|a, b| Number::less_than_or_equal(a, b))
+    }
+
+    fn chained_greater_than(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        chained_comparison(vals, &|a, b| Number::greater_than(a, b))
+    }
+
+    fn chained_greater_equal(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        chained_comparison(vals, &|a, b| Number::greater_than_or_equal(a, b))
+    }
+
+    fn chained_numeric_equal(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        chained_comparison(vals, &|a, b| Number::numeric_equal(a, b))
+    }
+
+    // Numeric predicates
+    fn zero_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                if let Value::Number(num) = n.deref() {
+                    let is_zero = match num {
+                        Number::Int(i) => *i == 0,
+                        Number::Float(f) => *f == 0.0,
+                    };
+                    Value::boolean(is_zero).as_val()
+                } else {
+                    RuntimeError::type_error("zero? requires a number")
+                }
+            }
+            _ => RuntimeError::type_error("zero? requires 1 argument"),
+        }
+    }
+
+    fn positive_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                if let Value::Number(num) = n.deref() {
+                    let is_positive = match num {
+                        Number::Int(i) => *i > 0,
+                        Number::Float(f) => *f > 0.0,
+                    };
+                    Value::boolean(is_positive).as_val()
+                } else {
+                    RuntimeError::type_error("positive? requires a number")
+                }
+            }
+            _ => RuntimeError::type_error("positive? requires 1 argument"),
+        }
+    }
+
+    fn negative_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                if let Value::Number(num) = n.deref() {
+                    let is_negative = match num {
+                        Number::Int(i) => *i < 0,
+                        Number::Float(f) => *f < 0.0,
+                    };
+                    Value::boolean(is_negative).as_val()
+                } else {
+                    RuntimeError::type_error("negative? requires a number")
+                }
+            }
+            _ => RuntimeError::type_error("negative? requires 1 argument"),
+        }
+    }
+
+    fn odd_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                if let Value::Number(Number::Int(i)) = n.deref() {
+                    Value::boolean(*i % 2 != 0).as_val()
+                } else {
+                    RuntimeError::type_error("odd? requires an integer")
+                }
+            }
+            _ => RuntimeError::type_error("odd? requires 1 argument"),
+        }
+    }
+
+    fn even_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                if let Value::Number(Number::Int(i)) = n.deref() {
+                    Value::boolean(*i % 2 == 0).as_val()
+                } else {
+                    RuntimeError::type_error("even? requires an integer")
+                }
+            }
+            _ => RuntimeError::type_error("even? requires 1 argument"),
+        }
+    }
+
+    // abs: absolute value
+    fn abs(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [n] => {
+                if let Value::Number(num) = n.deref() {
+                    let result = match num {
+                        Number::Int(i) => Number::Int(i.abs()),
+                        Number::Float(f) => Number::Float(f.abs()),
+                    };
+                    Rc::new(Value::Number(result)).as_val()
+                } else {
+                    RuntimeError::type_error("abs requires a number")
+                }
+            }
+            _ => RuntimeError::type_error("abs requires 1 argument"),
+        }
+    }
+
+    // min: find minimum value
+    fn min(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        if args.is_empty() {
+            return RuntimeError::type_error("min requires at least 1 argument");
+        }
+        let mut result = args[0].clone();
+        for arg in args.iter().skip(1) {
+            if Number::less_than(arg, &result)?.is_true() {
+                result = arg.clone();
+            }
+        }
+        result.as_val()
+    }
+
+    // max: find maximum value
+    fn max(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        if args.is_empty() {
+            return RuntimeError::type_error("max requires at least 1 argument");
+        }
+        let mut result = args[0].clone();
+        for arg in args.iter().skip(1) {
+            if Number::greater_than(arg, &result)?.is_true() {
+                result = arg.clone();
+            }
+        }
+        result.as_val()
+    }
+}
+
+/// Chained comparison helper
+fn chained_comparison(vals: Rc<Value>, compare: &dyn Fn(&Rc<Value>, &Rc<Value>) -> ValueResult) -> CallResult {
+    let args = vals.operands()?;
+    if args.len() < 2 {
+        return RuntimeError::type_error("comparison requires at least 2 arguments");
+    }
+
+    for i in 0..args.len() - 1 {
+        if !compare(&args[i], &args[i + 1])?.is_true() {
+            return Value::boolean(false).as_val();
+        }
+    }
+    Value::boolean(true).as_val()
+}
+
+/// Call an applicative and fully evaluate any tail calls (trampoline)
+fn call_applicative_full(c: &Combiner, args: Rc<Value>, env: EnvRef, env_val: Rc<Value>) -> Result<Rc<Value>, RuntimeError> {
+    let mut result = call_applicative(c, args, env.clone(), env_val.clone())?;
+    loop {
+        match result {
+            CallResultType::Value(v) => return Ok(v),
+            CallResultType::Call(c) => {
+                result = c.eval(env_val.clone())?;
+            }
+        }
     }
 }
 

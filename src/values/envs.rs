@@ -41,6 +41,22 @@ impl Env {
         }
     }
 
+    /// Set (mutate) an existing binding, searching through parent environments
+    /// Returns true if the binding was found and updated, false otherwise
+    pub fn set_existing(&mut self, symbol: &Symbol, value: Rc<Value>) -> bool {
+        if self.bindings.contains_key(symbol) {
+            self.bindings.insert(symbol.clone(), value);
+            true
+        } else {
+            for parent in self.parents.iter() {
+                if parent.borrow_mut().set_existing(symbol, value.clone()) {
+                    return true;
+                }
+            }
+            false
+        }
+    }
+
     pub fn is_eq(&self, other: EnvRef) -> bool {
         *self == *other.borrow()
     }
@@ -53,6 +69,25 @@ impl Env {
             (Value::Pair(_), Value::Pair(_)) => {
                 self.set(formals.car()?, vals_expr.car()?)?;
                 self.set(formals.cdr()?, vals_expr.cdr()?)?;
+            },
+            _ => return RuntimeError::type_error(format!("Invalid parameter tree provided - got {formals} and {vals_expr}")),
+        }
+        Value::make_const(Constant::Inert).ok()
+    }
+
+    /// Mutate an existing binding, searching parent chain. Used by $set!
+    pub fn mutate(&mut self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
+        match (formals.deref(), vals_expr.deref()) {
+            (Value::Constant(Constant::Null), Value::Constant(Constant::Null)) => (),
+            (Value::Constant(Constant::Ignore), _) => (),
+            (Value::Symbol(s), v) => {
+                if !self.set_existing(s, v.into()) {
+                    return RuntimeError::type_error(format!("$set!: symbol {} is not bound", s.0));
+                }
+            },
+            (Value::Pair(_), Value::Pair(_)) => {
+                self.mutate(formals.car()?, vals_expr.car()?)?;
+                self.mutate(formals.cdr()?, vals_expr.cdr()?)?;
             },
             _ => return RuntimeError::type_error(format!("Invalid parameter tree provided - got {formals} and {vals_expr}")),
         }
@@ -71,6 +106,15 @@ impl Value {
             e.deref().borrow_mut().set(formals, vals)
         } else {
             Err(RuntimeError::new(ErrorTypes::TypeError, "$define! requires an env as its first argument"))
+        }
+    }
+
+    pub fn assign(&self, formals: Rc<Value>, vals_expr: Rc<Value>) -> ValueResult {
+        if let Value::Env(e) = self {
+            let vals = eval(vals_expr, self.into())?;
+            e.deref().borrow_mut().mutate(formals, vals)
+        } else {
+            Err(RuntimeError::new(ErrorTypes::TypeError, "$set! requires an env as its first argument"))
         }
     }
 
