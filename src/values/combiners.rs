@@ -244,6 +244,14 @@ impl Combiner {
         // Apply
         bind(&env, "apply", CombinerType::Applicative, &Combiner::apply);
 
+        // Conditionals
+        bind(&env, "$cond", CombinerType::Operative, &Combiner::cond);
+
+        // Let bindings
+        bind(&env, "$let", CombinerType::Operative, &Combiner::let_);
+        bind(&env, "$let*", CombinerType::Operative, &Combiner::let_star);
+        bind(&env, "$letrec", CombinerType::Operative, &Combiner::letrec);
+
         // Type checkers (all applicatives - they evaluate their arguments)
         bind(&env, "boolean?", CombinerType::Applicative, &|vals, _| Value::is_boolean(vals)?.as_val());
         bind(&env, "applicative?", CombinerType::Applicative, &|vals, _| Value::is_applicative(vals)?.as_val());
@@ -507,6 +515,160 @@ impl Combiner {
             }
         }
         Value::boolean(false).as_val()
+    }
+
+    // $let operative: parallel bindings in new environment
+    // ($let ((var1 val1) (var2 val2) ...) body ...)
+    fn let_(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.is_empty() {
+            return RuntimeError::type_error("$let requires bindings and body");
+        }
+
+        let bindings_val = params[0].clone();
+        let env_val = Rc::new(Value::Env(env.clone()));
+
+        // Create new environment with current as parent
+        let local_env = Env::new(vec![env]);
+
+        // Evaluate all values in the ORIGINAL environment first (parallel binding)
+        let bindings = bindings_val.operands()?;
+        let mut evaluated_bindings: Vec<(Rc<Value>, Rc<Value>)> = Vec::new();
+        for binding in &bindings {
+            let var = binding.car()?;
+            let val_expr = binding.cdr()?.car()?;
+            let val = eval(val_expr.into(), env_val.clone())?;
+            evaluated_bindings.push((var.into(), val));
+        }
+
+        // Now bind all variables in the local environment
+        for (var, val) in evaluated_bindings {
+            match_formals(&var, &val, &local_env)?;
+        }
+
+        // Evaluate body in local environment
+        let local_env_val = Rc::new(Value::Env(local_env));
+        let mut result = Value::make_inert();
+        for i in 1..params.len() {
+            result = eval(params[i].clone(), local_env_val.clone())?;
+        }
+        result.as_val()
+    }
+
+    // $let* operative: sequential bindings
+    // ($let* ((var1 val1) (var2 val2) ...) body ...)
+    fn let_star(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.is_empty() {
+            return RuntimeError::type_error("$let* requires bindings and body");
+        }
+
+        let bindings_val = params[0].clone();
+
+        // Start with current environment
+        let mut current_env = env;
+
+        // Process each binding sequentially
+        let bindings = bindings_val.operands()?;
+        for binding in &bindings {
+            let var = binding.car()?;
+            let val_expr = binding.cdr()?.car()?;
+
+            // Evaluate in current environment
+            let current_env_val = Rc::new(Value::Env(current_env.clone()));
+            let val = eval(val_expr.into(), current_env_val)?;
+
+            // Create new environment and bind
+            let new_env = Env::new(vec![current_env]);
+            match_formals(&var.into(), &val, &new_env)?;
+            current_env = new_env;
+        }
+
+        // Evaluate body in final environment
+        let final_env_val = Rc::new(Value::Env(current_env));
+        let mut result = Value::make_inert();
+        for i in 1..params.len() {
+            result = eval(params[i].clone(), final_env_val.clone())?;
+        }
+        result.as_val()
+    }
+
+    // $letrec operative: recursive bindings
+    // ($letrec ((var1 val1) (var2 val2) ...) body ...)
+    fn letrec(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.is_empty() {
+            return RuntimeError::type_error("$letrec requires bindings and body");
+        }
+
+        let bindings_val = params[0].clone();
+
+        // Create local environment with current as parent
+        let local_env = Env::new(vec![env]);
+        let local_env_val = Rc::new(Value::Env(local_env.clone()));
+
+        // First, bind all variables to #inert (placeholder)
+        let bindings = bindings_val.operands()?;
+        for binding in &bindings {
+            let var = binding.car()?;
+            if let Value::Symbol(sym) = var.deref() {
+                local_env.borrow_mut().bind(sym.clone(), Value::make_inert());
+            }
+        }
+
+        // Then evaluate all values in the local environment and rebind
+        for binding in &bindings {
+            let var = binding.car()?;
+            let val_expr = binding.cdr()?.car()?;
+            let val = eval(val_expr.into(), local_env_val.clone())?;
+            match_formals(&var.into(), &val, &local_env)?;
+        }
+
+        // Evaluate body in local environment
+        let mut result = Value::make_inert();
+        for i in 1..params.len() {
+            result = eval(params[i].clone(), local_env_val.clone())?;
+        }
+        result.as_val()
+    }
+
+    // $cond operative: evaluate clauses in order
+    // ($cond (<test1> <body1> ...) (<test2> <body2> ...) ...)
+    fn cond(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let clauses = vals.operands()?;
+        let env_val = Rc::new(Value::Env(env.clone()));
+
+        for clause in &clauses {
+            // Each clause should be a list (test body...)
+            if !matches!(clause.deref(), Value::Pair(_)) {
+                return RuntimeError::type_error("$cond clause must be a list");
+            }
+            let test_expr = clause.car()?;
+            let bodies = clause.cdr()?;
+
+            // Evaluate the test
+            let test_result = eval(test_expr.into(), env_val.clone())?;
+            match test_result.deref() {
+                Value::Bool(b) if matches!(b, crate::values::bools::Bool::True) => {
+                    // Test passed, evaluate body expressions in order
+                    let body_exprs: Rc<Value> = bodies.into();
+                    let body_list = body_exprs.operands()?;
+                    if body_list.is_empty() {
+                        return Value::make_inert().as_val();
+                    }
+                    let mut result = Value::make_inert();
+                    for body in &body_list {
+                        result = eval(body.clone(), env_val.clone())?;
+                    }
+                    return result.as_val();
+                }
+                Value::Bool(_) => continue, // Test was #f, try next clause
+                _ => return RuntimeError::type_error("$cond test must evaluate to a boolean"),
+            }
+        }
+
+        // No clause matched
+        Value::make_inert().as_val()
     }
 
     // apply: call an applicative with given argument list and optional environment
