@@ -1,0 +1,1206 @@
+{
+  "description": "Tests adapted from squim project (https://github.com/marianoguerra/squim)",
+  "source": "https://github.com/marianoguerra/squim/tree/master/test",
+  "notes": [
+    "Squim is a JavaScript implementation of the Kernel programming language.",
+    "Tests extracted from squim.modules.test.js and other test files.",
+    "Squim follows Kernel semantics closely, making tests directly applicable.",
+    "Some tests involving squim-specific features (objects, metadata) have been omitted."
+  ],
+  "tests": [
+    {
+      "expr": "(boolean? #t)",
+      "expected": "#t",
+      "note": "boolean? recognizes #t as boolean"
+    },
+    {
+      "expr": "(boolean? #f)",
+      "expected": "#t",
+      "note": "boolean? recognizes #f as boolean"
+    },
+    {
+      "expr": "(boolean? #f #t)",
+      "expected": "#t",
+      "note": "boolean? with multiple boolean arguments"
+    },
+    {
+      "expr": "(boolean? #f #t #t #f)",
+      "expected": "#t",
+      "note": "boolean? with many boolean arguments"
+    },
+    {
+      "expr": "(boolean? 1)",
+      "expected": "#f",
+      "note": "boolean? rejects integer"
+    },
+    {
+      "expr": "(boolean? 1.2)",
+      "expected": "#f",
+      "note": "boolean? rejects float"
+    },
+    {
+      "expr": "(boolean? \"asd\")",
+      "expected": "#f",
+      "note": "boolean? rejects string"
+    },
+    {
+      "expr": "(boolean? ())",
+      "expected": "#f",
+      "note": "boolean? rejects nil"
+    },
+    {
+      "expr": "(boolean? (list 1))",
+      "expected": "#f",
+      "note": "boolean? rejects list"
+    },
+    {
+      "expr": "(boolean? #f #t #t #f 1)",
+      "expected": "#f",
+      "note": "boolean? fails if any argument is not boolean"
+    },
+    {
+      "expr": "(string? #t)",
+      "expected": "#f",
+      "note": "string? rejects boolean"
+    },
+    {
+      "expr": "(string? 1)",
+      "expected": "#f",
+      "note": "string? rejects integer"
+    },
+    {
+      "expr": "(string? 1.2)",
+      "expected": "#f",
+      "note": "string? rejects float"
+    },
+    {
+      "expr": "(string? ())",
+      "expected": "#f",
+      "note": "string? rejects nil"
+    },
+    {
+      "expr": "(string? (list 1))",
+      "expected": "#f",
+      "note": "string? rejects list"
+    },
+    {
+      "expr": "(string? \"\")",
+      "expected": "#t",
+      "note": "string? accepts empty string"
+    },
+    {
+      "expr": "(string? \"a\")",
+      "expected": "#t",
+      "note": "string? accepts non-empty string"
+    },
+    {
+      "expr": "(string? \"a\" \"\")",
+      "expected": "#t",
+      "note": "string? with multiple string arguments"
+    },
+    {
+      "expr": "(string? \"a\" \"\" 1)",
+      "expected": "#f",
+      "note": "string? fails if any argument is not string"
+    },
+    {
+      "expr": "(integer? 1)",
+      "expected": "#t",
+      "note": "integer? recognizes integer"
+    },
+    {
+      "expr": "(integer? 1 2)",
+      "expected": "#t",
+      "note": "integer? with multiple integers"
+    },
+    {
+      "expr": "(integer? 1 2 3 4)",
+      "expected": "#t",
+      "note": "integer? with many integers"
+    },
+    {
+      "expr": "(integer? #f)",
+      "expected": "#f",
+      "note": "integer? rejects boolean"
+    },
+    {
+      "expr": "(integer? 1.2)",
+      "expected": "#f",
+      "note": "integer? rejects float"
+    },
+    {
+      "expr": "(integer? \"asd\")",
+      "expected": "#f",
+      "note": "integer? rejects string"
+    },
+    {
+      "expr": "(integer? ())",
+      "expected": "#f",
+      "note": "integer? rejects nil"
+    },
+    {
+      "expr": "(integer? (list 1))",
+      "expected": "#f",
+      "note": "integer? rejects list"
+    },
+    {
+      "expr": "(integer? 1 2 3 4 #f)",
+      "expected": "#f",
+      "note": "integer? fails if any argument is not integer"
+    },
+    {
+      "expr": "(number? 1.2)",
+      "expected": "#t",
+      "note": "number? recognizes float"
+    },
+    {
+      "expr": "(number? 1)",
+      "expected": "#t",
+      "note": "number? recognizes integer"
+    },
+    {
+      "expr": "(number? 1 2)",
+      "expected": "#t",
+      "note": "number? with multiple numbers"
+    },
+    {
+      "expr": "(number? 1.2 2)",
+      "expected": "#t",
+      "note": "number? with mixed int and float"
+    },
+    {
+      "expr": "(number? 1.2 2.2)",
+      "expected": "#t",
+      "note": "number? with multiple floats"
+    },
+    {
+      "expr": "(number? 1 2 3 4)",
+      "expected": "#t",
+      "note": "number? with many integers"
+    },
+    {
+      "expr": "(number? 1.2 2 3 4)",
+      "expected": "#t",
+      "note": "number? with mixed numbers"
+    },
+    {
+      "expr": "(number? #f)",
+      "expected": "#f",
+      "note": "number? rejects boolean"
+    },
+    {
+      "expr": "(number? \"asd\")",
+      "expected": "#f",
+      "note": "number? rejects string"
+    },
+    {
+      "expr": "(number? ())",
+      "expected": "#f",
+      "note": "number? rejects nil"
+    },
+    {
+      "expr": "(number? (list 1))",
+      "expected": "#f",
+      "note": "number? rejects list"
+    },
+    {
+      "expr": "(number? 1.2 2 3 4 #f)",
+      "expected": "#f",
+      "note": "number? fails if any argument is not number"
+    },
+    {
+      "expr": "(finite? 1)",
+      "expected": "#t",
+      "note": "finite? recognizes finite integer"
+    },
+    {
+      "expr": "(finite? 1 2 3)",
+      "expected": "#t",
+      "note": "finite? with multiple finite integers"
+    },
+    {
+      "expr": "(finite? 1.2)",
+      "expected": "#t",
+      "note": "finite? recognizes finite float"
+    },
+    {
+      "expr": "(finite? 1.2 3.4)",
+      "expected": "#t",
+      "note": "finite? with multiple finite floats"
+    },
+    {
+      "expr": "(inert? #inert)",
+      "expected": "#t",
+      "note": "inert? recognizes #inert"
+    },
+    {
+      "expr": "(inert? #inert #inert)",
+      "expected": "#t",
+      "note": "inert? with multiple #inert arguments"
+    },
+    {
+      "expr": "(inert? #inert #inert #inert #inert)",
+      "expected": "#t",
+      "note": "inert? with many #inert arguments"
+    },
+    {
+      "expr": "(inert? 1)",
+      "expected": "#f",
+      "note": "inert? rejects integer"
+    },
+    {
+      "expr": "(inert? 1.2)",
+      "expected": "#f",
+      "note": "inert? rejects float"
+    },
+    {
+      "expr": "(inert? \"asd\")",
+      "expected": "#f",
+      "note": "inert? rejects string"
+    },
+    {
+      "expr": "(inert? ())",
+      "expected": "#f",
+      "note": "inert? rejects nil"
+    },
+    {
+      "expr": "(inert? (list 1))",
+      "expected": "#f",
+      "note": "inert? rejects list"
+    },
+    {
+      "expr": "(inert? #inert #inert #inert #inert 1)",
+      "expected": "#f",
+      "note": "inert? fails if any argument is not #inert"
+    },
+    {
+      "expr": "(ignore? #ignore)",
+      "expected": "#t",
+      "note": "ignore? recognizes #ignore"
+    },
+    {
+      "expr": "(ignore? #ignore #ignore)",
+      "expected": "#t",
+      "note": "ignore? with multiple #ignore arguments"
+    },
+    {
+      "expr": "(ignore? #ignore #ignore #ignore #ignore)",
+      "expected": "#t",
+      "note": "ignore? with many #ignore arguments"
+    },
+    {
+      "expr": "(ignore? 1)",
+      "expected": "#f",
+      "note": "ignore? rejects integer"
+    },
+    {
+      "expr": "(ignore? 1.2)",
+      "expected": "#f",
+      "note": "ignore? rejects float"
+    },
+    {
+      "expr": "(ignore? \"asd\")",
+      "expected": "#f",
+      "note": "ignore? rejects string"
+    },
+    {
+      "expr": "(ignore? ())",
+      "expected": "#f",
+      "note": "ignore? rejects nil"
+    },
+    {
+      "expr": "(ignore? (list 1))",
+      "expected": "#f",
+      "note": "ignore? rejects list"
+    },
+    {
+      "expr": "(ignore? #ignore #ignore #ignore #ignore 1)",
+      "expected": "#f",
+      "note": "ignore? fails if any argument is not #ignore"
+    },
+    {
+      "expr": "(null? ())",
+      "expected": "#t",
+      "note": "null? recognizes nil"
+    },
+    {
+      "expr": "(null? () ())",
+      "expected": "#t",
+      "note": "null? with multiple nil arguments"
+    },
+    {
+      "expr": "(null? () () () ())",
+      "expected": "#t",
+      "note": "null? with many nil arguments"
+    },
+    {
+      "expr": "(null? 1)",
+      "expected": "#f",
+      "note": "null? rejects integer"
+    },
+    {
+      "expr": "(null? 1.2)",
+      "expected": "#f",
+      "note": "null? rejects float"
+    },
+    {
+      "expr": "(null? \"asd\")",
+      "expected": "#f",
+      "note": "null? rejects string"
+    },
+    {
+      "expr": "(null? (list 1))",
+      "expected": "#f",
+      "note": "null? rejects non-empty list"
+    },
+    {
+      "expr": "(null? () () () () 1)",
+      "expected": "#f",
+      "note": "null? fails if any argument is not nil"
+    },
+    {
+      "expr": "(pair? ())",
+      "expected": "#f",
+      "note": "pair? rejects nil"
+    },
+    {
+      "expr": "(pair? () ())",
+      "expected": "#f",
+      "note": "pair? with multiple nil arguments"
+    },
+    {
+      "expr": "(pair? (list 1))",
+      "expected": "#t",
+      "note": "pair? recognizes single-element list"
+    },
+    {
+      "expr": "(pair? (list 1) (list 1))",
+      "expected": "#t",
+      "note": "pair? with multiple pair arguments"
+    },
+    {
+      "expr": "(pair? (list 1 2))",
+      "expected": "#t",
+      "note": "pair? recognizes multi-element list"
+    },
+    {
+      "expr": "(pair? (list 1) (list 1) (list 1) (list 1))",
+      "expected": "#t",
+      "note": "pair? with many pair arguments"
+    },
+    {
+      "expr": "(pair? 1)",
+      "expected": "#f",
+      "note": "pair? rejects integer"
+    },
+    {
+      "expr": "(pair? 1.2)",
+      "expected": "#f",
+      "note": "pair? rejects float"
+    },
+    {
+      "expr": "(pair? \"asd\")",
+      "expected": "#f",
+      "note": "pair? rejects string"
+    },
+    {
+      "expr": "(pair? (list 1) (list 1) (list 1) (list 1) 1)",
+      "expected": "#f",
+      "note": "pair? fails if any argument is not pair"
+    },
+    {
+      "expr": "($if #t #t #f)",
+      "expected": "#t",
+      "note": "$if with true condition returns consequent"
+    },
+    {
+      "expr": "($if #t #f #t)",
+      "expected": "#f",
+      "note": "$if with true condition returns consequent even if #f"
+    },
+    {
+      "expr": "($if (eq? 1 1) \"son iguales!\" \"no seran tan iguales\")",
+      "expected": "\"son iguales!\"",
+      "note": "$if with eq? comparison - true branch"
+    },
+    {
+      "expr": "($if (eq? 1 1) (boolean? #t) \"asd\")",
+      "expected": "#t",
+      "note": "$if evaluates consequent expression"
+    },
+    {
+      "expr": "($if (eq? 1 2) (boolean? #t) \"asd\")",
+      "expected": "\"asd\"",
+      "note": "$if with false condition returns alternative"
+    },
+    {
+      "expr": "($cond (#t 1))",
+      "expected": "1",
+      "note": "$cond with single true clause"
+    },
+    {
+      "expr": "($cond (#t 2))",
+      "expected": "2",
+      "note": "$cond returns clause body"
+    },
+    {
+      "expr": "($cond (#t 1 2))",
+      "expected": "2",
+      "note": "$cond with multiple body expressions returns last"
+    },
+    {
+      "expr": "($cond (#t 1 2 3))",
+      "expected": "3",
+      "note": "$cond with three body expressions returns last"
+    },
+    {
+      "expr": "($cond (#f 1) (#t 2))",
+      "expected": "2",
+      "note": "$cond skips false clause, evaluates true clause"
+    },
+    {
+      "expr": "($cond (#f 1) (#t 2 3))",
+      "expected": "3",
+      "note": "$cond returns last expression in matching clause"
+    },
+    {
+      "expr": "($cond (#f 1) ((car (cons #t #f)) 2 3))",
+      "expected": "3",
+      "note": "$cond evaluates condition expression"
+    },
+    {
+      "expr": "($cond (#f 1) (#f 2 3) (#t 4))",
+      "expected": "4",
+      "note": "$cond with multiple false clauses"
+    },
+    {
+      "expr": "(eq? #t)",
+      "expected": "#t",
+      "note": "eq? with single argument returns true"
+    },
+    {
+      "expr": "(eq? #t #t)",
+      "expected": "#t",
+      "note": "eq? recognizes identical booleans"
+    },
+    {
+      "expr": "(eq? #t #t #t)",
+      "expected": "#t",
+      "note": "eq? with multiple identical arguments"
+    },
+    {
+      "expr": "(eq? #t #f)",
+      "expected": "#f",
+      "note": "eq? distinguishes #t from #f"
+    },
+    {
+      "expr": "(eq? 1 1)",
+      "expected": "#t",
+      "note": "eq? recognizes identical integers"
+    },
+    {
+      "expr": "(eq? 1 2)",
+      "expected": "#f",
+      "note": "eq? distinguishes different integers"
+    },
+    {
+      "expr": "(equal? \"asd\" \"asd\")",
+      "expected": "#t",
+      "note": "equal? recognizes equal strings"
+    },
+    {
+      "expr": "(eq? (list) (list))",
+      "expected": "#t",
+      "note": "eq? recognizes nil equality"
+    },
+    {
+      "expr": "(eq? (list 1) (list 1))",
+      "expected": "#f",
+      "note": "eq? distinguishes distinct pair objects (identity, not structure)"
+    },
+    {
+      "expr": "(equal? #t)",
+      "expected": "#t",
+      "note": "equal? with single argument returns true"
+    },
+    {
+      "expr": "(equal? #t #t)",
+      "expected": "#t",
+      "note": "equal? recognizes equal booleans"
+    },
+    {
+      "expr": "(equal? #t #t #t)",
+      "expected": "#t",
+      "note": "equal? with multiple equal arguments"
+    },
+    {
+      "expr": "(equal? #t #f)",
+      "expected": "#f",
+      "note": "equal? distinguishes #t from #f"
+    },
+    {
+      "expr": "(equal? 1 1)",
+      "expected": "#t",
+      "note": "equal? recognizes equal integers"
+    },
+    {
+      "expr": "(equal? 1 2)",
+      "expected": "#f",
+      "note": "equal? distinguishes different integers"
+    },
+    {
+      "expr": "(equal? \"asd\" \"asd\")",
+      "expected": "#t",
+      "note": "equal? recognizes equal strings"
+    },
+    {
+      "expr": "(equal? (list) (list))",
+      "expected": "#t",
+      "note": "equal? recognizes nil equality"
+    },
+    {
+      "expr": "(equal? (list 1) (list 1))",
+      "expected": "#t",
+      "note": "equal? recognizes structurally equal lists"
+    },
+    {
+      "expr": "(car (list 1 2))",
+      "expected": "1",
+      "note": "car returns first element of list"
+    },
+    {
+      "expr": "(car (cons 1 2))",
+      "expected": "1",
+      "note": "car returns left of cons pair"
+    },
+    {
+      "expr": "(cdr (cons 1 2))",
+      "expected": "2",
+      "note": "cdr returns right of cons pair"
+    },
+    {
+      "expr": "(environment? (make-environment))",
+      "expected": "#t",
+      "note": "make-environment creates environment"
+    },
+    {
+      "expr": "(environment? (get-current-environment))",
+      "expected": "#t",
+      "note": "get-current-environment returns environment"
+    },
+    {
+      "expr": "(applicative? list)",
+      "expected": "#t",
+      "note": "list is an applicative"
+    },
+    {
+      "expr": "(applicative? ($lambda () 1))",
+      "expected": "#t",
+      "note": "$lambda creates applicative"
+    },
+    {
+      "expr": "(applicative? 1)",
+      "expected": "#f",
+      "note": "applicative? rejects integer"
+    },
+    {
+      "expr": "(applicative? ($vau () #ignore 1))",
+      "expected": "#f",
+      "note": "$vau creates operative, not applicative"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore 1)))",
+      "expected": "#t",
+      "note": "wrap converts operative to applicative"
+    },
+    {
+      "expr": "(operative? list)",
+      "expected": "#f",
+      "note": "list is not operative (it's applicative)"
+    },
+    {
+      "expr": "(operative? ($lambda () 1))",
+      "expected": "#f",
+      "note": "$lambda creates applicative, not operative"
+    },
+    {
+      "expr": "(operative? 1)",
+      "expected": "#f",
+      "note": "operative? rejects integer"
+    },
+    {
+      "expr": "(operative? ($vau () #ignore 1))",
+      "expected": "#t",
+      "note": "$vau creates operative"
+    },
+    {
+      "expr": "(operative? (unwrap (wrap ($vau () #ignore 1))))",
+      "expected": "#t",
+      "note": "unwrap restores operative from wrapped applicative"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore 1)))",
+      "expected": "#t",
+      "note": "wrap creates applicative from operative"
+    },
+    {
+      "expr": "($sequence 1)",
+      "expected": "1",
+      "note": "$sequence with single expression"
+    },
+    {
+      "expr": "($sequence 0 1)",
+      "expected": "1",
+      "note": "$sequence returns last expression"
+    },
+    {
+      "expr": "(($lambda (x) x) 2)",
+      "expected": "2",
+      "note": "identity lambda"
+    },
+    {
+      "expr": "(($lambda (a) ($define! one 1) ($define! two 2) (list one two a)) 5)",
+      "expected": "(1 2 5)",
+      "note": "$lambda body with $define! and list"
+    },
+    {
+      "expr": "(+)",
+      "expected": "0",
+      "note": "+ with no arguments returns 0 (identity)"
+    },
+    {
+      "expr": "(+ 1)",
+      "expected": "1",
+      "note": "+ with single argument"
+    },
+    {
+      "expr": "(+ -1)",
+      "expected": "-1",
+      "note": "+ with single negative argument"
+    },
+    {
+      "expr": "(+ 3)",
+      "expected": "3",
+      "note": "+ with single positive argument"
+    },
+    {
+      "expr": "(+ 3 -1)",
+      "expected": "2",
+      "note": "+ with positive and negative"
+    },
+    {
+      "expr": "(+ 1 2)",
+      "expected": "3",
+      "note": "basic addition"
+    },
+    {
+      "expr": "(+ 1 2 3 4 5 6 7 8 9)",
+      "expected": "45",
+      "note": "+ with many arguments"
+    },
+    {
+      "expr": "(+ 1.2 2)",
+      "expected": "3.2",
+      "note": "+ with float and integer"
+    },
+    {
+      "expr": "(+ 1.2 1.2)",
+      "expected": "2.4",
+      "note": "+ with two floats"
+    },
+    {
+      "expr": "(+ 1.2 1.2 1.1)",
+      "expected": "3.5",
+      "note": "+ with three floats"
+    },
+    {
+      "expr": "(- 5 3)",
+      "expected": "2",
+      "note": "basic subtraction"
+    },
+    {
+      "expr": "(- 10 -8)",
+      "expected": "18",
+      "note": "subtraction with negative"
+    },
+    {
+      "expr": "(- 100 2 3 4 5 6 7 8 9)",
+      "expected": "56",
+      "note": "- with many arguments (left-associative)"
+    },
+    {
+      "expr": "(- 1.5 1)",
+      "expected": "0.5",
+      "note": "- with float and integer"
+    },
+    {
+      "expr": "(- 1.2 1.2)",
+      "expected": "0",
+      "note": "- with equal floats (result is whole number)"
+    },
+    {
+      "expr": "(/ 6 3)",
+      "expected": "2",
+      "note": "basic division"
+    },
+    {
+      "expr": "(/ 10 -5)",
+      "expected": "-2",
+      "note": "division with negative"
+    },
+    {
+      "expr": "(/ 100 2 5)",
+      "expected": "10",
+      "note": "/ with multiple arguments (left-associative)"
+    },
+    {
+      "expr": "(/ 100 2 5 2)",
+      "expected": "5",
+      "note": "/ with many arguments"
+    },
+    {
+      "expr": "(/ 1.5 1)",
+      "expected": "1.5",
+      "note": "/ with float and integer"
+    },
+    {
+      "expr": "(/ 1.2 1.2)",
+      "expected": "1",
+      "note": "/ with equal floats (result is whole number)"
+    },
+    {
+      "expr": "(*)",
+      "expected": "1",
+      "note": "* with no arguments returns 1 (identity)"
+    },
+    {
+      "expr": "(* 1)",
+      "expected": "1",
+      "note": "* with single argument"
+    },
+    {
+      "expr": "(* 3)",
+      "expected": "3",
+      "note": "* with single argument"
+    },
+    {
+      "expr": "(* 1 2)",
+      "expected": "2",
+      "note": "basic multiplication"
+    },
+    {
+      "expr": "(* -1 2)",
+      "expected": "-2",
+      "note": "* with negative"
+    },
+    {
+      "expr": "(* 1 2 3 4 5 6 7 8 9)",
+      "expected": "362880",
+      "note": "* with many arguments (9 factorial)"
+    },
+    {
+      "expr": "(* 1 2 3 -4 5 6 7 8 9)",
+      "expected": "-362880",
+      "note": "* with odd number of negatives"
+    },
+    {
+      "expr": "(* 1 2 3 -4 5 6 -7 8 9)",
+      "expected": "362880",
+      "note": "* with even number of negatives"
+    },
+    {
+      "expr": "(* 1.2 2)",
+      "expected": "2.4",
+      "note": "* with float and integer"
+    },
+    {
+      "expr": "(* 1.2 1.2)",
+      "expected": "1.44",
+      "note": "* with two floats"
+    },
+    {
+      "expr": "(* 1.2 -1.2)",
+      "expected": "-1.44",
+      "note": "* with negative float"
+    },
+    {
+      "expr": "(+ (* 2 3) (- 3 1) (* 1 2 3) (/ (+ 1 3) 2 1))",
+      "expected": "16",
+      "note": "nested arithmetic: 6 + 2 + 6 + 2 = 16"
+    },
+    {
+      "expr": "(=? 1)",
+      "expected": "#t",
+      "note": "=? with single argument returns true"
+    },
+    {
+      "expr": "(=? 12)",
+      "expected": "#t",
+      "note": "=? with single argument"
+    },
+    {
+      "expr": "(=? 12 12)",
+      "expected": "#t",
+      "note": "=? recognizes equal integers"
+    },
+    {
+      "expr": "(=? 12 12 12 (+ 11 1))",
+      "expected": "#t",
+      "note": "=? with computed argument"
+    },
+    {
+      "expr": "(=? 12 12.0)",
+      "expected": "#t",
+      "note": "=? equates integer and equivalent float"
+    },
+    {
+      "expr": "(=? 12 12.0 12 12.0)",
+      "expected": "#t",
+      "note": "=? with mixed int and float"
+    },
+    {
+      "expr": "(=? 12 12.1)",
+      "expected": "#f",
+      "note": "=? distinguishes different numbers"
+    },
+    {
+      "expr": "(=? 12 12.1 12)",
+      "expected": "#f",
+      "note": "=? fails if any pair unequal"
+    },
+    {
+      "expr": "(=? 12 13)",
+      "expected": "#f",
+      "note": "=? distinguishes different integers"
+    },
+    {
+      "expr": "(=? 12 12 13)",
+      "expected": "#f",
+      "note": "=? with unequal last argument"
+    },
+    {
+      "expr": "(=? 12 12 12 13)",
+      "expected": "#f",
+      "note": "=? fails on any unequal pair"
+    },
+    {
+      "expr": "(<? 1)",
+      "expected": "#t",
+      "note": "<? with single argument returns true"
+    },
+    {
+      "expr": "(<? 1 2)",
+      "expected": "#t",
+      "note": "<? recognizes strictly increasing"
+    },
+    {
+      "expr": "(<? 1 2 3 4 5 6 7 8)",
+      "expected": "#t",
+      "note": "<? with many increasing arguments"
+    },
+    {
+      "expr": "(<? 1 1)",
+      "expected": "#f",
+      "note": "<? rejects equal values"
+    },
+    {
+      "expr": "(<? 2 1)",
+      "expected": "#f",
+      "note": "<? rejects decreasing values"
+    },
+    {
+      "expr": "(<? 1.01 1)",
+      "expected": "#f",
+      "note": "<? with floats - not strictly increasing"
+    },
+    {
+      "expr": "(<? 1 2 2)",
+      "expected": "#f",
+      "note": "<? rejects non-strict sequence"
+    },
+    {
+      "expr": "(<? 1 2 3 3)",
+      "expected": "#f",
+      "note": "<? fails on equal pair"
+    },
+    {
+      "expr": "(<=? 1)",
+      "expected": "#t",
+      "note": "<=? with single argument returns true"
+    },
+    {
+      "expr": "(<=? 1 2)",
+      "expected": "#t",
+      "note": "<=? recognizes increasing"
+    },
+    {
+      "expr": "(<=? 1 2 3 4 5 6 7 8)",
+      "expected": "#t",
+      "note": "<=? with many increasing arguments"
+    },
+    {
+      "expr": "(<=? 1 1)",
+      "expected": "#t",
+      "note": "<=? accepts equal values"
+    },
+    {
+      "expr": "(<=? 2 1)",
+      "expected": "#f",
+      "note": "<=? rejects decreasing values"
+    },
+    {
+      "expr": "(<=? 1.01 1)",
+      "expected": "#f",
+      "note": "<=? with floats - decreasing"
+    },
+    {
+      "expr": "(<=? 1 2 2)",
+      "expected": "#t",
+      "note": "<=? accepts non-decreasing sequence"
+    },
+    {
+      "expr": "(<=? 1 2 3 3)",
+      "expected": "#t",
+      "note": "<=? accepts equal pair"
+    },
+    {
+      "expr": "(<=? 1 3 7 15)",
+      "expected": "#t",
+      "note": "<=? with increasing sequence"
+    },
+    {
+      "expr": "(<=? 1 7 3 15)",
+      "expected": "#f",
+      "note": "<=? fails on out-of-order pair"
+    },
+    {
+      "expr": "(>? 1)",
+      "expected": "#t",
+      "note": ">? with single argument returns true"
+    },
+    {
+      "expr": "(>? 2 1)",
+      "expected": "#t",
+      "note": ">? recognizes strictly decreasing"
+    },
+    {
+      "expr": "(>? 8 7 6 5 4 3 2 1)",
+      "expected": "#t",
+      "note": ">? with many decreasing arguments"
+    },
+    {
+      "expr": "(>? 1 1)",
+      "expected": "#f",
+      "note": ">? rejects equal values"
+    },
+    {
+      "expr": "(>? 1 2)",
+      "expected": "#f",
+      "note": ">? rejects increasing values"
+    },
+    {
+      "expr": "(>? 1 1.01)",
+      "expected": "#f",
+      "note": ">? with floats - not strictly decreasing"
+    },
+    {
+      "expr": "(>? 2 2 1)",
+      "expected": "#f",
+      "note": ">? rejects non-strict sequence"
+    },
+    {
+      "expr": "(>? 3 3 2 1)",
+      "expected": "#f",
+      "note": ">? fails on equal pair"
+    },
+    {
+      "expr": "(>=? 1)",
+      "expected": "#t",
+      "note": ">=? with single argument returns true"
+    },
+    {
+      "expr": "(>=? 2 1)",
+      "expected": "#t",
+      "note": ">=? recognizes decreasing"
+    },
+    {
+      "expr": "(>=? 8 7 6 5 4 3 2 1)",
+      "expected": "#t",
+      "note": ">=? with many decreasing arguments"
+    },
+    {
+      "expr": "(>=? 1 1)",
+      "expected": "#t",
+      "note": ">=? accepts equal values"
+    },
+    {
+      "expr": "(>=? 1 2)",
+      "expected": "#f",
+      "note": ">=? rejects increasing values"
+    },
+    {
+      "expr": "(>=? 1 1.01)",
+      "expected": "#f",
+      "note": ">=? with floats - increasing"
+    },
+    {
+      "expr": "(>=? 2 2 1)",
+      "expected": "#t",
+      "note": ">=? accepts non-increasing sequence"
+    },
+    {
+      "expr": "(>=? 3 3 2 1)",
+      "expected": "#t",
+      "note": ">=? accepts equal pair"
+    },
+    {
+      "expr": "(>=? 15 7 3 1)",
+      "expected": "#t",
+      "note": ">=? with decreasing sequence"
+    },
+    {
+      "expr": "(>=? 15 3 7 1)",
+      "expected": "#f",
+      "note": ">=? fails on out-of-order pair"
+    },
+    {
+      "expr": "($and? #f #t)",
+      "expected": "#f",
+      "note": "$and? with false first returns false"
+    },
+    {
+      "expr": "($and?)",
+      "expected": "#t",
+      "note": "$and? with no arguments returns true"
+    },
+    {
+      "expr": "($and? #t)",
+      "expected": "#t",
+      "note": "$and? with single true returns true"
+    },
+    {
+      "expr": "($and? #t #t)",
+      "expected": "#t",
+      "note": "$and? with all true returns true"
+    },
+    {
+      "expr": "($and? #f)",
+      "expected": "#f",
+      "note": "$and? with single false returns false"
+    },
+    {
+      "expr": "($and? #t #t #f #t)",
+      "expected": "#f",
+      "note": "$and? with any false returns false"
+    },
+    {
+      "expr": "($and? #t #t #f 1)",
+      "expected": "#f",
+      "note": "$and? short-circuits before evaluating invalid operand"
+    },
+    {
+      "expr": "($or?)",
+      "expected": "#f",
+      "note": "$or? with no arguments returns false"
+    },
+    {
+      "expr": "($or? #t)",
+      "expected": "#t",
+      "note": "$or? with single true returns true"
+    },
+    {
+      "expr": "($or? #f #t)",
+      "expected": "#t",
+      "note": "$or? with any true returns true"
+    },
+    {
+      "expr": "($or? #f)",
+      "expected": "#f",
+      "note": "$or? with single false returns false"
+    },
+    {
+      "expr": "($or? #f #f #f)",
+      "expected": "#f",
+      "note": "$or? with all false returns false"
+    },
+    {
+      "expr": "($or? #f #f #f #t)",
+      "expected": "#t",
+      "note": "$or? returns true on finding any true"
+    },
+    {
+      "expr": "($or? #f #f #f #t #f)",
+      "expected": "#t",
+      "note": "$or? with true in middle"
+    },
+    {
+      "expr": "((($lambda (x y) ($lambda (z) (+ x y z))) 1 2) 3)",
+      "expected": "6",
+      "note": "curried lambda returning closure"
+    },
+    {
+      "expr": "(($lambda (head . tail) tail) 1 2 3 4)",
+      "expected": "(2 3 4)",
+      "note": "$lambda with dotted parameter list"
+    },
+    {
+      "expr": "(($lambda (first second . tail) tail) 1 2 3 4)",
+      "expected": "(3 4)",
+      "note": "$lambda with multiple params before rest"
+    },
+    {
+      "expr": "(call/cc ($lambda (cont) 1))",
+      "expected": "1",
+      "note": "call/cc with lambda that ignores continuation",
+      "skip": true
+    },
+    {
+      "expr": "(=? 1 (call/cc ($lambda (cont) (continuation->applicative cont) 1)))",
+      "expected": "#t",
+      "note": "call/cc with continuation->applicative",
+      "skip": true
+    },
+    {
+      "expr": "(=? 2 (call/cc ($lambda (cont) (continuation->applicative cont) 1)))",
+      "expected": "#f",
+      "note": "call/cc result comparison",
+      "skip": true
+    },
+    {
+      "expr": "(=? 2 (call/cc ($lambda (cont) (continuation->applicative cont) 2)))",
+      "expected": "#t",
+      "note": "call/cc returning different value",
+      "skip": true
+    },
+    {
+      "expr": "(continuation? (call/cc ($lambda (cont) 1)))",
+      "expected": "#f",
+      "note": "continuation? on non-continuation result",
+      "skip": true
+    },
+    {
+      "expr": "(continuation? (call/cc ($lambda (cont) cont)))",
+      "expected": "#t",
+      "note": "continuation? on returned continuation",
+      "skip": true
+    },
+    {
+      "expr": "(applicative? (continuation->applicative (call/cc ($lambda (cont) cont))))",
+      "expected": "#t",
+      "note": "continuation->applicative creates applicative",
+      "skip": true
+    },
+    {
+      "expr": "(call/cc ($lambda (cont) (continuation->applicative cont) (continuation? cont)))",
+      "expected": "#t",
+      "note": "continuation? inside call/cc",
+      "skip": true
+    },
+    {
+      "expr": "(call/cc ($lambda (cont) (continuation->applicative cont) (continuation? 1)))",
+      "expected": "#f",
+      "note": "continuation? rejects non-continuation",
+      "skip": true
+    }
+  ]
+}

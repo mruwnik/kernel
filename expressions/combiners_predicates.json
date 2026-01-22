@@ -54,6 +54,6 @@
     {"expr": "(apply operative? (list $if $vau $cond))", "expected": "#t", "note": "Apply operative? to list of operatives"},
     {"expr": "(apply applicative? (list cons list +))", "expected": "#t", "note": "Apply applicative? to list of applicatives"},
     {"expr": "(apply combiner? (list $if cons ($lambda () 1)))", "expected": "#t", "note": "Apply combiner? to mixed combiners"},
-    {"expr": "(reduce ($lambda (acc x) (and? acc (combiner? x))) #t (list $if cons $vau +))", "expected": "#t", "note": "Reduce to check all are combiners"}
+    {"expr": "(reduce (list $if cons $vau +) ($lambda (x acc) (and? acc (combiner? x))) #t)", "expected": "#t", "note": "Reduce to check all are combiners"}
   ]
 }

@@ -252,8 +252,8 @@ impl Combiner {
         bind(&env, "$sequence", CombinerType::Operative, &Combiner::sequence);
         bind(&env, "wrap", CombinerType::Applicative, &Combiner::wrap);
         bind(&env, "unwrap", CombinerType::Applicative, &Combiner::unwrap_);
-        bind(&env, "eq?", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "eq?", &Value::is_eq)?.as_val());
-        bind(&env, "equal?", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "equal?", &Value::is_equal)?.as_val());
+        bind(&env, "eq?", CombinerType::Applicative, &Combiner::eq_nary);
+        bind(&env, "equal?", CombinerType::Applicative, &Combiner::equal_nary);
         bind(&env, "cons", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "cons", &Value::cons)?.as_val());
         bind(&env, "set-car!", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "set-car!", &Value::set_car)?.as_val());
         bind(&env, "set-cdr!", CombinerType::Applicative, &|vals, _| two_val_fn(vals.operands()?, "set-cdr!", &Value::set_cdr)?.as_val());
@@ -276,11 +276,15 @@ impl Combiner {
 
         // Conditionals
         bind(&env, "$cond", CombinerType::Operative, &Combiner::cond);
+        bind(&env, "$when", CombinerType::Operative, &Combiner::when);
+        bind(&env, "$unless", CombinerType::Operative, &Combiner::unless);
 
         // Let bindings
         bind(&env, "$let", CombinerType::Operative, &Combiner::let_);
         bind(&env, "$let*", CombinerType::Operative, &Combiner::let_star);
         bind(&env, "$letrec", CombinerType::Operative, &Combiner::letrec);
+        bind(&env, "$let-redirect", CombinerType::Operative, &Combiner::let_redirect);
+        bind(&env, "$provide!", CombinerType::Operative, &Combiner::provide);
 
         // Type checkers (all applicatives - they evaluate their arguments)
         bind(&env, "boolean?", CombinerType::Applicative, &|vals, _| Value::is_boolean(vals)?.as_val());
@@ -291,11 +295,13 @@ impl Combiner {
         bind(&env, "ignore?", CombinerType::Applicative, &|vals, _| Value::is_ignore(vals)?.as_val());
         bind(&env, "null?", CombinerType::Applicative, &|vals, _| Value::is_null(vals)?.as_val());
         bind(&env, "env?", CombinerType::Applicative, &|vals, _| Value::is_env(vals)?.as_val());
+        bind(&env, "environment?", CombinerType::Applicative, &|vals, _| Value::is_env(vals)?.as_val());
         bind(&env, "number?", CombinerType::Applicative, &|vals, _| Value::is_number(vals)?.as_val());
         bind(&env, "integer?", CombinerType::Applicative, &|vals, _| Value::is_integer(vals)?.as_val());
         bind(&env, "finite?", CombinerType::Applicative, &|vals, _| Value::is_finite(vals)?.as_val());
         bind(&env, "pair?", CombinerType::Applicative, &|vals, _| Value::is_pair(vals)?.as_val());
         bind(&env, "list?", CombinerType::Applicative, &|vals, _| Value::is_list(vals)?.as_val());
+        bind(&env, "finite-list?", CombinerType::Applicative, &Combiner::finite_list);
         bind(&env, "string?", CombinerType::Applicative, &|vals, _| Value::is_string(vals)?.as_val());
         bind(&env, "symbol?", CombinerType::Applicative, &|vals, _| Value::is_symbol(vals)?.as_val());
 
@@ -344,21 +350,52 @@ impl Combiner {
         bind(&env, "list-tail", CombinerType::Applicative, &Combiner::list_tail);
         bind(&env, "reverse", CombinerType::Applicative, &Combiner::reverse);
         bind(&env, "member", CombinerType::Applicative, &Combiner::member);
+        bind(&env, "member?", CombinerType::Applicative, &Combiner::member_pred);
         bind(&env, "assoc", CombinerType::Applicative, &Combiner::assoc);
+        bind(&env, "assoc?", CombinerType::Applicative, &Combiner::assoc_pred);
         bind(&env, "map", CombinerType::Applicative, &Combiner::map);
         bind(&env, "for-each", CombinerType::Applicative, &Combiner::for_each);
         bind(&env, "filter", CombinerType::Applicative, &Combiner::filter);
         bind(&env, "reduce", CombinerType::Applicative, &Combiner::reduce);
+        bind(&env, "every?", CombinerType::Applicative, &Combiner::every);
+        bind(&env, "some?", CombinerType::Applicative, &Combiner::some);
 
         // Environment operations
         bind(&env, "get-current-environment", CombinerType::Operative, &Combiner::get_current_env);
         bind(&env, "$binds?", CombinerType::Operative, &Combiner::binds);
 
-        // Convenience accessors
-        bind(&env, "cadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.as_val());
-        bind(&env, "caddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.car()?.as_val());
+        // Convenience accessors - all 28 cXXXr functions
+        // 2-level (4 total)
         bind(&env, "caar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.as_val());
+        bind(&env, "cadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.as_val());
         bind(&env, "cdar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.as_val());
+        bind(&env, "cddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.as_val());
+        // 3-level (8 total)
+        bind(&env, "caaar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.car()?.as_val());
+        bind(&env, "caadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.car()?.as_val());
+        bind(&env, "cadar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.car()?.as_val());
+        bind(&env, "caddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.car()?.as_val());
+        bind(&env, "cdaar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.cdr()?.as_val());
+        bind(&env, "cdadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.cdr()?.as_val());
+        bind(&env, "cddar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.cdr()?.as_val());
+        bind(&env, "cdddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.cdr()?.as_val());
+        // 4-level (16 total)
+        bind(&env, "caaaar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.car()?.car()?.as_val());
+        bind(&env, "caaadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.car()?.car()?.as_val());
+        bind(&env, "caadar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.car()?.car()?.as_val());
+        bind(&env, "caaddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.car()?.car()?.as_val());
+        bind(&env, "cadaar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.cdr()?.car()?.as_val());
+        bind(&env, "cadadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.cdr()?.car()?.as_val());
+        bind(&env, "caddar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.cdr()?.car()?.as_val());
+        bind(&env, "cadddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.cdr()?.car()?.as_val());
+        bind(&env, "cdaaar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.car()?.cdr()?.as_val());
+        bind(&env, "cdaadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.car()?.cdr()?.as_val());
+        bind(&env, "cdadar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.car()?.cdr()?.as_val());
+        bind(&env, "cdaddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.car()?.cdr()?.as_val());
+        bind(&env, "cddaar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.car()?.cdr()?.cdr()?.as_val());
+        bind(&env, "cddadr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.car()?.cdr()?.cdr()?.as_val());
+        bind(&env, "cdddar", CombinerType::Applicative, &|vals, _| vals.car()?.car()?.cdr()?.cdr()?.cdr()?.as_val());
+        bind(&env, "cddddr", CombinerType::Applicative, &|vals, _| vals.car()?.cdr()?.cdr()?.cdr()?.cdr()?.as_val());
     }
 
     // $vau operative: creates a compound operative
@@ -703,6 +740,96 @@ impl Combiner {
         result.as_val()
     }
 
+    // $provide! operative: evaluate body in local scope, export specified symbols (§6.8.2)
+    // ($provide! (sym1 sym2 ...) body ...)
+    fn provide(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.is_empty() {
+            return RuntimeError::type_error("$provide! requires symbols list and body");
+        }
+
+        // Get the list of symbols to export
+        let symbols_list = params[0].clone();
+        let symbols = symbols_list.operands()?;
+
+        // Validate all are symbols
+        for sym in &symbols {
+            if !matches!(sym.deref(), Value::Symbol(_)) {
+                return RuntimeError::type_error("$provide! requires a list of symbols");
+            }
+        }
+
+        // Create child environment
+        let local_env = Env::new(vec![env.clone()]);
+        let local_env_val = Rc::new(Value::Env(local_env.clone()));
+
+        // Evaluate body expressions in local environment (discard results)
+        for i in 1..params.len() {
+            eval(params[i].clone(), local_env_val.clone())?;
+        }
+
+        // Export specified symbols to parent environment
+        for sym in &symbols {
+            if let Value::Symbol(s) = sym.deref() {
+                // Look up in local environment
+                if let Some(val) = local_env.borrow().get(s.clone()) {
+                    // Bind in parent environment
+                    env.borrow_mut().bind(s.clone(), val);
+                } else {
+                    return RuntimeError::lookup_error(&format!("$provide!: symbol {} not defined in body", s));
+                }
+            }
+        }
+
+        Value::make_inert().as_val()
+    }
+
+    // $let-redirect operative: let with redirected parent environment (§6.7.7)
+    // ($let-redirect env-expr ((var1 val1) ...) body ...)
+    fn let_redirect(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let params = vals.operands()?;
+        if params.len() < 2 {
+            return RuntimeError::type_error("$let-redirect requires env-expr, bindings, and body");
+        }
+
+        let env_expr = params[0].clone();
+        let bindings_val = params[1].clone();
+        let env_val = Rc::new(Value::Env(env.clone()));
+
+        // Evaluate env-expr in dynamic environment to get target environment
+        let target_env_val = eval(env_expr, env_val.clone())?;
+        let target_env = match target_env_val.deref() {
+            Value::Env(e) => e.clone(),
+            _ => return RuntimeError::type_error("$let-redirect requires an environment as first argument"),
+        };
+
+        // Evaluate all values in the DYNAMIC environment (not target!)
+        let bindings = bindings_val.operands()?;
+        let mut evaluated_bindings: Vec<(Rc<Value>, Rc<Value>)> = Vec::new();
+        for binding in &bindings {
+            let var = binding.car()?;
+            let val_expr = binding.cdr()?.car()?;
+            let val = eval(val_expr.into(), env_val.clone())?;
+            evaluated_bindings.push((var.into(), val));
+        }
+
+        // Create child of TARGET environment (not dynamic!)
+        let local_env = Env::new(vec![target_env]);
+
+        // Bind all variables in local environment
+        for (var, val) in evaluated_bindings {
+            match_formals(&var, &val, &local_env)?;
+        }
+
+        // Evaluate body in local environment
+        let local_env_val = Rc::new(Value::Env(local_env));
+        let mut result = Value::make_inert();
+        for i in 2..params.len() {
+            result = eval(params[i].clone(), local_env_val.clone())?;
+        }
+        result.as_val()
+    }
+
     // $cond operative: evaluate clauses in order
     // ($cond (<test1> <body1> ...) (<test2> <body2> ...) ...)
     fn cond(vals: Rc<Value>, env: EnvRef) -> CallResult {
@@ -739,6 +866,54 @@ impl Combiner {
         }
 
         // No clause matched
+        Value::make_inert().as_val()
+    }
+
+    // $when: if test is true, evaluate body expressions, always returns #inert
+    fn when(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let exprs = vals.operands()?;
+        if exprs.is_empty() {
+            return RuntimeError::type_error("$when requires at least a test expression");
+        }
+
+        let env_val = Rc::new(Value::Env(env.clone()));
+        let test_result = eval(exprs[0].clone(), env_val.clone())?;
+
+        match test_result.deref() {
+            Value::Bool(b) if matches!(b, crate::values::bools::Bool::True) => {
+                // Evaluate all body expressions
+                for i in 1..exprs.len() {
+                    eval(exprs[i].clone(), env_val.clone())?;
+                }
+            }
+            Value::Bool(_) => {} // Test was #f, do nothing
+            _ => return RuntimeError::type_error("$when test must evaluate to a boolean"),
+        }
+
+        Value::make_inert().as_val()
+    }
+
+    // $unless: if test is false, evaluate body expressions, always returns #inert
+    fn unless(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let exprs = vals.operands()?;
+        if exprs.is_empty() {
+            return RuntimeError::type_error("$unless requires at least a test expression");
+        }
+
+        let env_val = Rc::new(Value::Env(env.clone()));
+        let test_result = eval(exprs[0].clone(), env_val.clone())?;
+
+        match test_result.deref() {
+            Value::Bool(b) if !matches!(b, crate::values::bools::Bool::True) => {
+                // Evaluate all body expressions
+                for i in 1..exprs.len() {
+                    eval(exprs[i].clone(), env_val.clone())?;
+                }
+            }
+            Value::Bool(_) => {} // Test was #t, do nothing
+            _ => return RuntimeError::type_error("$unless test must evaluate to a boolean"),
+        }
+
         Value::make_inert().as_val()
     }
 
@@ -935,9 +1110,55 @@ impl Combiner {
                         }
                     }
                 }
-                Value::boolean(false).as_val()
+                Value::make_null().as_val()  // Kernel spec: return nil when not found
             }
             _ => RuntimeError::type_error("assoc requires 2 arguments"),
+        }
+    }
+
+    // member?: predicate version of member - returns #t/#f
+    fn member_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [obj, list] => {
+                let mut current = list.clone();
+                loop {
+                    match current.deref() {
+                        Value::Constant(crate::values::Constant::Null) => {
+                            return Value::boolean(false).as_val();
+                        }
+                        Value::Pair(_) => {
+                            let head = current.car()?;
+                            if Value::is_equal(obj.clone(), head.into())?.is_true() {
+                                return Value::boolean(true).as_val();
+                            }
+                            current = current.cdr()?.into();
+                        }
+                        _ => return RuntimeError::type_error("member? requires a list"),
+                    }
+                }
+            }
+            _ => RuntimeError::type_error("member? requires 2 arguments"),
+        }
+    }
+
+    // assoc?: predicate version of assoc - returns #t/#f
+    fn assoc_pred(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [key, alist] => {
+                let items = alist.operands()?;
+                for item in &items {
+                    if let Value::Pair(_) = item.deref() {
+                        let item_key = item.car()?;
+                        if Value::is_equal(key.clone(), item_key.into())?.is_true() {
+                            return Value::boolean(true).as_val();
+                        }
+                    }
+                }
+                Value::boolean(false).as_val()
+            }
+            _ => RuntimeError::type_error("assoc? requires 2 arguments"),
         }
     }
 
@@ -1089,16 +1310,83 @@ impl Combiner {
         }
     }
 
-    // reduce: fold left with binary function (reduce func identity list)
-    fn reduce(vals: Rc<Value>, env: EnvRef) -> CallResult {
+    // every?: check if all elements satisfy predicate
+    fn every(vals: Rc<Value>, env: EnvRef) -> CallResult {
         let args = vals.operands()?;
         match &args[..] {
-            [func, identity, list] => {
+            [pred, list] => {
                 let items = list.operands()?;
                 let env_val = Rc::new(Value::Env(env.clone()));
 
-                // func must be an applicative
-                let combiner = if let Value::Combiner(c) = func.deref() {
+                // pred must be an applicative
+                let combiner = if let Value::Combiner(c) = pred.deref() {
+                    if c.c_type != CombinerType::Applicative {
+                        return RuntimeError::type_error("every? requires an applicative predicate");
+                    }
+                    c
+                } else {
+                    return RuntimeError::type_error("every? requires an applicative predicate");
+                };
+
+                for item in &items {
+                    let arg_list = Value::cons(item.clone(), Value::make_null())?;
+                    let result = call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
+                    if !result.is_true() {
+                        return Value::boolean(false).as_val();
+                    }
+                }
+
+                Value::boolean(true).as_val()
+            }
+            _ => RuntimeError::type_error("every? requires 2 arguments"),
+        }
+    }
+
+    // some?: check if at least one element satisfies predicate
+    fn some(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [pred, list] => {
+                let items = list.operands()?;
+                let env_val = Rc::new(Value::Env(env.clone()));
+
+                // pred must be an applicative
+                let combiner = if let Value::Combiner(c) = pred.deref() {
+                    if c.c_type != CombinerType::Applicative {
+                        return RuntimeError::type_error("some? requires an applicative predicate");
+                    }
+                    c
+                } else {
+                    return RuntimeError::type_error("some? requires an applicative predicate");
+                };
+
+                for item in &items {
+                    let arg_list = Value::cons(item.clone(), Value::make_null())?;
+                    let result = call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
+                    if result.is_true() {
+                        return Value::boolean(true).as_val();
+                    }
+                }
+
+                Value::boolean(false).as_val()
+            }
+            _ => RuntimeError::type_error("some? requires 2 arguments"),
+        }
+    }
+
+    // reduce: fold RIGHT with binary function (reduce list binary identity)
+    // Per Kernel spec: (reduce list binary identity)
+    // (reduce () binary identity) => identity
+    // (reduce (x . rest) binary identity) => (binary x (reduce rest binary identity))
+    fn reduce(vals: Rc<Value>, env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        match &args[..] {
+            [list, binary, identity] => {
+                let items = list.operands()?;
+                let env_val = Rc::new(Value::Env(env.clone()));
+
+                // binary must be an applicative
+                let combiner = if let Value::Combiner(c) = binary.deref() {
                     if c.c_type != CombinerType::Applicative {
                         return RuntimeError::type_error("reduce requires an applicative");
                     }
@@ -1107,16 +1395,17 @@ impl Combiner {
                     return RuntimeError::type_error("reduce requires an applicative");
                 };
 
+                // Fold right: start from the end
                 let mut acc = identity.clone();
-                for item in &items {
-                    // (func acc item)
-                    let arg_list = Value::cons(acc, Value::cons(item.clone(), Value::make_null())?)?;
+                for item in items.iter().rev() {
+                    // (binary item acc)
+                    let arg_list = Value::cons(item.clone(), Value::cons(acc, Value::make_null())?)?;
                     acc = call_applicative_full(combiner, arg_list, env.clone(), env_val.clone())?;
                 }
 
                 acc.as_val()
             }
-            _ => RuntimeError::type_error("reduce requires 3 arguments: func, identity, list"),
+            _ => RuntimeError::type_error("reduce requires 3 arguments: list, binary, identity"),
         }
     }
 
@@ -1147,6 +1436,48 @@ impl Combiner {
             }
             _ => RuntimeError::type_error("$binds? requires 2 arguments"),
         }
+    }
+
+    // finite-list?: check if argument is a proper, finite list (not cyclic, terminates in ())
+    fn finite_list(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        // Check each argument is a finite list
+        for arg in &args {
+            if !is_finite_list(arg)? {
+                return Value::boolean(false).as_val();
+            }
+        }
+        Value::boolean(true).as_val()
+    }
+
+    // N-ary eq?: all arguments must be eq? to each other
+    fn eq_nary(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        // 0 or 1 arguments is vacuously true
+        if args.len() < 2 {
+            return Value::boolean(true).as_val();
+        }
+        for i in 0..args.len() - 1 {
+            if !Value::is_eq(args[i].clone(), args[i + 1].clone())?.is_true() {
+                return Value::boolean(false).as_val();
+            }
+        }
+        Value::boolean(true).as_val()
+    }
+
+    // N-ary equal?: all arguments must be equal? to each other
+    fn equal_nary(vals: Rc<Value>, _env: EnvRef) -> CallResult {
+        let args = vals.operands()?;
+        // 0 or 1 arguments is vacuously true
+        if args.len() < 2 {
+            return Value::boolean(true).as_val();
+        }
+        for i in 0..args.len() - 1 {
+            if !Value::is_equal(args[i].clone(), args[i + 1].clone())?.is_true() {
+                return Value::boolean(false).as_val();
+            }
+        }
+        Value::boolean(true).as_val()
     }
 
     // Chained comparisons
@@ -1372,6 +1703,29 @@ impl Combiner {
                 }
             }
             _ => RuntimeError::type_error("round requires 1 argument"),
+        }
+    }
+}
+
+/// Check if a value is a finite list (proper list that terminates in ())
+fn is_finite_list(val: &Rc<Value>) -> Result<bool, RuntimeError> {
+    let mut current = val.clone();
+    let mut seen: HashSet<*const Value> = HashSet::new();
+
+    loop {
+        let ptr = Rc::as_ptr(&current);
+        if seen.contains(&ptr) {
+            // Cycle detected
+            return Ok(false);
+        }
+        seen.insert(ptr);
+
+        match current.deref() {
+            Value::Constant(crate::values::Constant::Null) => return Ok(true),
+            Value::Pair(_) => {
+                current = current.cdr()?.into();
+            }
+            _ => return Ok(false), // Not a list (improper list)
         }
     }
 }

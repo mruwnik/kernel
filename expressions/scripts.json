@@ -502,14 +502,14 @@
       "note": "trampoline-even-odd - uses $and? for short-circuit evaluation"
     },
     {
-      "expr": "($let ((nums (list 2 4 6 8 10))) ($let ((sum (reduce + 0 nums)) (len (length nums)) (mean (div (reduce + 0 nums) (length nums)))) (list sum len mean)))",
+      "expr": "($let ((nums (list 2 4 6 8 10))) ($let ((sum (reduce nums + 0)) (len (length nums)) (mean (div (reduce nums + 0) (length nums)))) (list sum len mean)))",
       "expected": "(30 5 6)",
       "note": "integration-statistical-operations"
     },
     {
-      "expr": "($let ((pipeline ($lambda (x . fns) (reduce ($lambda (acc f) (f acc)) x fns)))) (pipeline 5 ($lambda (x) (+ x 1)) ($lambda (x) (* x 2)) ($lambda (x) (- x 3))))",
+      "expr": "($let ((pipeline ($lambda (x . fns) (reduce (reverse fns) ($lambda (f acc) (f acc)) x)))) (pipeline 5 ($lambda (x) (+ x 1)) ($lambda (x) (* x 2)) ($lambda (x) (- x 3))))",
       "expected": "9",
-      "note": "integration-transform-pipeline"
+      "note": "integration-transform-pipeline (uses reverse for left-to-right with fold-right)"
     },
     {
       "expr": "($let ((range ($lambda (start end) ($letrec ((loop ($lambda (i acc) ($if (<? i start) acc (loop (- i 1) (cons i acc)))))) (loop (- end 1) ()))))) (map ($lambda (x) (* x x)) (filter even? (range 1 11))))",

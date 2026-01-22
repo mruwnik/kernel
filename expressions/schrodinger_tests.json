@@ -1,0 +1,160 @@
+{
+  "description": "Tests from Schrodinger's Equation of Software blog post",
+  "tests": [
+    {
+      "expr": "(($vau (e) #ignore e) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Blog: quote defined as (define q (vau (e) % e)) - returns unevaluated operand"
+    },
+    {
+      "expr": "(($vau (e) #ignore e) hello)",
+      "expected": "hello",
+      "note": "Blog: quote returns symbol without lookup"
+    },
+    {
+      "expr": "(($vau (e) #ignore e) (if #t 1 2))",
+      "expected": "(if #t 1 2)",
+      "note": "Blog: quote captures any form unevaluated"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) (+ 1 2))",
+      "expected": "3",
+      "note": "Blog: wrap auto-evaluates arguments - like lambda behavior"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (+ a b))) 3 4)",
+      "expected": "7",
+      "note": "Blog: wrapped vau evaluates multiple args before binding"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (list a b))) (+ 1 1) (* 2 2))",
+      "expected": "(2 4)",
+      "note": "Blog: wrap evaluates compound expressions as args"
+    },
+    {
+      "expr": "(($vau (x) env (eval x env)) (+ 2 3))",
+      "expected": "5",
+      "note": "Blog: vau with explicit eval mirrors standard evaluation"
+    },
+    {
+      "expr": "($let ((y 10)) (($vau (x) env (eval x env)) (+ y 5)))",
+      "expected": "15",
+      "note": "Blog: explicit eval sees dynamic environment bindings"
+    },
+    {
+      "expr": "(($vau (x) env (list x (eval x env))) (* 3 4))",
+      "expected": "((* 3 4) 12)",
+      "note": "Blog: vau can return both code and evaluated result"
+    },
+    {
+      "expr": "($define! my-quote ($vau (e) #ignore e)) (my-quote (cons 1 2))",
+      "expected": "(cons 1 2)",
+      "note": "Blog: quote as library function via vau"
+    },
+    {
+      "expr": "($define! my-if ($vau (test conseq alt) env ($if (eval test env) (eval conseq env) (eval alt env)))) (my-if #t 1 2)",
+      "expected": "1",
+      "note": "Blog: if as library function - def cond(v, *x)"
+    },
+    {
+      "expr": "($define! my-if ($vau (test conseq alt) env ($if (eval test env) (eval conseq env) (eval alt env)))) (my-if #f (/ 1 0) 42)",
+      "expected": "42",
+      "note": "Blog: user-defined if short-circuits - doesn't eval consequent"
+    },
+    {
+      "expr": "($define! my-if ($vau (test conseq alt) env ($if (eval test env) (eval conseq env) (eval alt env)))) ($let ((x 5)) (my-if (>? x 0) (+ x 10) (- x 10)))",
+      "expected": "15",
+      "note": "Blog: my-if with variable reference in dynamic env"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) (my-abs (- 0 5))",
+      "expected": "5",
+      "note": "Blog: abs example - (define abs (vau (x) % (begin (define xv %::x) ...)))"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) (my-abs 7)",
+      "expected": "7",
+      "note": "Blog: abs with positive input"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) ($let ((n (- 0 10))) (my-abs n))",
+      "expected": "10",
+      "note": "Blog: abs with variable requiring dynamic env lookup"
+    },
+    {
+      "expr": "($define! get-env ($vau () e e)) (env? (get-env))",
+      "expected": "#t",
+      "note": "Blog: operative capturing environment - (define get-env (vau () % %))"
+    },
+    {
+      "expr": "($define! get-env ($vau () e e)) ($let ((x 42)) ($binds? (get-env) x))",
+      "expected": "#t",
+      "note": "Blog: captured env contains local bindings"
+    },
+    {
+      "expr": "($define! defvar ($vau (var e) env ($define! (eval var env) (eval e env)))) #inert",
+      "expected": "#inert",
+      "note": "Blog: defvar pattern from def defvar(v, var, e)"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau (x) #ignore x)))",
+      "expected": "#t",
+      "note": "Blog: wrap converts operative to applicative"
+    },
+    {
+      "expr": "(operative? ($vau (x) #ignore x))",
+      "expected": "#t",
+      "note": "Blog: vau creates operatives (fexprs)"
+    },
+    {
+      "expr": "(operative? (unwrap (wrap ($vau (x) #ignore x))))",
+      "expected": "#t",
+      "note": "Blog: unwrap recovers operative from applicative"
+    },
+    {
+      "expr": "($let ((x 1)) ($let ((x 2)) (($vau () e (eval (quote x) e)))))",
+      "expected": "2",
+      "note": "Blog: dynamic env sees innermost binding (shadowing)"
+    },
+    {
+      "expr": "($define! capture-and-eval ($vau (expr) env (list (quote code:) expr (quote result:) (eval expr env)))) (capture-and-eval (+ 10 20))",
+      "expected": "(code: (+ 10 20) result: 30)",
+      "note": "Blog: vau can inspect both code and value simultaneously"
+    },
+    {
+      "expr": "($let ((f +) (a 3) (b 4)) (($vau () e ((eval (quote f) e) (eval (quote a) e) (eval (quote b) e)))))",
+      "expected": "7",
+      "note": "Blog: evaluate symbols in captured dynamic env"
+    },
+    {
+      "expr": "(($vau (a b) #ignore (cons a b)) x y)",
+      "expected": "(x . y)",
+      "note": "Blog: operands received unevaluated - symbols stay symbols"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (cons a b))) 1 2)",
+      "expected": "(1 . 2)",
+      "note": "Blog: wrapped version evaluates args first"
+    },
+    {
+      "expr": "(($vau args #ignore args) 1 (+ 2 3) 4)",
+      "expected": "(1 (+ 2 3) 4)",
+      "note": "Blog: variadic vau receives all operands unevaluated"
+    },
+    {
+      "expr": "((wrap ($vau args #ignore args)) 1 (+ 2 3) 4)",
+      "expected": "(1 5 4)",
+      "note": "Blog: wrapped variadic evaluates all args"
+    },
+    {
+      "expr": "($define! my-cond ($vau clauses env ($if (null? clauses) #inert ($let ((clause (car clauses))) ($if (eval (car clause) env) (eval (car (cdr clause)) env) (eval (cons my-cond (cdr clauses)) env)))))) (my-cond (#f 1) (#t 2) (#t 3))",
+      "expected": "2",
+      "note": "Blog: cond as vau - def cond(v, *x): for (p, e) in x: if eval(p, v): return eval(e, v)"
+    },
+    {
+      "expr": "($define! my-cond ($vau clauses env ($if (null? clauses) #inert ($let ((clause (car clauses))) ($if (eval (car clause) env) (eval (car (cdr clause)) env) (eval (cons my-cond (cdr clauses)) env)))))) ($let ((x 5)) (my-cond ((<? x 0) (quote negative)) ((=? x 0) (quote zero)) (#t (quote positive))))",
+      "expected": "positive",
+      "note": "Blog: cond with variable conditions"
+    }
+  ]
+}

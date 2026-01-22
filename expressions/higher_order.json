@@ -162,64 +162,79 @@
       "expected": "(3 6 9)"
     },
     {
-      "expr": "(reduce + 0 (list 1 2 3 4 5))",
-      "expected": "15"
+      "expr": "(reduce (list 1 2 3 4 5) + 0)",
+      "expected": "15",
+      "note": "reduce with + (commutative)"
     },
     {
-      "expr": "(reduce * 1 (list 1 2 3 4 5))",
-      "expected": "120"
+      "expr": "(reduce (list 1 2 3 4 5) * 1)",
+      "expected": "120",
+      "note": "reduce with * (commutative)"
     },
     {
-      "expr": "(reduce - 0 (list 1 2 3))",
-      "expected": "-6"
+      "expr": "(reduce (list 1 2 3) - 0)",
+      "expected": "2",
+      "note": "reduce with - (fold right): 1-(2-(3-0)) = 1-2+3 = 2"
     },
     {
-      "expr": "(reduce ($lambda (acc x) (cons x acc)) () (list 1 2 3))",
-      "expected": "(3 2 1)"
+      "expr": "(reduce (list 1 2 3) ($lambda (x acc) (cons x acc)) ())",
+      "expected": "(1 2 3)",
+      "note": "reduce with cons builds list in order (fold right)"
     },
     {
-      "expr": "(reduce + 0 ())",
-      "expected": "0"
+      "expr": "(reduce () + 0)",
+      "expected": "0",
+      "note": "reduce empty list returns identity"
     },
     {
-      "expr": "(reduce * 1 ())",
-      "expected": "1"
+      "expr": "(reduce () * 1)",
+      "expected": "1",
+      "note": "reduce empty list returns identity"
     },
     {
-      "expr": "(reduce + 0 (list 42))",
-      "expected": "42"
+      "expr": "(reduce (list 42) + 0)",
+      "expected": "42",
+      "note": "reduce single element"
     },
     {
-      "expr": "(reduce * 1 (list 5))",
-      "expected": "5"
+      "expr": "(reduce (list 5) * 1)",
+      "expected": "5",
+      "note": "reduce single element"
     },
     {
-      "expr": "(reduce ($lambda (a b) ($if (>? a b) a b)) (- 0 999999) (list 3 1 4 1 5 9 2 6))",
-      "expected": "9"
+      "expr": "(reduce (list 3 1 4 1 5 9 2 6) ($lambda (a b) ($if (>? a b) a b)) (- 0 999999))",
+      "expected": "9",
+      "note": "reduce for max"
     },
     {
-      "expr": "(reduce ($lambda (a b) ($if (<? a b) a b)) 999999 (list 3 1 4 1 5 9 2 6))",
-      "expected": "1"
+      "expr": "(reduce (list 3 1 4 1 5 9 2 6) ($lambda (a b) ($if (<? a b) a b)) 999999)",
+      "expected": "1",
+      "note": "reduce for min"
     },
     {
-      "expr": "(reduce append () (list (list 1 2) (list 3 4) (list 5 6)))",
-      "expected": "(1 2 3 4 5 6)"
+      "expr": "(reduce (list (list 1 2) (list 3 4) (list 5 6)) append ())",
+      "expected": "(1 2 3 4 5 6)",
+      "note": "reduce with append flattens lists"
     },
     {
-      "expr": "(reduce ($lambda (count x) (+ count 1)) 0 (list 10 20 30 40 50))",
-      "expected": "5"
+      "expr": "(reduce (list 10 20 30 40 50) ($lambda (x acc) (+ acc 1)) 0)",
+      "expected": "5",
+      "note": "reduce for counting"
     },
     {
-      "expr": "(reduce ($lambda (sum x) (+ sum (* x x))) 0 (list 1 2 3 4))",
-      "expected": "30"
+      "expr": "(reduce (list 1 2 3 4) ($lambda (x acc) (+ acc (* x x))) 0)",
+      "expected": "30",
+      "note": "reduce for sum of squares"
     },
     {
-      "expr": "(reduce + 0 (list 1 2 3 4))",
-      "expected": "10"
+      "expr": "(reduce (list 1 2 3 4) + 0)",
+      "expected": "10",
+      "note": "reduce sum"
     },
     {
-      "expr": "(reduce * 1 (list 2 3 4))",
-      "expected": "24"
+      "expr": "(reduce (list 2 3 4) * 1)",
+      "expected": "24",
+      "note": "reduce product"
     },
     {
       "expr": "(for-each ($lambda (x) x) (list 1 2 3))",
@@ -266,16 +281,19 @@
       "expected": "(2 4 6 8 10)"
     },
     {
-      "expr": "(reduce + 0 (map ($lambda (x) (* x x)) (list 1 2 3 4)))",
-      "expected": "30"
+      "expr": "(reduce (map ($lambda (x) (* x x)) (list 1 2 3 4)) + 0)",
+      "expected": "30",
+      "note": "reduce with map: sum of squares"
     },
     {
-      "expr": "(reduce + 0 (filter ($lambda (x) (>? x 2)) (list 1 2 3 4 5)))",
-      "expected": "12"
+      "expr": "(reduce (filter ($lambda (x) (>? x 2)) (list 1 2 3 4 5)) + 0)",
+      "expected": "12",
+      "note": "reduce with filter: sum of filtered"
     },
     {
-      "expr": "(reduce + 0 (map ($lambda (x) (* x 10)) (filter even? (list 1 2 3 4 5 6))))",
-      "expected": "120"
+      "expr": "(reduce (map ($lambda (x) (* x 10)) (filter even? (list 1 2 3 4 5 6))) + 0)",
+      "expected": "120",
+      "note": "reduce with map and filter combined"
     },
     {
       "expr": "(filter pair? (list 1 (cons 2 3) 4 (list 5 6)))",
@@ -298,8 +316,9 @@
       "expected": "(2)"
     },
     {
-      "expr": "(reduce + 0 (list 1 2))",
-      "expected": "3"
+      "expr": "(reduce (list 1 2) + 0)",
+      "expected": "3",
+      "note": "reduce simple sum"
     },
     {
       "expr": "(filter ($lambda (x) (=? x 5)) (list 1 2 3 4 5 6 7))",

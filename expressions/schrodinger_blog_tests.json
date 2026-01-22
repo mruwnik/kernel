@@ -1,0 +1,190 @@
+{
+  "description": "Tests from Schrodinger's Equation of Software blog post - demonstrating vau/fexpr semantics",
+  "tests": [
+    {
+      "expr": "($define! get-env ($vau () e e)) (env? (get-env))",
+      "expected": "#t",
+      "note": "Blog example: get-env captures dynamic environment - (define get-env (vau () % %))"
+    },
+    {
+      "expr": "($define! get-env ($vau () e e)) ($let ((x 42)) ($binds? (get-env) x))",
+      "expected": "#t",
+      "note": "get-env returns environment with local binding x"
+    },
+    {
+      "expr": "($define! q ($vau (e) #ignore e)) (q (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Blog example: quote defined as vau - (define q (vau (e) % e))"
+    },
+    {
+      "expr": "($define! q ($vau (e) #ignore e)) (q hello)",
+      "expected": "hello",
+      "note": "Quote prevents symbol evaluation"
+    },
+    {
+      "expr": "($define! q ($vau (e) #ignore e)) (q (cons a b))",
+      "expected": "(cons a b)",
+      "note": "Quote returns unevaluated list with undefined symbols"
+    },
+    {
+      "expr": "(($vau (x) env (eval x env)) (+ 1 2))",
+      "expected": "3",
+      "note": "Blog pattern: explicit eval of operand in dynamic env - evaluates (+ 1 2)"
+    },
+    {
+      "expr": "($let ((y 10)) (($vau (x) env (eval x env)) (+ y 5)))",
+      "expected": "15",
+      "note": "Blog pattern: eval in dynamic env sees local binding y"
+    },
+    {
+      "expr": "(($vau (x) env x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Without eval, operand remains unevaluated"
+    },
+    {
+      "expr": "(($vau (x) env (list x (eval x env))) (+ 1 2))",
+      "expected": "((+ 1 2) 3)",
+      "note": "Contrast: unevaluated vs evaluated operand"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) (my-abs (- 0 5))",
+      "expected": "5",
+      "note": "Blog example: abs implementation with explicit eval - (define abs (vau (x) % (begin (define xv %::x) ...)))"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) (my-abs 5)",
+      "expected": "5",
+      "note": "abs with positive input"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) (my-abs 0)",
+      "expected": "0",
+      "note": "abs with zero"
+    },
+    {
+      "expr": "($define! my-abs ($vau (x) env ($let ((xv (eval x env))) ($if (<? xv 0) (- 0 xv) xv)))) ($let ((n (- 0 3))) (my-abs n))",
+      "expected": "3",
+      "note": "abs with variable reference"
+    },
+    {
+      "expr": "(($vau (f l) env ($let ((fv (eval f env)) (lv (eval l env))) ($if (null? lv) () (cons (fv (car lv)) (($vau (f l) env ($let ((fv (eval f env)) (lv (eval l env))) ($if (null? lv) () (cons (fv (car lv)) ())))) fv (cdr lv)))))) ($lambda (x) (+ x 1)) (list 1 2))",
+      "expected": "(2 3)",
+      "note": "Blog pattern: vau-based map evaluates f and l explicitly (simplified 2-element version)"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau (x) #ignore x)))",
+      "expected": "#t",
+      "note": "Blog mentions wrap primitive - wrap converts operative to applicative"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) (+ 1 2))",
+      "expected": "3",
+      "note": "Blog: wrapped vau evaluates arguments before binding (applicative behavior)"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Contrast: unwrapped vau receives unevaluated operand"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (+ a b))) 3 4)",
+      "expected": "7",
+      "note": "Wrapped vau acts like lambda - arguments evaluated"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "Blog implies unwrap extracts operative from applicative"
+    },
+    {
+      "expr": "((unwrap +) 1 2)",
+      "expected": "3",
+      "note": "Unwrapped + receives unevaluated operands (literals pass through)"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore 42)))",
+      "expected": "#t",
+      "note": "wrap produces an applicative"
+    },
+    {
+      "expr": "(operative? ($vau () #ignore 42))",
+      "expected": "#t",
+      "note": "$vau produces an operative"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "unwrap produces an operative"
+    },
+    {
+      "expr": "(applicative? +)",
+      "expected": "#t",
+      "note": "Built-in + is an applicative"
+    },
+    {
+      "expr": "($define! capture-env ($vau () e e)) ($let ((x 100)) ($let ((y 200)) (eval (list + (quote x) (quote y)) (capture-env))))",
+      "expected": "300",
+      "note": "Blog pattern: operative capturing and using dynamic environment"
+    },
+    {
+      "expr": "($define! my-if ($vau (test conseq alt) env ($if (eval test env) (eval conseq env) (eval alt env)))) (my-if #t 1 2)",
+      "expected": "1",
+      "note": "Blog concept: if could be defined as vau with explicit eval"
+    },
+    {
+      "expr": "($define! my-if ($vau (test conseq alt) env ($if (eval test env) (eval conseq env) (eval alt env)))) (my-if #f 1 2)",
+      "expected": "2",
+      "note": "User-defined if with false test"
+    },
+    {
+      "expr": "($define! my-if ($vau (test conseq alt) env ($if (eval test env) (eval conseq env) (eval alt env)))) ($let ((x 5)) (my-if (>? x 3) (+ x 10) (- x 10)))",
+      "expected": "15",
+      "note": "User-defined if evaluates only the taken branch"
+    },
+    {
+      "expr": "($define! my-and ($vau args env ($if (null? args) #t ($if (eval (car args) env) (eval (cons my-and (cdr args)) env) #f)))) (my-and)",
+      "expected": "#t",
+      "note": "Blog concept: and as recursive vau - empty case"
+    },
+    {
+      "expr": "($define! my-and ($vau args env ($if (null? args) #t ($if (eval (car args) env) (eval (cons my-and (cdr args)) env) #f)))) (my-and #t #t)",
+      "expected": "#t",
+      "note": "User-defined and with all true"
+    },
+    {
+      "expr": "($define! my-and ($vau args env ($if (null? args) #t ($if (eval (car args) env) (eval (cons my-and (cdr args)) env) #f)))) (my-and #t #f)",
+      "expected": "#f",
+      "note": "User-defined and with one false"
+    },
+    {
+      "expr": "($define! my-or ($vau args env ($if (null? args) #f ($if (eval (car args) env) #t (eval (cons my-or (cdr args)) env))))) (my-or)",
+      "expected": "#f",
+      "note": "Blog concept: or as recursive vau - empty case"
+    },
+    {
+      "expr": "($define! my-or ($vau args env ($if (null? args) #f ($if (eval (car args) env) #t (eval (cons my-or (cdr args)) env))))) (my-or #f #t)",
+      "expected": "#t",
+      "note": "User-defined or with second true"
+    },
+    {
+      "expr": "($define! my-or ($vau args env ($if (null? args) #f ($if (eval (car args) env) #t (eval (cons my-or (cdr args)) env))))) (my-or #f #f)",
+      "expected": "#f",
+      "note": "User-defined or with all false"
+    },
+    {
+      "expr": "(($vau (expr) env (list (quote unevaluated:) expr (quote evaluated:) (eval expr env))) (* 3 4))",
+      "expected": "(unevaluated: (* 3 4) evaluated: 12)",
+      "note": "Blog concept: vau can inspect both code and value"
+    },
+    {
+      "expr": "($let ((a 1) (b 2)) (($vau () env (+ (eval (quote a) env) (eval (quote b) env)))))",
+      "expected": "3",
+      "note": "Blog pattern: lookup multiple symbols in captured dynamic env"
+    },
+    {
+      "expr": "($define! shadow-test ($vau () e (eval (quote x) e))) ($let ((x 100)) ($let ((x 200)) (shadow-test)))",
+      "expected": "200",
+      "note": "Blog concept: dynamic env sees innermost binding (shadowing)"
+    }
+  ]
+}

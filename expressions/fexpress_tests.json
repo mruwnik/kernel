@@ -1,0 +1,159 @@
+{
+  "description": "Tests adapted from fexpress project (https://github.com/rocketnia/fexpress)",
+  "source": "https://github.com/rocketnia/fexpress/blob/main/fexpress-test/tests.rkt",
+  "notes": [
+    "fexpress is a Racket-based fexpr language focused on compilation/partial-evaluation.",
+    "It uses ilambda (interpreted) and clambda (compiled) instead of Kernel's $lambda.",
+    "These tests extract the semantically equivalent portions applicable to Kernel.",
+    "fexpress's 'the' type annotations and compilation logging are not applicable.",
+    "The fexpress tests are primarily about demonstrating compilation efficiency, not fexpr semantics.",
+    "For tests that exercise $vau/operative semantics, see combiners_vau.json and klink_tests.json."
+  ],
+  "tests": [
+    {
+      "expr": "(+ 1 2)",
+      "expected": "3",
+      "note": "Basic addition - fexpress test 1"
+    },
+    {
+      "expr": "(($lambda (x y) (+ x y 3)) 1 2)",
+      "expected": "6",
+      "note": "Lambda with multiple args and body computation - from fexpress ilambda test"
+    },
+    {
+      "expr": "(($lambda (square) (($lambda (double) (double (double (+ (square 3) (square 4))))) ($lambda (x) (+ x x)))) ($lambda (x) (* x x)))",
+      "expected": "100",
+      "note": "Nested lambdas: square and double. Computes (3^2+4^2)*2*2 = 25*4 = 100 - from fexpress test"
+    },
+    {
+      "expr": "((($lambda (x y) ($lambda (z) (+ x y z))) 1 2) 3)",
+      "expected": "6",
+      "note": "Curried lambda returning closure - from fexpress test"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f) ($lambda (g) ($lambda (x) (f (g x))))))) (((compose ($lambda (x) (* x x))) ($lambda (x) (+ x 1))) 8))",
+      "expected": "81",
+      "note": "Function composition: (8+1)^2 = 81 - adapted from fexpress compose tests"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f) ($lambda (g) ($lambda (x) (f (g x))))))) (((compose ($lambda (x) (+ x 1))) ($lambda (x) (* x x))) 8))",
+      "expected": "65",
+      "note": "Function composition reversed: 8^2+1 = 65 - composition order matters"
+    },
+    {
+      "expr": "($let ((square ($lambda (x) (* x x)))) (+ (square 3) (square 4)))",
+      "expected": "25",
+      "note": "Named function reuse - 3^2 + 4^2 = 9 + 16 = 25"
+    },
+    {
+      "expr": "($let ((double ($lambda (x) (+ x x)))) (double (double 5)))",
+      "expected": "20",
+      "note": "Double applied twice: 5*2*2 = 20"
+    },
+    {
+      "expr": "($let ((funcall ($lambda (f . args) (apply f args)))) (funcall + 1 2 3))",
+      "expected": "6",
+      "note": "Funcall helper for Lisp-1 style - adapted from fexpress test environment"
+    },
+    {
+      "expr": "($let ((funcall ($lambda (f . args) (apply f args)))) (funcall ($lambda (x) (* x x)) 5))",
+      "expected": "25",
+      "note": "Funcall with lambda argument"
+    },
+    {
+      "expr": "((($lambda (x) ($lambda (y) ($lambda (z) (+ x (+ y z))))) 1) 2 3)",
+      "expected": "error",
+      "note": "Partial application - middle lambda expects 1 arg, gets 2. Should error."
+    },
+    {
+      "expr": "(((($lambda (x) ($lambda (y) ($lambda (z) (+ x (+ y z))))) 1) 2) 3)",
+      "expected": "6",
+      "note": "Correct curried application: 1+2+3 = 6"
+    },
+    {
+      "expr": "($let ((add-n ($lambda (n) ($lambda (x) (+ x n))))) ($let ((add5 (add-n 5))) (add5 10)))",
+      "expected": "15",
+      "note": "Closure factory pattern"
+    },
+    {
+      "expr": "($let ((mult-n ($lambda (n) ($lambda (x) (* x n))))) ($let ((times3 (mult-n 3))) (times3 7)))",
+      "expected": "21",
+      "note": "Multiplier closure factory: 7*3 = 21"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ((compose ($lambda (x) (+ x 1)) ($lambda (x) (* x 2))) 5))",
+      "expected": "11",
+      "note": "Non-curried compose: (5*2)+1 = 11"
+    },
+    {
+      "expr": "($let ((thrice ($lambda (f) ($lambda (x) (f (f (f x))))))) ((thrice ($lambda (x) (+ x 1))) 0))",
+      "expected": "3",
+      "note": "Apply function three times: 0+1+1+1 = 3"
+    },
+    {
+      "expr": "($let ((twice ($lambda (f) ($lambda (x) (f (f x)))))) ((twice ($lambda (x) (* x 2))) 3))",
+      "expected": "12",
+      "note": "Apply function twice: 3*2*2 = 12"
+    },
+    {
+      "expr": "($let ((id ($lambda (x) x))) (id (id (id 42))))",
+      "expected": "42",
+      "note": "Identity function composition"
+    },
+    {
+      "expr": "($let ((const ($lambda (x) ($lambda (y) x)))) ((const 5) 999))",
+      "expected": "5",
+      "note": "Constant function ignores second argument"
+    },
+    {
+      "expr": "($let ((flip ($lambda (f) ($lambda (x y) (f y x))))) ((flip -) 3 10))",
+      "expected": "7",
+      "note": "Flip argument order: 10-3 = 7"
+    },
+    {
+      "expr": "($let ((apply-twice ($lambda (f x) (f (f x))))) (apply-twice ($lambda (n) (* n n)) 2))",
+      "expected": "16",
+      "note": "Apply-twice: (2^2)^2 = 16"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ($let ((inc ($lambda (x) (+ x 1)))) ((compose inc inc) 0)))",
+      "expected": "2",
+      "note": "Compose increment with itself: 0+1+1 = 2"
+    },
+    {
+      "expr": "($let ((compose3 ($lambda (f g h) ($lambda (x) (f (g (h x))))))) ((compose3 ($lambda (x) (* x 2)) ($lambda (x) (+ x 1)) ($lambda (x) (* x 3))) 2))",
+      "expected": "14",
+      "note": "Three-function composition: ((2*3)+1)*2 = 14"
+    },
+    {
+      "expr": "($let ((make-adder ($lambda (n) ($lambda (x) (+ x n))))) ($let ((add3 (make-adder 3)) (add7 (make-adder 7))) (+ (add3 10) (add7 10))))",
+      "expected": "30",
+      "note": "Multiple closures from same factory: (10+3)+(10+7) = 30"
+    },
+    {
+      "expr": "($let ((counter-factory ($lambda (start) ($lambda () ($define! v start) ($set! start (+ start 1)) v)))) ($let ((c (counter-factory 0))) (list (c) (c) (c))))",
+      "expected": "(0 1 2)",
+      "note": "Closure capturing mutable state"
+    },
+    {
+      "expr": "(((($lambda (x) ($lambda (y) ($lambda (z) (list x y z)))) (quote a)) (quote b)) (quote c))",
+      "expected": "(a b c)",
+      "note": "Triple-curried function building list"
+    },
+    {
+      "expr": "($let ((fix ($lambda (f) (($lambda (x) (f ($lambda (v) ((x x) v)))) ($lambda (x) (f ($lambda (v) ((x x) v)))))))) ($let ((fact (fix ($lambda (self) ($lambda (n) ($if (=? n 0) 1 (* n (self (- n 1))))))))) (fact 5)))",
+      "expected": "120",
+      "note": "Y-combinator style factorial - tests deep closure interaction"
+    },
+    {
+      "expr": "($let ((pair ($lambda (x y) ($lambda (sel) (sel x y))))) ($let ((fst ($lambda (x y) x)) (snd ($lambda (x y) y))) ($let ((p (pair 1 2))) (list (p fst) (p snd)))))",
+      "expected": "(1 2)",
+      "note": "Church-encoded pairs using closures"
+    },
+    {
+      "expr": "($let ((zero ($lambda (f) ($lambda (x) x))) (succ ($lambda (n) ($lambda (f) ($lambda (x) (f ((n f) x))))))) ($let ((to-int ($lambda (n) ((n ($lambda (x) (+ x 1))) 0)))) (to-int (succ (succ (succ zero))))))",
+      "expected": "3",
+      "note": "Church numerals - succ applied 3 times to zero"
+    }
+  ]
+}

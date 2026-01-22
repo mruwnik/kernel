@@ -1,0 +1,512 @@
+{
+  "description": "Tests adapted from eclj project (https://github.com/brandonbloom/eclj). Eclj is an extensible Clojure interpreter using continuation-passing style; these tests extract the subset that maps to Kernel language semantics with fexpr/vau operatives.",
+  "source": "https://github.com/brandonbloom/eclj/tree/master/test/eclj",
+  "notes": [
+    "Clojure fn -> Kernel $lambda",
+    "Clojure let -> Kernel $let",
+    "Clojure if -> Kernel $if",
+    "Clojure do -> Kernel $sequence",
+    "Clojure true/false -> Kernel #t/#f",
+    "Clojure defn/def -> Kernel $define!",
+    "Clojure and/or -> Kernel $and?/$or? (short-circuiting)",
+    "Many eclj tests involve Clojure-specific features (Java interop, try/catch, loop/recur, vars) and are not included",
+    "Eclj uses continuation-passing style evaluation similar to how Kernel handles first-class environments"
+  ],
+  "tests": [
+    {
+      "expr": "5",
+      "expected": "5",
+      "note": "Literal integer"
+    },
+    {
+      "expr": "#t",
+      "expected": "#t",
+      "note": "Boolean true literal (Clojure: true)"
+    },
+    {
+      "expr": "#f",
+      "expected": "#f",
+      "note": "Boolean false literal (Clojure: false)"
+    },
+    {
+      "expr": "\"str\"",
+      "expected": "\"str\"",
+      "note": "String literal"
+    },
+    {
+      "expr": "()",
+      "expected": "()",
+      "note": "Empty list / nil"
+    },
+    {
+      "expr": "($if #t 5 10)",
+      "expected": "5",
+      "note": "If with true condition, returns consequent"
+    },
+    {
+      "expr": "($if #f 5 10)",
+      "expected": "10",
+      "note": "If with false condition, returns alternative"
+    },
+    {
+      "expr": "(- 10 3)",
+      "expected": "7",
+      "note": "Subtraction"
+    },
+    {
+      "expr": "(+ (+ 5 1) (+ 10 1))",
+      "expected": "17",
+      "note": "Nested addition (Clojure used inc)"
+    },
+    {
+      "expr": "(* (+ 4 1) 2)",
+      "expected": "10",
+      "note": "Multiplication with nested addition"
+    },
+    {
+      "expr": "($sequence)",
+      "expected": "#inert",
+      "note": "Empty sequence (Clojure: do)"
+    },
+    {
+      "expr": "($sequence 1)",
+      "expected": "1",
+      "note": "Sequence with single expression"
+    },
+    {
+      "expr": "($sequence 1 2)",
+      "expected": "2",
+      "note": "Sequence returns last expression"
+    },
+    {
+      "expr": "($sequence 1 2 3)",
+      "expected": "3",
+      "note": "Sequence with three expressions returns last"
+    },
+    {
+      "expr": "($let () 1)",
+      "expected": "1",
+      "note": "Let with empty bindings"
+    },
+    {
+      "expr": "($let ((x 2)) x)",
+      "expected": "2",
+      "note": "Let with single binding"
+    },
+    {
+      "expr": "($let ((x 2) (y 4)) (+ x y))",
+      "expected": "6",
+      "note": "Let with multiple bindings"
+    },
+    {
+      "expr": "($let ((x 2) (y 4) (z 6)) (+ x (+ y z)))",
+      "expected": "12",
+      "note": "Let with three bindings"
+    },
+    {
+      "expr": "(quote x)",
+      "expected": "x",
+      "note": "Quote symbol"
+    },
+    {
+      "expr": "(quote (f x))",
+      "expected": "(f x)",
+      "note": "Quote list - from parse_test"
+    },
+    {
+      "expr": "(quote (quote (f x)))",
+      "expected": "(quote (f x))",
+      "note": "Nested quote - from parse_test"
+    },
+    {
+      "expr": "(($lambda () 1))",
+      "expected": "1",
+      "note": "Lambda with no args, called immediately"
+    },
+    {
+      "expr": "(($lambda (x) x) 5)",
+      "expected": "5",
+      "note": "Identity lambda"
+    },
+    {
+      "expr": "(($lambda (x) ($if (<=? x 1) 1 (* x (factorial (- x 1))))) 1)",
+      "expected": "1",
+      "note": "Base case for factorial-like pattern"
+    },
+    {
+      "expr": "($letrec ((factorial ($lambda (x) ($if (<=? x 1) 1 (* x (factorial (- x 1))))))) (factorial 5))",
+      "expected": "120",
+      "note": "Recursive factorial via letrec binding (per Kernel spec, $let cannot create recursive bindings)"
+    },
+    {
+      "expr": "(+ 2 4)",
+      "expected": "6",
+      "note": "Basic addition from ext_test"
+    },
+    {
+      "expr": "(list 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "List construction"
+    },
+    {
+      "expr": "(cons 1 (cons 2 ()))",
+      "expected": "(1 2)",
+      "note": "Cons construction"
+    },
+    {
+      "expr": "(car (cons 1 2))",
+      "expected": "1",
+      "note": "Car of cons pair"
+    },
+    {
+      "expr": "(cdr (cons 1 2))",
+      "expected": "2",
+      "note": "Cdr of cons pair"
+    },
+    {
+      "expr": "(pair? (cons 1 2))",
+      "expected": "#t",
+      "note": "Pair predicate on cons"
+    },
+    {
+      "expr": "(null? ())",
+      "expected": "#t",
+      "note": "Null predicate on empty list"
+    },
+    {
+      "expr": "(null? (cons 1 ()))",
+      "expected": "#f",
+      "note": "Null predicate on non-empty list"
+    },
+    {
+      "expr": "(boolean? #t)",
+      "expected": "#t",
+      "note": "Boolean predicate on true"
+    },
+    {
+      "expr": "(boolean? #f)",
+      "expected": "#t",
+      "note": "Boolean predicate on false"
+    },
+    {
+      "expr": "(boolean? 5)",
+      "expected": "#f",
+      "note": "Boolean predicate on number"
+    },
+    {
+      "expr": "(eq? 5 5)",
+      "expected": "#t",
+      "note": "Eq on identical numbers"
+    },
+    {
+      "expr": "(eq? 5 6)",
+      "expected": "#f",
+      "note": "Eq on different numbers"
+    },
+    {
+      "expr": "(not? #t)",
+      "expected": "#f",
+      "note": "Logical not of true"
+    },
+    {
+      "expr": "(not? #f)",
+      "expected": "#t",
+      "note": "Logical not of false"
+    },
+    {
+      "expr": "($and? #t #t)",
+      "expected": "#t",
+      "note": "And with both true"
+    },
+    {
+      "expr": "($and? #t #f)",
+      "expected": "#f",
+      "note": "And with one false"
+    },
+    {
+      "expr": "($and? #f #t)",
+      "expected": "#f",
+      "note": "And short-circuits on false"
+    },
+    {
+      "expr": "($or? #f #f)",
+      "expected": "#f",
+      "note": "Or with both false"
+    },
+    {
+      "expr": "($or? #t #f)",
+      "expected": "#t",
+      "note": "Or with first true"
+    },
+    {
+      "expr": "($or? #f #t)",
+      "expected": "#t",
+      "note": "Or with second true"
+    },
+    {
+      "expr": "(eval (quote (+ 1 2)) (get-current-environment))",
+      "expected": "3",
+      "note": "Eval quoted expression in current environment"
+    },
+    {
+      "expr": "($cond (#t 42))",
+      "expected": "42",
+      "note": "Cond with single true clause"
+    },
+    {
+      "expr": "($cond (#f 1) (#t 2))",
+      "expected": "2",
+      "note": "Cond skips false clause"
+    },
+    {
+      "expr": "($cond (#f 1) (#f 2))",
+      "expected": "#inert",
+      "note": "Cond with no matching clause"
+    },
+    {
+      "expr": "((($lambda (x) ($lambda () x)) 5))",
+      "expected": "5",
+      "note": "Closure captures outer binding"
+    },
+    {
+      "expr": "($let ((f ($lambda (x) ($lambda (y) (+ x y))))) ((f 3) 4))",
+      "expected": "7",
+      "note": "Curried function via closures"
+    },
+    {
+      "expr": "($let ((x 10)) ($let ((f ($lambda () x))) ($let ((x 20)) (f))))",
+      "expected": "10",
+      "note": "Lexical scoping - closure sees definition-time binding"
+    },
+    {
+      "expr": "(applicative? +)",
+      "expected": "#t",
+      "note": "Plus is an applicative"
+    },
+    {
+      "expr": "(operative? $if)",
+      "expected": "#t",
+      "note": "$if is an operative"
+    },
+    {
+      "expr": "(combiner? +)",
+      "expected": "#t",
+      "note": "Plus is a combiner"
+    },
+    {
+      "expr": "(combiner? $lambda)",
+      "expected": "#t",
+      "note": "$lambda is a combiner"
+    },
+    {
+      "expr": "(env? (get-current-environment))",
+      "expected": "#t",
+      "note": "get-current-environment returns an environment"
+    },
+    {
+      "expr": "(env? (make-environment))",
+      "expected": "#t",
+      "note": "make-environment creates an environment"
+    },
+    {
+      "expr": "($let ((e (make-environment))) (env? e))",
+      "expected": "#t",
+      "note": "Bound environment is still an environment"
+    },
+    {
+      "expr": "(($vau (x) #ignore x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Vau operative receives unevaluated operand"
+    },
+    {
+      "expr": "(($vau (x) e (eval x e)) (+ 1 2))",
+      "expected": "3",
+      "note": "Vau operative can explicitly eval operand in dynamic env"
+    },
+    {
+      "expr": "($let ((x 5)) (($vau () e (eval (quote x) e))))",
+      "expected": "5",
+      "note": "Vau accesses dynamic environment bindings"
+    },
+    {
+      "expr": "($let ((quote-it ($vau (x) #ignore (list (quote quote) x)))) (quote-it hello))",
+      "expected": "(quote hello)",
+      "note": "Custom quoting operative"
+    },
+    {
+      "expr": "($let ((first-of ($vau (x . rest) #ignore x))) (first-of a b c))",
+      "expected": "a",
+      "note": "Vau with rest parameter gets first operand unevaluated"
+    },
+    {
+      "expr": "($let ((rest-of ($vau (x . rest) #ignore rest))) (rest-of a b c))",
+      "expected": "(b c)",
+      "note": "Vau with rest parameter gets rest operands unevaluated"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau (x) #ignore x)))",
+      "expected": "#t",
+      "note": "wrap converts operative to applicative"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau (x) #ignore x)))",
+      "expected": "#t",
+      "note": "wrap produces an applicative"
+    },
+    {
+      "expr": "((wrap ($vau (x) #ignore x)) (+ 1 2))",
+      "expected": "3",
+      "note": "Wrapped operative evaluates argument before binding"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "unwrap extracts operative from applicative"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "unwrap produces an operative"
+    },
+    {
+      "expr": "((unwrap +) 1 2)",
+      "expected": "3",
+      "note": "Unwrapped + receives operands (behaves like + but as operative)"
+    },
+    {
+      "expr": "($define! my-x 42) my-x",
+      "expected": "42",
+      "note": "Define and lookup"
+    },
+    {
+      "expr": "($define! my-fn ($lambda (a b) (+ a b))) (my-fn 3 4)",
+      "expected": "7",
+      "note": "Define a function and call it"
+    },
+    {
+      "expr": "($define! my-op ($vau (x) #ignore x)) (my-op (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Define an operative and use it"
+    },
+    {
+      "expr": "($let ((a 1)) ($let ((b 2)) ($let ((c 3)) (+ a (+ b c)))))",
+      "expected": "6",
+      "note": "Deeply nested let"
+    },
+    {
+      "expr": "($let ((apply-twice ($lambda (f x) (f (f x))))) (apply-twice ($lambda (n) (+ n 1)) 0))",
+      "expected": "2",
+      "note": "Higher-order function: apply function twice"
+    },
+    {
+      "expr": "($let ((compose ($lambda (f g) ($lambda (x) (f (g x)))))) ((compose ($lambda (n) (* n 2)) ($lambda (n) (+ n 1))) 3))",
+      "expected": "8",
+      "note": "Function composition: (3+1)*2 = 8"
+    },
+    {
+      "expr": "($let ((const ($lambda (x) ($lambda (y) x)))) ((const 5) 999))",
+      "expected": "5",
+      "note": "Constant function ignores argument"
+    },
+    {
+      "expr": "($let ((flip ($lambda (f) ($lambda (a b) (f b a))))) ((flip -) 3 10))",
+      "expected": "7",
+      "note": "Flip argument order: 10 - 3 = 7"
+    },
+    {
+      "expr": "(=? 5 5)",
+      "expected": "#t",
+      "note": "Numeric equality"
+    },
+    {
+      "expr": "(=? 5 6)",
+      "expected": "#f",
+      "note": "Numeric inequality"
+    },
+    {
+      "expr": "(equal? (list 1 2 3) (list 1 2 3))",
+      "expected": "#t",
+      "note": "Structural equality of lists"
+    },
+    {
+      "expr": "(equal? (list 1 2) (list 1 2 3))",
+      "expected": "#f",
+      "note": "Structural inequality - different lengths"
+    },
+    {
+      "expr": "(symbol? (quote foo))",
+      "expected": "#t",
+      "note": "Symbol predicate"
+    },
+    {
+      "expr": "(symbol? 5)",
+      "expected": "#f",
+      "note": "Symbol predicate on non-symbol"
+    },
+    {
+      "expr": "(number? 42)",
+      "expected": "#t",
+      "note": "Number predicate"
+    },
+    {
+      "expr": "(number? \"hello\")",
+      "expected": "#f",
+      "note": "Number predicate on string"
+    },
+    {
+      "expr": "($letrec ((sum ($lambda (n acc) ($if (=? n 0) acc (sum (- n 1) (+ acc n)))))) (sum 10 0))",
+      "expected": "55",
+      "note": "Tail-recursive sum 1..10 (per Kernel spec, recursive bindings require $letrec)"
+    },
+    {
+      "expr": "($letrec ((len ($lambda (lst) ($if (null? lst) 0 (+ 1 (len (cdr lst))))))) (len (list 1 2 3 4 5)))",
+      "expected": "5",
+      "note": "Recursive list length (per Kernel spec, recursive bindings require $letrec)"
+    },
+    {
+      "expr": "($letrec ((my-append ($lambda (a b) ($if (null? a) b (cons (car a) (my-append (cdr a) b)))))) (my-append (list 1 2) (list 3 4)))",
+      "expected": "(1 2 3 4)",
+      "note": "Recursive list append (per Kernel spec, recursive bindings require $letrec)"
+    },
+    {
+      "expr": "($let ((reverse ($lambda (lst) ($letrec ((rev-acc ($lambda (l acc) ($if (null? l) acc (rev-acc (cdr l) (cons (car l) acc)))))) (rev-acc lst ()))))) (reverse (list 1 2 3)))",
+      "expected": "(3 2 1)",
+      "note": "Tail-recursive list reverse (inner helper uses $letrec)"
+    },
+    {
+      "expr": "($letrec ((my-map ($lambda (f lst) ($if (null? lst) () (cons (f (car lst)) (my-map f (cdr lst))))))) (my-map ($lambda (x) (* x 2)) (list 1 2 3)))",
+      "expected": "(2 4 6)",
+      "note": "Recursive map function (per Kernel spec, recursive bindings require $letrec)"
+    },
+    {
+      "expr": "($letrec ((my-filter ($lambda (pred lst) ($if (null? lst) () ($if (pred (car lst)) (cons (car lst) (my-filter pred (cdr lst))) (my-filter pred (cdr lst))))))) (my-filter ($lambda (x) (>? x 2)) (list 1 2 3 4)))",
+      "expected": "(3 4)",
+      "note": "Recursive filter function (per Kernel spec, recursive bindings require $letrec)"
+    },
+    {
+      "expr": "($letrec ((foldl ($lambda (f init lst) ($if (null? lst) init (foldl f (f init (car lst)) (cdr lst)))))) (foldl + 0 (list 1 2 3 4 5)))",
+      "expected": "15",
+      "note": "Left fold / reduce (per Kernel spec, recursive bindings require $letrec)"
+    },
+    {
+      "expr": "($cond ((=? 1 2) (quote wrong)) ((=? 2 2) (quote right)) (#t (quote default)))",
+      "expected": "right",
+      "note": "Cond with computed tests"
+    },
+    {
+      "expr": "($cond ((>? 5 10) 1) ((<? 5 10) 2) (#t 3))",
+      "expected": "2",
+      "note": "Cond with comparison tests"
+    },
+    {
+      "expr": "($and? (>? 5 3) (<? 5 10))",
+      "expected": "#t",
+      "note": "And with computed boolean expressions"
+    },
+    {
+      "expr": "($or? (>? 5 10) (<? 5 10))",
+      "expected": "#t",
+      "note": "Or with computed boolean expressions"
+    }
+  ]
+}

@@ -1372,7 +1372,8 @@ mod kernel_tests {
 
         #[test]
         fn assoc_not_found() {
-            assert_eval("(assoc 5 (list (list 1 10) (list 2 20)))", "#f");
+            // Per Kernel spec §6.3.6: assoc returns nil when key not found
+            assert_eval("(assoc 5 (list (list 1 10) (list 2 20)))", "()");
         }
     }
 
@@ -1670,17 +1671,17 @@ mod kernel_tests {
 
         #[test]
         fn reduce_sum() {
-            assert_eval("(reduce + 0 (list 1 2 3 4 5))", "15");
+            assert_eval("(reduce (list 1 2 3 4 5) + 0)", "15");
         }
 
         #[test]
         fn reduce_empty_list() {
-            assert_eval("(reduce + 0 ())", "0");
+            assert_eval("(reduce () + 0)", "0");
         }
 
         #[test]
         fn reduce_product() {
-            assert_eval("(reduce * 1 (list 1 2 3 4 5))", "120");
+            assert_eval("(reduce (list 1 2 3 4 5) * 1)", "120");
         }
     }
 

@@ -1,17 +1,11 @@
-pub mod lexemes;
-pub mod tokens;
-pub mod values;
-pub mod errors;
-
-#[cfg(test)]
-mod tests;
-
 use std::env;
 use std::rc::Rc;
-use errors::RuntimeError;
 
-use crate::values::{ CallResult, Value };
-use crate::values::eval::eval;
+use orxl::errors::RuntimeError;
+use orxl::lexemes;
+use orxl::tokens;
+use orxl::values::{CallResult, Value};
+use orxl::values::eval::eval;
 
 fn rep(raw: impl Into<String>) -> CallResult {
     let raw = raw.into();

@@ -1,0 +1,1583 @@
+{
+  "description": "Tests derived from Klink project (repo.or.cz/Klink.git) and klisp test suite (github.com/dbohdan/klisp) - canonical Kernel implementations",
+  "tests": [
+    {
+      "expr": "($sequence 1 2 3)",
+      "expected": "3",
+      "note": "Klink init.krn: $sequence returns last value"
+    },
+    {
+      "expr": "($sequence)",
+      "expected": "#inert",
+      "note": "Klink init.krn: empty $sequence returns #inert"
+    },
+    {
+      "expr": "($sequence (+ 1 1) (+ 2 2) (+ 3 3))",
+      "expected": "6",
+      "note": "Klink init.krn: $sequence evaluates all forms, returns last"
+    },
+    {
+      "expr": "($define! seq-test 0) ($sequence ($define! seq-test (+ seq-test 1)) ($define! seq-test (+ seq-test 1)) seq-test)",
+      "expected": "2",
+      "note": "Klink init.krn: $sequence executes side effects in order"
+    },
+    {
+      "expr": "(caar (list (list 1 2) 3))",
+      "expected": "1",
+      "note": "Klink init.krn: caar - car of car"
+    },
+    {
+      "expr": "(cadr (list 1 2 3))",
+      "expected": "2",
+      "note": "Klink init.krn: cadr - car of cdr"
+    },
+    {
+      "expr": "(cdar (list (list 1 2 3) 4))",
+      "expected": "(2 3)",
+      "note": "Klink init.krn: cdar - cdr of car"
+    },
+    {
+      "expr": "(cddr (list 1 2 3 4))",
+      "expected": "(3 4)",
+      "note": "Klink init.krn: cddr - cdr of cdr"
+    },
+    {
+      "expr": "(caaar (list (list (list 1 2) 3) 4))",
+      "expected": "1",
+      "note": "Klink init.krn: caaar - 3-level car accessor"
+    },
+    {
+      "expr": "(caadr (list 1 (list 2 3) 4))",
+      "expected": "2",
+      "note": "Klink init.krn: caadr - car of car of cdr"
+    },
+    {
+      "expr": "(cadar (list (list 1 2 3) 4))",
+      "expected": "2",
+      "note": "Klink init.krn: cadar - car of cdr of car"
+    },
+    {
+      "expr": "(caddr (list 1 2 3 4))",
+      "expected": "3",
+      "note": "Klink init.krn: caddr - car of cdr of cdr"
+    },
+    {
+      "expr": "(cdaar (list (list (list 1 2) 3) 4))",
+      "expected": "(2)",
+      "note": "Klink init.krn: cdaar - cdr of car of car"
+    },
+    {
+      "expr": "(cdadr (list 1 (list 2 3 4) 5))",
+      "expected": "(3 4)",
+      "note": "Klink init.krn: cdadr - cdr of car of cdr"
+    },
+    {
+      "expr": "(cddar (list (list 1 2 3) 4))",
+      "expected": "(3)",
+      "note": "Klink init.krn: cddar - cdr of cdr of car"
+    },
+    {
+      "expr": "(cdddr (list 1 2 3 4 5))",
+      "expected": "(4 5)",
+      "note": "Klink init.krn: cdddr - cdr of cdr of cdr"
+    },
+    {
+      "expr": "(caaaar (list (list (list (list 1 2) 3) 4) 5))",
+      "expected": "1",
+      "note": "Klink init.krn: caaaar - 4-level accessor"
+    },
+    {
+      "expr": "(cadddr (list 1 2 3 4 5))",
+      "expected": "4",
+      "note": "Klink init.krn: cadddr - car of cdr of cdr of cdr"
+    },
+    {
+      "expr": "(cddddr (list 1 2 3 4 5 6))",
+      "expected": "(5 6)",
+      "note": "Klink init.krn: cddddr - cdr of cdr of cdr of cdr"
+    },
+    {
+      "expr": "($cond (#f 1) (#t 2))",
+      "expected": "2",
+      "note": "Klink init.krn: $cond finds first true clause"
+    },
+    {
+      "expr": "($cond (#f 1) (#f 2) (#t 3))",
+      "expected": "3",
+      "note": "Klink init.krn: $cond skips false clauses"
+    },
+    {
+      "expr": "($cond (#t 1) (#t 2))",
+      "expected": "1",
+      "note": "Klink init.krn: $cond stops at first true"
+    },
+    {
+      "expr": "($cond ((eq? 1 1) 42))",
+      "expected": "42",
+      "note": "Klink init.krn: $cond evaluates test expression"
+    },
+    {
+      "expr": "($cond ((eq? 1 2) 1) ((eq? 2 2) 2))",
+      "expected": "2",
+      "note": "Klink init.krn: $cond with multiple evaluated tests"
+    },
+    {
+      "expr": "($cond (#f 1))",
+      "expected": "#inert",
+      "note": "Klink init.krn: $cond with no matching clause returns #inert"
+    },
+    {
+      "expr": "($cond)",
+      "expected": "#inert",
+      "note": "Klink init.krn: empty $cond returns #inert"
+    },
+    {
+      "expr": "($cond (#t (+ 1 1) (+ 2 2)))",
+      "expected": "4",
+      "note": "Klink init.krn: $cond clause body is implicit $sequence"
+    },
+    {
+      "expr": "($let ((x 1)) x)",
+      "expected": "1",
+      "note": "Klink init.krn: $let binds single variable"
+    },
+    {
+      "expr": "($let ((x 1) (y 2)) (+ x y))",
+      "expected": "3",
+      "note": "Klink init.krn: $let binds multiple variables"
+    },
+    {
+      "expr": "($let ((x 10)) ($let ((y 20)) (+ x y)))",
+      "expected": "30",
+      "note": "Klink init.krn: nested $let"
+    },
+    {
+      "expr": "($let ((x 5)) ($let ((x 10)) x))",
+      "expected": "10",
+      "note": "Klink init.krn: $let shadows outer binding"
+    },
+    {
+      "expr": "($let () 42)",
+      "expected": "42",
+      "note": "Klink init.krn: $let with no bindings"
+    },
+    {
+      "expr": "($let ((a (+ 1 2))) a)",
+      "expected": "3",
+      "note": "Klink init.krn: $let evaluates init expressions"
+    },
+    {
+      "expr": "($let* ((x 1) (y (+ x 1))) y)",
+      "expected": "2",
+      "note": "Klink init.krn: $let* - sequential binding"
+    },
+    {
+      "expr": "($let* ((x 1) (y (+ x 1)) (z (+ y 1))) z)",
+      "expected": "3",
+      "note": "Klink init.krn: $let* - chain of dependencies"
+    },
+    {
+      "expr": "($let* ((x 10)) x)",
+      "expected": "10",
+      "note": "Klink init.krn: $let* with single binding"
+    },
+    {
+      "expr": "($let* () 42)",
+      "expected": "42",
+      "note": "Klink init.krn: $let* with no bindings"
+    },
+    {
+      "expr": "($letrec ((fact ($lambda (n) ($if (eq? n 0) 1 (* n (fact (- n 1))))))) (fact 5))",
+      "expected": "120",
+      "note": "Klink init.krn: $letrec allows recursive binding"
+    },
+    {
+      "expr": "($letrec ((even? ($lambda (n) ($if (eq? n 0) #t (odd? (- n 1))))) (odd? ($lambda (n) ($if (eq? n 0) #f (even? (- n 1)))))) (even? 4))",
+      "expected": "#t",
+      "note": "Klink init.krn: $letrec allows mutual recursion"
+    },
+    {
+      "expr": "($letrec ((even? ($lambda (n) ($if (eq? n 0) #t (odd? (- n 1))))) (odd? ($lambda (n) ($if (eq? n 0) #f (even? (- n 1)))))) (odd? 5))",
+      "expected": "#t",
+      "note": "Klink init.krn: $letrec mutual recursion - odd case"
+    },
+    {
+      "expr": "(apply + (list 1 2 3))",
+      "expected": "6",
+      "note": "Klink init.krn: apply with applicative and list"
+    },
+    {
+      "expr": "(apply * (list 2 3 4))",
+      "expected": "24",
+      "note": "Klink init.krn: apply multiplication"
+    },
+    {
+      "expr": "(apply list (list 1 2 3))",
+      "expected": "(1 2 3)",
+      "note": "Klink init.krn: apply list constructor"
+    },
+    {
+      "expr": "(apply cons (list 1 2))",
+      "expected": "(1 . 2)",
+      "note": "Klink init.krn: apply cons"
+    },
+    {
+      "expr": "(apply + ())",
+      "expected": "0",
+      "note": "Klink init.krn: apply with empty list uses identity"
+    },
+    {
+      "expr": "(+ 1 2 3 4 5)",
+      "expected": "15",
+      "note": "Klink init.krn: + is n-ary (defined via reduce)"
+    },
+    {
+      "expr": "(+)",
+      "expected": "0",
+      "note": "Klink init.krn: + with no args returns identity (0)"
+    },
+    {
+      "expr": "(+ 42)",
+      "expected": "42",
+      "note": "Klink init.krn: + with single arg"
+    },
+    {
+      "expr": "(* 1 2 3 4)",
+      "expected": "24",
+      "note": "Klink init.krn: * is n-ary (defined via reduce)"
+    },
+    {
+      "expr": "(*)",
+      "expected": "1",
+      "note": "Klink init.krn: * with no args returns identity (1)"
+    },
+    {
+      "expr": "(* 7)",
+      "expected": "7",
+      "note": "Klink init.krn: * with single arg"
+    },
+    {
+      "expr": "(- 10 3)",
+      "expected": "7",
+      "note": "Klink init.krn: - subtraction"
+    },
+    {
+      "expr": "(- 10 3 2)",
+      "expected": "5",
+      "note": "Klink init.krn: - with multiple subtrahends"
+    },
+    {
+      "expr": "(- 100 25 25 25 25)",
+      "expected": "0",
+      "note": "Klink init.krn: - n-ary subtraction"
+    },
+    {
+      "expr": "(/ 20 4)",
+      "expected": "5",
+      "note": "Klink init.krn: / division"
+    },
+    {
+      "expr": "(/ 100 2 5)",
+      "expected": "10",
+      "note": "Klink init.krn: / with multiple divisors"
+    },
+    {
+      "expr": "(>? 5 3)",
+      "expected": "#t",
+      "note": "Klink init.krn: >? greater-than"
+    },
+    {
+      "expr": "(>? 3 5)",
+      "expected": "#f",
+      "note": "Klink init.krn: >? false case"
+    },
+    {
+      "expr": "(>? 5 4 3 2 1)",
+      "expected": "#t",
+      "note": "Klink init.krn: >? is n-ary, all descending"
+    },
+    {
+      "expr": "(>? 5 4 3 3 1)",
+      "expected": "#f",
+      "note": "Klink init.krn: >? n-ary with equal fails strict"
+    },
+    {
+      "expr": "(<? 1 2)",
+      "expected": "#t",
+      "note": "Klink init.krn: <? less-than"
+    },
+    {
+      "expr": "(<? 2 1)",
+      "expected": "#f",
+      "note": "Klink init.krn: <? false case"
+    },
+    {
+      "expr": "(<? 1 2 3 4 5)",
+      "expected": "#t",
+      "note": "Klink init.krn: <? is n-ary, all ascending"
+    },
+    {
+      "expr": "(<? 1 2 2 3)",
+      "expected": "#f",
+      "note": "Klink init.krn: <? n-ary with equal fails strict"
+    },
+    {
+      "expr": "(<=? 3 3)",
+      "expected": "#t",
+      "note": "Klink init.krn: <=? with equal values"
+    },
+    {
+      "expr": "(<=? 3 5)",
+      "expected": "#t",
+      "note": "Klink init.krn: <=? less than"
+    },
+    {
+      "expr": "(<=? 5 3)",
+      "expected": "#f",
+      "note": "Klink init.krn: <=? false case"
+    },
+    {
+      "expr": "(<=? 1 2 2 3 3)",
+      "expected": "#t",
+      "note": "Klink init.krn: <=? n-ary with equals allowed"
+    },
+    {
+      "expr": "(>=? 3 3)",
+      "expected": "#t",
+      "note": "Klink init.krn: >=? with equal values"
+    },
+    {
+      "expr": "(>=? 5 3)",
+      "expected": "#t",
+      "note": "Klink init.krn: >=? greater than"
+    },
+    {
+      "expr": "(>=? 3 5)",
+      "expected": "#f",
+      "note": "Klink init.krn: >=? false case"
+    },
+    {
+      "expr": "(>=? 5 4 4 3 3)",
+      "expected": "#t",
+      "note": "Klink init.krn: >=? n-ary with equals allowed"
+    },
+    {
+      "expr": "(=? 5 5)",
+      "expected": "#t",
+      "note": "Klink init.krn: =? numeric equality"
+    },
+    {
+      "expr": "(=? 5 6)",
+      "expected": "#f",
+      "note": "Klink init.krn: =? numeric inequality"
+    },
+    {
+      "expr": "(map ($lambda (x) (* x 2)) (list 1 2 3))",
+      "expected": "(2 4 6)",
+      "note": "Klink init.krn: map with single list"
+    },
+    {
+      "expr": "(map ($lambda (x) (+ x 10)) (list 1 2 3 4 5))",
+      "expected": "(11 12 13 14 15)",
+      "note": "Klink init.krn: map adding constant"
+    },
+    {
+      "expr": "(map + (list 1 2 3) (list 10 20 30))",
+      "expected": "(11 22 33)",
+      "note": "Klink init.krn: map with two lists"
+    },
+    {
+      "expr": "(map * (list 1 2 3) (list 4 5 6))",
+      "expected": "(4 10 18)",
+      "note": "Klink init.krn: map multiplication"
+    },
+    {
+      "expr": "(map ($lambda (x) x) ())",
+      "expected": "()",
+      "note": "Klink init.krn: map on empty list"
+    },
+    {
+      "expr": "(every? ($lambda (x) (>? x 0)) (list 1 2 3))",
+      "expected": "#t",
+      "note": "Klink init.krn: every? all satisfy"
+    },
+    {
+      "expr": "(every? ($lambda (x) (>? x 0)) (list 1 -2 3))",
+      "expected": "#f",
+      "note": "Klink init.krn: every? one fails"
+    },
+    {
+      "expr": "(every? ($lambda (x) #t) ())",
+      "expected": "#t",
+      "note": "Klink init.krn: every? on empty is vacuously true"
+    },
+    {
+      "expr": "(some? ($lambda (x) (>? x 5)) (list 1 2 3 4 5))",
+      "expected": "#f",
+      "note": "Klink init.krn: some? none satisfy"
+    },
+    {
+      "expr": "(some? ($lambda (x) (>? x 5)) (list 1 2 3 6 5))",
+      "expected": "#t",
+      "note": "Klink init.krn: some? one satisfies"
+    },
+    {
+      "expr": "(some? ($lambda (x) #t) ())",
+      "expected": "#f",
+      "note": "Klink init.krn: some? on empty is false"
+    },
+    {
+      "expr": "(reduce (list 1 2 3 4) + 0)",
+      "expected": "10",
+      "note": "Klink init.krn: reduce with + and identity 0"
+    },
+    {
+      "expr": "(reduce (list 1 2 3 4) * 1)",
+      "expected": "24",
+      "note": "Klink init.krn: reduce with * and identity 1"
+    },
+    {
+      "expr": "(reduce () + 0)",
+      "expected": "0",
+      "note": "Klink init.krn: reduce empty list returns identity"
+    },
+    {
+      "expr": "(reduce (list 5) + 0)",
+      "expected": "5",
+      "note": "Klink init.krn: reduce single element"
+    },
+    {
+      "expr": "(reduce (list 10 5) - 0)",
+      "expected": "5",
+      "note": "Klink init.krn: reduce with subtraction"
+    },
+    {
+      "expr": "(list-tail (list 1 2 3 4 5) 0)",
+      "expected": "(1 2 3 4 5)",
+      "note": "Klink init.krn: list-tail with offset 0"
+    },
+    {
+      "expr": "(list-tail (list 1 2 3 4 5) 2)",
+      "expected": "(3 4 5)",
+      "note": "Klink init.krn: list-tail with offset 2"
+    },
+    {
+      "expr": "(list-tail (list 1 2 3 4 5) 5)",
+      "expected": "()",
+      "note": "Klink init.krn: list-tail at end"
+    },
+    {
+      "expr": "(list-tail (list 1 2 3) 1)",
+      "expected": "(2 3)",
+      "note": "Klink init.krn: list-tail standard case"
+    },
+    {
+      "expr": "(applicative? +)",
+      "expected": "#t",
+      "note": "Klink init.krn: + is applicative"
+    },
+    {
+      "expr": "(applicative? list)",
+      "expected": "#t",
+      "note": "Klink init.krn: list is applicative"
+    },
+    {
+      "expr": "(applicative? $if)",
+      "expected": "#f",
+      "note": "Klink init.krn: $if is not applicative (it's operative)"
+    },
+    {
+      "expr": "(operative? $if)",
+      "expected": "#t",
+      "note": "Klink init.krn: $if is operative"
+    },
+    {
+      "expr": "(operative? $vau)",
+      "expected": "#t",
+      "note": "Klink init.krn: $vau is operative"
+    },
+    {
+      "expr": "(operative? +)",
+      "expected": "#f",
+      "note": "Klink init.krn: + is not operative"
+    },
+    {
+      "expr": "(combiner? +)",
+      "expected": "#t",
+      "note": "Klink init.krn: + is a combiner"
+    },
+    {
+      "expr": "(combiner? $if)",
+      "expected": "#t",
+      "note": "Klink init.krn: $if is a combiner"
+    },
+    {
+      "expr": "(combiner? 42)",
+      "expected": "#f",
+      "note": "Klink init.krn: number is not a combiner"
+    },
+    {
+      "expr": "(pair? (cons 1 2))",
+      "expected": "#t",
+      "note": "Klink init.krn: pair predicate"
+    },
+    {
+      "expr": "(symbol? (quote foo))",
+      "expected": "#t",
+      "note": "Klink init.krn: symbol predicate"
+    },
+    {
+      "expr": "(null? ())",
+      "expected": "#t",
+      "note": "Klink init.krn: null predicate"
+    },
+    {
+      "expr": "(boolean? #t)",
+      "expected": "#t",
+      "note": "Klink init.krn: boolean predicate"
+    },
+    {
+      "expr": "(number? 42)",
+      "expected": "#t",
+      "note": "Klink init.krn: number predicate"
+    },
+    {
+      "expr": "(integer? 42)",
+      "expected": "#t",
+      "note": "Klink init.krn: integer predicate"
+    },
+    {
+      "expr": "(environment? (make-environment))",
+      "expected": "#t",
+      "note": "Klink init.krn: environment predicate"
+    },
+    {
+      "expr": "(inert? #inert)",
+      "expected": "#t",
+      "note": "Klink init.krn: inert predicate"
+    },
+    {
+      "expr": "(ignore? #ignore)",
+      "expected": "#t",
+      "note": "Klink init.krn: ignore predicate"
+    },
+    {
+      "expr": "(string? \"hello\")",
+      "expected": "#t",
+      "note": "Klink init.krn: string predicate"
+    },
+    {
+      "expr": "(continuation? (call/cc ($lambda (k) k)))",
+      "expected": "#t",
+      "note": "Klink init.krn: continuation predicate",
+      "skip": true
+    },
+    {
+      "expr": "($binds? (get-current-environment) $define!)",
+      "expected": "#t",
+      "note": "Klink init.krn: $binds? checks binding exists"
+    },
+    {
+      "expr": "($let ((x 42)) ($binds? (get-current-environment) x))",
+      "expected": "#t",
+      "note": "Klink init.krn: $binds? sees local binding"
+    },
+    {
+      "expr": "($binds? (make-environment) x)",
+      "expected": "#f",
+      "note": "Klink init.krn: $binds? on empty env returns false"
+    },
+    {
+      "expr": "($provide! (x y) ($define! x 10) ($define! y 20)) (+ x y)",
+      "expected": "30",
+      "note": "Klink init.krn: $provide! exports definitions"
+    },
+    {
+      "expr": "($define! test-env (make-environment)) (eval (list $define! (quote z) 100) test-env) (eval (quote z) test-env)",
+      "expected": "100",
+      "note": "Klink init.krn: eval in custom environment"
+    },
+    {
+      "expr": "(equal? (list 1 2 (list 3 4)) (list 1 2 (list 3 4)))",
+      "expected": "#t",
+      "note": "Klink init.krn: equal? on nested structures"
+    },
+    {
+      "expr": "(equal? (list 1 2 3) (list 1 2 4))",
+      "expected": "#f",
+      "note": "Klink init.krn: equal? detects difference"
+    },
+    {
+      "expr": "(equal? 1 1 1 1)",
+      "expected": "#t",
+      "note": "Klink init.krn: equal? is n-ary"
+    },
+    {
+      "expr": "(equal? 1 1 2 1)",
+      "expected": "#f",
+      "note": "Klink init.krn: equal? n-ary failure"
+    },
+    {
+      "expr": "(for-each ($lambda (x) (+ x 1)) (list 1 2 3))",
+      "expected": "#inert",
+      "note": "Klink init.krn: for-each returns #inert"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau (x) #ignore x)))",
+      "expected": "#t",
+      "note": "Klink init.krn: wrap creates applicative from operative"
+    },
+    {
+      "expr": "((wrap ($vau (a b) #ignore (+ a b))) 3 4)",
+      "expected": "7",
+      "note": "Klink init.krn: wrapped operative evaluates args"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "Klink init.krn: unwrap extracts underlying operative"
+    },
+    {
+      "expr": "(operative? (unwrap +))",
+      "expected": "#t",
+      "note": "Klink init.krn: unwrap produces operative"
+    },
+    {
+      "expr": "(applicative? (wrap ($vau () #ignore 1)))",
+      "expected": "#t",
+      "note": "Klink init.krn: wrap produces applicative"
+    },
+    {
+      "expr": "($let-redirect (make-environment) ((x 5)) x)",
+      "expected": "5",
+      "note": "Klink init.krn: $let-redirect evaluates body in specified env"
+    },
+    {
+      "expr": "($define! test-val 999) ($let ((test-val 1)) test-val)",
+      "expected": "1",
+      "note": "Klink init.krn: $let creates local scope"
+    },
+    {
+      "expr": "(apply-continuation (call/cc ($lambda (k) k)) 42)",
+      "expected": "42",
+      "note": "Klink init.krn: apply-continuation invokes continuation",
+      "skip": true
+    },
+    {
+      "expr": "(applicative? (continuation->applicative (call/cc ($lambda (k) k))))",
+      "expected": "#t",
+      "note": "Klink init.krn: continuation->applicative converts continuation",
+      "skip": true
+    },
+    {
+      "expr": "(operative? ($vau (x) e (list x e)))",
+      "expected": "#t",
+      "note": "Klink init.krn: $vau creates operative"
+    },
+    {
+      "expr": "(($vau (x) e x) (+ 1 2))",
+      "expected": "(+ 1 2)",
+      "note": "Klink init.krn: $vau receives unevaluated operand"
+    },
+    {
+      "expr": "(($vau (x) e (eval x e)) (+ 1 2))",
+      "expected": "3",
+      "note": "Klink init.krn: $vau can eval operand in dynamic env"
+    },
+    {
+      "expr": "(($vau args e args) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Klink init.krn: $vau with rest parameter"
+    },
+    {
+      "expr": "(applicative? ($lambda (x) (* x x)))",
+      "expected": "#t",
+      "note": "Klink init.krn: $lambda creates applicative"
+    },
+    {
+      "expr": "(($lambda (x) (* x x)) 5)",
+      "expected": "25",
+      "note": "Klink init.krn: $lambda application"
+    },
+    {
+      "expr": "(($lambda (x y) (+ x y)) 3 4)",
+      "expected": "7",
+      "note": "Klink init.krn: $lambda multiple params"
+    },
+    {
+      "expr": "(($lambda args (length args)) 1 2 3 4 5)",
+      "expected": "5",
+      "note": "Klink init.krn: $lambda rest parameter"
+    },
+    {
+      "expr": "(($lambda (x . rest) (cons x rest)) 1 2 3)",
+      "expected": "(1 2 3)",
+      "note": "Klink init.krn: $lambda with dotted parameter"
+    },
+    {
+      "expr": "($define! foo ($lambda () 42)) (foo)",
+      "expected": "42",
+      "note": "Klink test-m1.krn: define and call nullary function"
+    },
+    {
+      "expr": "($define! add-one ($lambda (n) (+ n 1))) (add-one 5)",
+      "expected": "6",
+      "note": "Klink: define and call function"
+    },
+    {
+      "expr": "($define! counter 0) ($define! inc! ($lambda () ($define! counter (+ counter 1)) counter)) (inc!) (inc!) (inc!)",
+      "expected": "1",
+      "note": "Klink: per Kernel spec, $define! creates local binding in lambda (use $set! for mutation)"
+    },
+    {
+      "expr": "($define! make-adder ($lambda (n) ($lambda (x) (+ x n)))) (($make-adder 10) 5)",
+      "expected": "error",
+      "note": "Klink: typo in curried function should error"
+    },
+    {
+      "expr": "($define! make-adder ($lambda (n) ($lambda (x) (+ x n)))) ((make-adder 10) 5)",
+      "expected": "15",
+      "note": "Klink: curried function (closure)"
+    },
+    {
+      "expr": "($define! compose ($lambda (f g) ($lambda (x) (f (g x))))) ((compose ($lambda (x) (* x 2)) ($lambda (x) (+ x 1))) 5)",
+      "expected": "12",
+      "note": "Klink: function composition"
+    },
+    {
+      "expr": "(not? ($binds? (make-environment) undefined-symbol))",
+      "expected": "#t",
+      "note": "Klink test-m1.krn: $binds? returns false for unbound"
+    },
+    {
+      "expr": "($define! module-params (make-environment)) (eval (list $define! (quote quux) 42) module-params) ($binds? module-params quux)",
+      "expected": "#t",
+      "note": "Klink test-m1.krn pattern: module parameters binding"
+    },
+    {
+      "expr": "(boolean? #t #t #f #f)",
+      "expected": "#t",
+      "note": "klisp booleans.k: boolean? with multiple boolean args"
+    },
+    {
+      "expr": "(eq? (not? #t) #f)",
+      "expected": "#t",
+      "note": "klisp booleans.k: not? of true is false"
+    },
+    {
+      "expr": "(eq? (not? #f) #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: not? of false is true"
+    },
+    {
+      "expr": "(and?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: and? with no args is vacuously true"
+    },
+    {
+      "expr": "(and? #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: and? with single true"
+    },
+    {
+      "expr": "(and? #t #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: and? with two trues"
+    },
+    {
+      "expr": "(and? #t #t #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: and? with three trues"
+    },
+    {
+      "expr": "(and? #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: and? with single false"
+    },
+    {
+      "expr": "(and? #t #t #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: and? with one false"
+    },
+    {
+      "expr": "(or? #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: or? with single true"
+    },
+    {
+      "expr": "(or? #f #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: or? with false then true"
+    },
+    {
+      "expr": "(or? #f #f #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: or? with two false then true"
+    },
+    {
+      "expr": "(or?)",
+      "expected": "#f",
+      "note": "klisp booleans.k: or? with no args is false"
+    },
+    {
+      "expr": "(or? #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: or? with single false"
+    },
+    {
+      "expr": "(or? #f #f #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: or? all false"
+    },
+    {
+      "expr": "($and?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $and? with no operands"
+    },
+    {
+      "expr": "($and? #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $and? with single true"
+    },
+    {
+      "expr": "($and? (eq? #t #t) #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $and? evaluates operands"
+    },
+    {
+      "expr": "($and? #t (eq? #f #f) #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $and? evaluates all"
+    },
+    {
+      "expr": "($and? #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: $and? single false"
+    },
+    {
+      "expr": "($and? #t #t #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: $and? with trailing false"
+    },
+    {
+      "expr": "($or? #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $or? single true"
+    },
+    {
+      "expr": "($or? #f (eq? #t #t) #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $or? evaluates operands"
+    },
+    {
+      "expr": "($or? #f #f #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $or? finds true"
+    },
+    {
+      "expr": "($or? #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: $or? single false"
+    },
+    {
+      "expr": "($or?)",
+      "expected": "#f",
+      "note": "klisp booleans.k: $or? no operands"
+    },
+    {
+      "expr": "(=?)",
+      "expected": "#t",
+      "note": "klisp numbers.k: =? with no args is vacuously true"
+    },
+    {
+      "expr": "(=? -1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: =? with single arg is true"
+    },
+    {
+      "expr": "(=? 0 1)",
+      "expected": "#f",
+      "note": "klisp numbers.k: =? 0 not equal 1"
+    },
+    {
+      "expr": "(<? 1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: <? single arg is true"
+    },
+    {
+      "expr": "(<? 1 3 7 15)",
+      "expected": "#t",
+      "note": "klisp numbers.k: <? strictly ascending chain"
+    },
+    {
+      "expr": "(<? 1 7 3 7 15)",
+      "expected": "#f",
+      "note": "klisp numbers.k: <? not ascending fails"
+    },
+    {
+      "expr": "(<?)",
+      "expected": "#t",
+      "note": "klisp numbers.k: <? with no args is vacuously true"
+    },
+    {
+      "expr": "(+ 1 1)",
+      "expected": "2",
+      "note": "klisp numbers.k: basic addition"
+    },
+    {
+      "expr": "(* 2 3)",
+      "expected": "6",
+      "note": "klisp numbers.k: basic multiplication"
+    },
+    {
+      "expr": "(- 5 3)",
+      "expected": "2",
+      "note": "klisp numbers.k: basic subtraction"
+    },
+    {
+      "expr": "(zero? 0)",
+      "expected": "#t",
+      "note": "klisp numbers.k: zero? on 0"
+    },
+    {
+      "expr": "(zero? 1)",
+      "expected": "#f",
+      "note": "klisp numbers.k: zero? on non-zero"
+    },
+    {
+      "expr": "(div 10 2)",
+      "expected": "5",
+      "note": "klisp numbers.k: integer division"
+    },
+    {
+      "expr": "(div -10 2)",
+      "expected": "-5",
+      "note": "klisp numbers.k: div negative dividend"
+    },
+    {
+      "expr": "(div 10 -2)",
+      "expected": "-5",
+      "note": "klisp numbers.k: div negative divisor"
+    },
+    {
+      "expr": "(div -10 -2)",
+      "expected": "5",
+      "note": "klisp numbers.k: div both negative"
+    },
+    {
+      "expr": "(div 10 7)",
+      "expected": "1",
+      "note": "klisp numbers.k: div with remainder"
+    },
+    {
+      "expr": "(div -10 7)",
+      "expected": "-2",
+      "note": "klisp numbers.k: div negative with remainder"
+    },
+    {
+      "expr": "(mod 10 7)",
+      "expected": "3",
+      "note": "klisp numbers.k: mod operation"
+    },
+    {
+      "expr": "(positive? 1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: positive? on 1"
+    },
+    {
+      "expr": "(positive? 0)",
+      "expected": "#f",
+      "note": "klisp numbers.k: positive? on 0"
+    },
+    {
+      "expr": "(negative? -1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: negative? on -1"
+    },
+    {
+      "expr": "(negative? 0)",
+      "expected": "#f",
+      "note": "klisp numbers.k: negative? on 0"
+    },
+    {
+      "expr": "(even? 0)",
+      "expected": "#t",
+      "note": "klisp numbers.k: even? on 0"
+    },
+    {
+      "expr": "(even? 2)",
+      "expected": "#t",
+      "note": "klisp numbers.k: even? on 2"
+    },
+    {
+      "expr": "(even? -2)",
+      "expected": "#t",
+      "note": "klisp numbers.k: even? on -2"
+    },
+    {
+      "expr": "(odd? 1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: odd? on 1"
+    },
+    {
+      "expr": "(odd? -1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: odd? on -1"
+    },
+    {
+      "expr": "(abs 0)",
+      "expected": "0",
+      "note": "klisp numbers.k: abs of 0"
+    },
+    {
+      "expr": "(abs 1)",
+      "expected": "1",
+      "note": "klisp numbers.k: abs of positive"
+    },
+    {
+      "expr": "(abs -1)",
+      "expected": "1",
+      "note": "klisp numbers.k: abs of negative"
+    },
+    {
+      "expr": "(max 1 2 3 4)",
+      "expected": "4",
+      "note": "klisp numbers.k: max of list"
+    },
+    {
+      "expr": "(min 1 2 3 4)",
+      "expected": "1",
+      "note": "klisp numbers.k: min of list"
+    },
+    {
+      "expr": "(floor 0)",
+      "expected": "0",
+      "note": "klisp numbers.k: floor of integer"
+    },
+    {
+      "expr": "(ceiling 0)",
+      "expected": "0",
+      "note": "klisp numbers.k: ceiling of integer"
+    },
+    {
+      "expr": "(truncate 0)",
+      "expected": "0",
+      "note": "klisp numbers.k: truncate of integer"
+    },
+    {
+      "expr": "(round 0)",
+      "expected": "0",
+      "note": "klisp numbers.k: round of integer"
+    },
+    {
+      "expr": "(inert? #inert)",
+      "expected": "#t",
+      "note": "klisp control.k: inert? on #inert"
+    },
+    {
+      "expr": "(inert? ())",
+      "expected": "#f",
+      "note": "klisp control.k: inert? on empty list"
+    },
+    {
+      "expr": "(inert? #t)",
+      "expected": "#f",
+      "note": "klisp control.k: inert? on boolean"
+    },
+    {
+      "expr": "(inert? #f)",
+      "expected": "#f",
+      "note": "klisp control.k: inert? on false"
+    },
+    {
+      "expr": "(inert? (make-environment))",
+      "expected": "#f",
+      "note": "klisp control.k: inert? on environment"
+    },
+    {
+      "expr": "(inert? 0)",
+      "expected": "#f",
+      "note": "klisp control.k: inert? on number"
+    },
+    {
+      "expr": "($if #t 1 2)",
+      "expected": "1",
+      "note": "klisp control.k: $if true branch"
+    },
+    {
+      "expr": "($if #f 1 2)",
+      "expected": "2",
+      "note": "klisp control.k: $if false branch"
+    },
+    {
+      "expr": "($if (eq? 1 1) 42 0)",
+      "expected": "42",
+      "note": "klisp control.k: $if evaluates test"
+    },
+    {
+      "expr": "($if #t (+ 1 1) (+ 2 2))",
+      "expected": "2",
+      "note": "klisp control.k: $if evaluates selected branch"
+    },
+    {
+      "expr": "($if #f (+ 1 1) (+ 2 2))",
+      "expected": "4",
+      "note": "klisp control.k: $if evaluates else branch"
+    },
+    {
+      "expr": "($when #t 1)",
+      "expected": "#inert",
+      "note": "klisp control.k: $when returns #inert"
+    },
+    {
+      "expr": "($unless #f 1)",
+      "expected": "#inert",
+      "note": "klisp control.k: $unless returns #inert"
+    },
+    {
+      "expr": "(string? \"\")",
+      "expected": "#t",
+      "note": "klisp strings.k: string? on empty string"
+    },
+    {
+      "expr": "(string? \"abcdef\")",
+      "expected": "#t",
+      "note": "klisp strings.k: string? on string"
+    },
+    {
+      "expr": "(string? 0)",
+      "expected": "#f",
+      "note": "klisp strings.k: string? on number"
+    },
+    {
+      "expr": "(string? #f)",
+      "expected": "#f",
+      "note": "klisp strings.k: string? on boolean"
+    },
+    {
+      "expr": "(string? ())",
+      "expected": "#f",
+      "note": "klisp strings.k: string? on nil"
+    },
+    {
+      "expr": "(string? #inert)",
+      "expected": "#f",
+      "note": "klisp strings.k: string? on #inert"
+    },
+    {
+      "expr": "(applicative? boolean?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: boolean? is applicative"
+    },
+    {
+      "expr": "(applicative? not?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: not? is applicative"
+    },
+    {
+      "expr": "(applicative? and?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: and? is applicative"
+    },
+    {
+      "expr": "(applicative? or?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: or? is applicative"
+    },
+    {
+      "expr": "(operative? $and?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $and? is operative"
+    },
+    {
+      "expr": "(operative? $or?)",
+      "expected": "#t",
+      "note": "klisp booleans.k: $or? is operative"
+    },
+    {
+      "expr": "(eq? #t #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: eq? on same boolean"
+    },
+    {
+      "expr": "(eq? #f #f)",
+      "expected": "#t",
+      "note": "klisp booleans.k: eq? on same false"
+    },
+    {
+      "expr": "(eq? #t #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: eq? true vs false"
+    },
+    {
+      "expr": "(eq? #f #t)",
+      "expected": "#f",
+      "note": "klisp booleans.k: eq? false vs true"
+    },
+    {
+      "expr": "(equal? #t #t)",
+      "expected": "#t",
+      "note": "klisp booleans.k: equal? on same boolean"
+    },
+    {
+      "expr": "(equal? #f #f)",
+      "expected": "#t",
+      "note": "klisp booleans.k: equal? on same false"
+    },
+    {
+      "expr": "(equal? #t #f)",
+      "expected": "#f",
+      "note": "klisp booleans.k: equal? true vs false"
+    },
+    {
+      "expr": "(length ())",
+      "expected": "0",
+      "note": "klisp pairs.k: length of empty list"
+    },
+    {
+      "expr": "(length (list 1))",
+      "expected": "1",
+      "note": "klisp pairs.k: length of singleton"
+    },
+    {
+      "expr": "(length (list 1 2 3 4 5))",
+      "expected": "5",
+      "note": "klisp pairs.k: length of list"
+    },
+    {
+      "expr": "(append)",
+      "expected": "()",
+      "note": "klisp pairs.k: append with no args"
+    },
+    {
+      "expr": "(append ())",
+      "expected": "()",
+      "note": "klisp pairs.k: append single empty list"
+    },
+    {
+      "expr": "(append (list 1 2) (list 3 4))",
+      "expected": "(1 2 3 4)",
+      "note": "klisp pairs.k: append two lists"
+    },
+    {
+      "expr": "(append (list 1) (list 2) (list 3))",
+      "expected": "(1 2 3)",
+      "note": "klisp pairs.k: append three lists"
+    },
+    {
+      "expr": "(reverse ())",
+      "expected": "()",
+      "note": "klisp pairs.k: reverse empty list"
+    },
+    {
+      "expr": "(reverse (list 1))",
+      "expected": "(1)",
+      "note": "klisp pairs.k: reverse singleton"
+    },
+    {
+      "expr": "(reverse (list 1 2 3))",
+      "expected": "(3 2 1)",
+      "note": "klisp pairs.k: reverse list"
+    },
+    {
+      "expr": "(list-ref (list 1 2 3 4 5) 0)",
+      "expected": "1",
+      "note": "klisp pairs.k: list-ref first"
+    },
+    {
+      "expr": "(list-ref (list 1 2 3 4 5) 2)",
+      "expected": "3",
+      "note": "klisp pairs.k: list-ref middle"
+    },
+    {
+      "expr": "(list-ref (list 1 2 3 4 5) 4)",
+      "expected": "5",
+      "note": "klisp pairs.k: list-ref last"
+    },
+    {
+      "expr": "(filter ($lambda (x) (>? x 2)) (list 1 2 3 4 5))",
+      "expected": "(3 4 5)",
+      "note": "klisp pairs.k: filter greater than 2"
+    },
+    {
+      "expr": "(filter ($lambda (x) (<? x 0)) (list 1 2 3))",
+      "expected": "()",
+      "note": "klisp pairs.k: filter none match"
+    },
+    {
+      "expr": "(filter ($lambda (x) #t) (list 1 2 3))",
+      "expected": "(1 2 3)",
+      "note": "klisp pairs.k: filter all match"
+    },
+    {
+      "expr": "(list* 1)",
+      "expected": "1",
+      "note": "klisp pairs.k: list* single arg"
+    },
+    {
+      "expr": "(list* 1 2)",
+      "expected": "(1 . 2)",
+      "note": "klisp pairs.k: list* two args makes pair"
+    },
+    {
+      "expr": "(list* 1 2 3)",
+      "expected": "(1 2 . 3)",
+      "note": "klisp pairs.k: list* three args"
+    },
+    {
+      "expr": "(list* 1 (list 2 3))",
+      "expected": "(1 2 3)",
+      "note": "klisp pairs.k: list* with list at end"
+    },
+    {
+      "expr": "(assoc 2 (list (list 1 10) (list 2 20) (list 3 30)))",
+      "expected": "(2 20)",
+      "note": "klisp pairs.k: assoc finds key"
+    },
+    {
+      "expr": "(assoc 5 (list (list 1 10) (list 2 20)))",
+      "expected": "()",
+      "note": "klisp pairs.k: assoc key not found"
+    },
+    {
+      "expr": "(member? 2 (list 1 2 3))",
+      "expected": "#t",
+      "note": "klisp pairs.k: member? found"
+    },
+    {
+      "expr": "(member? 5 (list 1 2 3))",
+      "expected": "#f",
+      "note": "klisp pairs.k: member? not found"
+    },
+    {
+      "expr": "(member? 1 ())",
+      "expected": "#f",
+      "note": "klisp pairs.k: member? empty list"
+    },
+    {
+      "expr": "(finite-list? ())",
+      "expected": "#t",
+      "note": "klisp pairs.k: finite-list? empty list"
+    },
+    {
+      "expr": "(finite-list? (list 1 2 3))",
+      "expected": "#t",
+      "note": "klisp pairs.k: finite-list? normal list"
+    },
+    {
+      "expr": "(finite-list? (cons 1 2))",
+      "expected": "#f",
+      "note": "klisp pairs.k: finite-list? improper pair"
+    },
+    {
+      "expr": "(eq?)",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: eq? no args"
+    },
+    {
+      "expr": "(eq? 1)",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: eq? single arg"
+    },
+    {
+      "expr": "(eq? 1 1)",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: eq? same number"
+    },
+    {
+      "expr": "(eq? 1 2)",
+      "expected": "#f",
+      "note": "klisp eq-equal.k: eq? different numbers"
+    },
+    {
+      "expr": "(eq? () ())",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: eq? empty lists"
+    },
+    {
+      "expr": "(equal?)",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: equal? no args"
+    },
+    {
+      "expr": "(equal? 1)",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: equal? single arg"
+    },
+    {
+      "expr": "(equal? (list 1 2) (list 1 2))",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: equal? identical lists"
+    },
+    {
+      "expr": "(equal? (list 1 2) (list 1 3))",
+      "expected": "#f",
+      "note": "klisp eq-equal.k: equal? different lists"
+    },
+    {
+      "expr": "(equal? \"abc\" \"abc\")",
+      "expected": "#t",
+      "note": "klisp eq-equal.k: equal? identical strings"
+    },
+    {
+      "expr": "(equal? \"abc\" \"def\")",
+      "expected": "#f",
+      "note": "klisp eq-equal.k: equal? different strings"
+    },
+    {
+      "expr": "(eval 42 (make-environment))",
+      "expected": "42",
+      "note": "klisp environments.k: eval self-evaluating"
+    },
+    {
+      "expr": "(eval (list + 1 2) (make-environment))",
+      "expected": "3",
+      "note": "klisp environments.k: eval expression"
+    },
+    {
+      "expr": "($define! test-x 100) ($let ((test-x 200)) (eval (quote test-x) (get-current-environment)))",
+      "expected": "200",
+      "note": "klisp environments.k: eval in current environment sees local"
+    },
+    {
+      "expr": "(environment? (make-environment))",
+      "expected": "#t",
+      "note": "klisp environments.k: make-environment creates environment"
+    },
+    {
+      "expr": "(environment? (make-environment))",
+      "expected": "#t",
+      "note": "klisp environments.k: make-environment produces environment"
+    },
+    {
+      "expr": "(environment?)",
+      "expected": "#t",
+      "note": "klisp environments.k: environment? no args is vacuously true"
+    },
+    {
+      "expr": "(environment? 1)",
+      "expected": "#f",
+      "note": "klisp environments.k: environment? on number"
+    },
+    {
+      "expr": "(environment? ())",
+      "expected": "#f",
+      "note": "klisp environments.k: environment? on nil"
+    },
+    {
+      "expr": "(number?)",
+      "expected": "#t",
+      "note": "klisp numbers.k: number? no args is vacuously true"
+    },
+    {
+      "expr": "(number? 0 1 -1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: number? multiple numbers"
+    },
+    {
+      "expr": "(number? \"0\")",
+      "expected": "#f",
+      "note": "klisp numbers.k: number? on string"
+    },
+    {
+      "expr": "(integer?)",
+      "expected": "#t",
+      "note": "klisp numbers.k: integer? no args is vacuously true"
+    },
+    {
+      "expr": "(integer? 0 1 -1)",
+      "expected": "#t",
+      "note": "klisp numbers.k: integer? multiple integers"
+    },
+    {
+      "expr": "(integer? \"0\")",
+      "expected": "#f",
+      "note": "klisp numbers.k: integer? on string"
+    },
+    {
+      "expr": "(pair?)",
+      "expected": "#t",
+      "note": "klisp pairs.k: pair? no args is vacuously true"
+    },
+    {
+      "expr": "(pair? (cons 1 2))",
+      "expected": "#t",
+      "note": "klisp pairs.k: pair? on cons"
+    },
+    {
+      "expr": "(pair? (list 1 2))",
+      "expected": "#t",
+      "note": "klisp pairs.k: pair? on non-empty list"
+    },
+    {
+      "expr": "(pair? ())",
+      "expected": "#f",
+      "note": "klisp pairs.k: pair? on empty list"
+    },
+    {
+      "expr": "(pair? 1)",
+      "expected": "#f",
+      "note": "klisp pairs.k: pair? on number"
+    },
+    {
+      "expr": "(null?)",
+      "expected": "#t",
+      "note": "klisp pairs.k: null? no args is vacuously true"
+    },
+    {
+      "expr": "(null? ())",
+      "expected": "#t",
+      "note": "klisp pairs.k: null? on empty list"
+    },
+    {
+      "expr": "(null? (list 1))",
+      "expected": "#f",
+      "note": "klisp pairs.k: null? on non-empty list"
+    },
+    {
+      "expr": "(null? (cons 1 2))",
+      "expected": "#f",
+      "note": "klisp pairs.k: null? on pair"
+    },
+    {
+      "expr": "(combiner?)",
+      "expected": "#t",
+      "note": "klisp combiners.k: combiner? no args"
+    },
+    {
+      "expr": "(combiner? +)",
+      "expected": "#t",
+      "note": "klisp combiners.k: combiner? on applicative"
+    },
+    {
+      "expr": "(combiner? $if)",
+      "expected": "#t",
+      "note": "klisp combiners.k: combiner? on operative"
+    },
+    {
+      "expr": "(combiner? 1)",
+      "expected": "#f",
+      "note": "klisp combiners.k: combiner? on number"
+    },
+    {
+      "expr": "(symbol?)",
+      "expected": "#t",
+      "note": "klisp symbols.k: symbol? no args"
+    },
+    {
+      "expr": "(symbol? (quote foo))",
+      "expected": "#t",
+      "note": "klisp symbols.k: symbol? on symbol"
+    },
+    {
+      "expr": "(symbol? \"foo\")",
+      "expected": "#f",
+      "note": "klisp symbols.k: symbol? on string"
+    },
+    {
+      "expr": "(symbol? 1)",
+      "expected": "#f",
+      "note": "klisp symbols.k: symbol? on number"
+    }
+  ]
+}
