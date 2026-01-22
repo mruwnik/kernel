@@ -25,10 +25,15 @@ fn rep(raw: impl Into<String>) -> CallResult {
 }
 
 fn main() {
-    env::args()
-        .skip(1)
-        .for_each(|s| match rep(s) {
-            Ok(_) => (),
-            Err(e) => println!("{e}"),
-        });
+    let args: Vec<String> = env::args().skip(1).collect();
+
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("orxl/kernel {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
+    args.iter().for_each(|s| match rep(s) {
+        Ok(_) => (),
+        Err(e) => println!("{e}"),
+    });
 }
